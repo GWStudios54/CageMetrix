@@ -42,7 +42,32 @@ function fightDurationSeconds(row) {
 }
 
 function parseWeightClass(boutType) {
-  return String(boutType || '')
+  const label = String(boutType || '')
+    .replace(/[’]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const canonical = [
+    ["Women's Strawweight", /women'?s\s+strawweight/i],
+    ["Women's Flyweight", /women'?s\s+flyweight/i],
+    ["Women's Bantamweight", /women'?s\s+bantamweight/i],
+    ["Women's Featherweight", /women'?s\s+featherweight/i],
+    ['Light Heavyweight', /light\s+heavyweight/i],
+    ['Heavyweight', /(?:^|\s)heavyweight(?:\s|$)/i],
+    ['Middleweight', /(?:^|\s)middleweight(?:\s|$)/i],
+    ['Welterweight', /(?:^|\s)welterweight(?:\s|$)/i],
+    ['Lightweight', /(?:^|\s)lightweight(?:\s|$)/i],
+    ['Featherweight', /(?:^|\s)featherweight(?:\s|$)/i],
+    ['Bantamweight', /(?:^|\s)bantamweight(?:\s|$)/i],
+    ['Flyweight', /(?:^|\s)flyweight(?:\s|$)/i],
+    ['Catch Weight', /catch\s*weight/i]
+  ];
+
+  for (const [name, pattern] of canonical) {
+    if (pattern.test(label)) return name;
+  }
+
+  return label
     .replace(/Interim\s+/i, '')
     .replace(/Title\s+Bout/i, 'Bout')
     .replace(/\s+Bout$/i, '')
