@@ -20,7 +20,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/fighters/*"]
   },
   "vars": {
     "MODEL_VERSION": "0.1.0"
