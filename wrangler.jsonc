@@ -16,7 +16,7 @@
     {
       "binding": "DB",
       "database_name": "cagemetrix",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "d36f1b7e-a114-43a7-bbce-24053ed3e392",
       "migrations_dir": "migrations"
     }
   ],
