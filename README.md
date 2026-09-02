@@ -54,6 +54,8 @@ npm run deploy
 
 After the Worker is live, attach `cagemetrix.com` as the custom domain in Cloudflare.
 
+Production builds are connected to the `main` branch; pushes to `main` should trigger a Cloudflare Workers build automatically.
+
 ## Data model
 
 The first migration contains the durable core schema:
