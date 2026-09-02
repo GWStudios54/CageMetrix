@@ -3,14 +3,15 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseDelimited, parseDate, parseHeightCm, parseReachCm, parsePair, slugify } from './lib/csv.mjs';
-import { buildObservations, careerAggregates, buildRatings } from './lib/model.mjs';
+import { buildObservations, careerAggregates, buildRatings } from './lib/model_v02.mjs';
+import { resolveRosterStatus } from './lib/roster.mjs';
 
 const DB = 'cagemetrix';
-const DATASET_KEY = 'ufc-datalab-2026-06-27-v2';
+const DATASET_KEY = 'ufc-datalab-2026-06-27-v3-model-0.2.0';
 const STATS_URL = 'https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/stats/stats_raw.csv';
 const DETAILS_URL = 'https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/external_data/raw_fighter_details.csv';
-const MODEL_NAME = 'CageMetrix Descriptive OAR';
-const MODEL_VERSION = '0.1.0';
+const MODEL_NAME = 'CageMetrix Opponent-Adjusted Rating';
+const MODEL_VERSION = '0.2.0';
 const SOURCE_NAME = 'UFC DataLab';
 const SOURCE_URL = STATS_URL;
 
@@ -66,11 +67,10 @@ async function main() {
   const fightPairs = buildObservations(rawFights);
   const aggregates = careerAggregates(fightPairs);
   const { ratings, sourceMaxDate } = buildRatings(fightPairs, aggregates);
-  const newest = new Date(`${sourceMaxDate}T00:00:00Z`);
-  const activeCutoff = new Date(newest.valueOf() - 730 * 86400000).toISOString().slice(0, 10);
 
   const fighters = [...aggregates.values()].sort((a, b) => a.name.localeCompare(b.name)).map((a, index) => {
     const d = detailMap.get(a.name.toLowerCase()) || {};
+    const roster = resolveRosterStatus(a.name, a.lastFight, sourceMaxDate);
     return {
       id: index + 1,
       name: a.name,
@@ -78,7 +78,9 @@ async function main() {
       weightClass: a.weightClass,
       lastFight: a.lastFight,
       bouts: a.bouts,
-      active: a.lastFight && a.lastFight >= activeCutoff ? 1 : 0,
+      active: roster.active,
+      rosterStatus: roster.status,
+      statusSource: roster.source,
       dob: parseDate(d.DOB),
       heightCm: parseHeightCm(d.Height),
       reachCm: parseReachCm(d.Reach),
@@ -115,8 +117,18 @@ async function main() {
     });
   }
 
-  const model = `INSERT OR IGNORE INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(MODEL_NAME)},${q(MODEL_VERSION)},'rating','development','Opponent-adjusted descriptive bootstrap model built from fight-level UFC statistics.',${q(JSON.stringify({prior_minutes:45,recency_decay_years:3.5,normalization:'within-division'}))},${q(sourceMaxDate)});`;
-  const fighterSql = insertStatements('fighters', ['id','slug','name','dob','height_cm','reach_cm','stance','current_weight_class','active','last_fight_date','ufc_bouts'], fighters, f => `(${f.id},${q(f.slug)},${q(f.name)},${q(f.dob)},${n(f.heightCm)},${n(f.reachCm)},${q(f.stance)},${q(f.weightClass)},${f.active},${q(f.lastFight)},${f.bouts})`, 120);
+  const modelParameters = {
+    prior_minutes: 45,
+    recency_decay_years: 3.5,
+    normalization: 'within-current-division',
+    component_shrinkage: true,
+    provisional_bouts: 5,
+    provisional_minutes: 45,
+    ranking_uncertainty_penalty: true,
+    cmr_scale: '50 + 1.45 * (base - 50)'
+  };
+  const model = `INSERT OR IGNORE INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(MODEL_NAME)},${q(MODEL_VERSION)},'rating','development','Opponent-adjusted v0.2 model with current-division baselines, Bayesian-style sample shrinkage, provisional ratings and uncertainty-aware ranking.',${q(JSON.stringify(modelParameters))},${q(sourceMaxDate)});`;
+  const fighterSql = insertStatements('fighters', ['id','slug','name','dob','height_cm','reach_cm','stance','current_weight_class','active','roster_status','status_source','last_fight_date','ufc_bouts'], fighters, f => `(${f.id},${q(f.slug)},${q(f.name)},${q(f.dob)},${n(f.heightCm)},${n(f.reachCm)},${q(f.stance)},${q(f.weightClass)},${f.active},${q(f.rosterStatus)},${q(f.statusSource)},${q(f.lastFight)},${f.bouts})`, 120);
   const ratingRows = ratings.filter(r => ids.has(r.name));
   const ratingSql = insertStatements('ratings_history', ['fighter_id','model_version_id','as_of_date','weight_class','cmr','striking_offense','striking_defense','wrestling_offense','wrestling_defense','grappling','durability','pace','finishing','strength_of_schedule','recent_form','competitive_rating','technical_rating','resume_rating','confidence','sample_bouts','sample_minutes','components_json'], ratingRows, r => `(${ids.get(r.name)},(SELECT id FROM model_versions WHERE name=${q(MODEL_NAME)} AND version=${q(MODEL_VERSION)}),${q(sourceMaxDate)},${q(r.weightClass)},${r.cmr.toFixed(3)},${r.strikingOffense.toFixed(3)},${r.strikingDefense.toFixed(3)},${r.wrestlingOffense.toFixed(3)},${r.wrestlingDefense.toFixed(3)},${r.grappling.toFixed(3)},NULL,${r.pace.toFixed(3)},${r.finishing.toFixed(3)},${r.strengthOfSchedule.toFixed(3)},${r.recentForm.toFixed(3)},${r.eloRaw.toFixed(3)},${r.technical.toFixed(3)},${r.resume.toFixed(3)},${r.confidence.toFixed(3)},${r.bouts},${r.minutes.toFixed(3)},${q(JSON.stringify(r.components))})`, 80);
   const boutSql = insertStatements('bout_totals', ['fighter_id','opponent_id','source_key','event_date','weight_class','duration_seconds','won','knockdowns','sig_strikes_landed','sig_strikes_attempted','sig_strikes_absorbed','sig_strikes_faced','total_strikes_landed','total_strikes_attempted','takedowns_landed','takedowns_attempted','takedowns_allowed','takedowns_faced','submission_attempts','control_seconds','opponent_control_seconds','finish','source_name','source_url'], boutTotals, b => `(${b.fighterId},${b.opponentId},${q(b.sourceKey)},${q(b.eventDate)},${q(b.weightClass)},${b.durationSeconds},${b.won},${b.kd},${b.sigL},${b.sigA},${b.sigAbs},${b.sigFaced},${b.totalL},${b.totalA},${b.tdL},${b.tdA},${b.tdAllowed},${b.tdFaced},${b.sub},${b.ctrl},${b.oppCtrl},${b.finish},${q(SOURCE_NAME)},${q(SOURCE_URL)})`, 80);
@@ -133,7 +145,9 @@ async function main() {
     rmSync(dir, { recursive: true, force: true });
   }
 
-  console.log(`CageMetrix seed complete: ${fighters.length} fighters, ${ratingRows.length} ratings, ${boutTotals.length} fighter-bout rows, data through ${sourceMaxDate}.`);
+  const active = fighters.filter(f => f.rosterStatus === 'active').length;
+  const retired = fighters.filter(f => f.rosterStatus === 'retired').length;
+  console.log(`CageMetrix v0.2 seed complete: ${fighters.length} fighters (${active} active, ${retired} explicitly retired), ${ratingRows.length} ratings, ${boutTotals.length} fighter-bout rows, data through ${sourceMaxDate}.`);
 }
 
 main().catch(error => {
