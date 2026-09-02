@@ -1,0 +1,19 @@
+{
+  "name": "cagemetrix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Opponent-adjusted MMA analytics",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "typecheck": "wrangler types && tsc --noEmit",
+    "db:create": "wrangler d1 create cagemetrix",
+    "db:migrate:local": "wrangler d1 migrations apply cagemetrix --local",
+    "db:migrate:remote": "wrangler d1 migrations apply cagemetrix --remote"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "wrangler": "^4.102.0"
+  }
+}
