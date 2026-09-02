@@ -5,7 +5,7 @@
   "compatibility_date": "2026-09-02",
   "workers_dev": true,
   "build": {
-    "command": "node scripts/bootstrap.mjs"
+    "command": "node scripts/build.mjs"
   },
   "routes": [
     {
