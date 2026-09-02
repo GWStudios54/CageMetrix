@@ -10,3 +10,6 @@ execFileSync(command, ['wrangler', 'd1', 'migrations', 'apply', 'cagemetrix', '-
 
 console.log('Bootstrapping CageMetrix data…');
 await import('./bootstrap.mjs');
+
+console.log('Applying CageMetrix v0.2.1 rating calibration…');
+await import('./recalibrate_v021.mjs');
