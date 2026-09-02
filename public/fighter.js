@@ -7,7 +7,7 @@ const recentSection = document.querySelector('#recent-section');
 const modelSection = document.querySelector('#model-section');
 
 const metricConfig = [
-  ['cmr', 'Overall CMR'],
+  ['cmr', 'Ranked CMR'],
   ['technical_rating', 'Technical'],
   ['resume_rating', 'Résumé'],
   ['striking_offense', 'Striking offense'],
@@ -72,7 +72,7 @@ function renderMetricCards(rating, ranks) {
     return `<article class="fighter-metric-card">
       <span>${esc(label)}</span>
       <strong>${number(value)}</strong>
-      <small>${rankText} in division</small>
+      <small>${rankText} in active division</small>
     </article>`;
   }).join('');
 }
@@ -141,13 +141,21 @@ async function load() {
   document.querySelector('#fighter-name').textContent = fighter.name;
   document.querySelector('#fighter-division').textContent = fighter.current_weight_class || 'CAGEMETRIX FIGHTER PROFILE';
   document.querySelector('#fighter-cmr').textContent = number(rating.cmr);
-  document.querySelector('#fighter-rank').textContent = ranks?.cmr ? `#${ranks.cmr} of ${ranks.field_size} active ${fighter.current_weight_class || ''}` : 'Divisional rank pending';
+
+  const status = String(fighter.roster_status || (Number(fighter.active) === 1 ? 'active' : 'inactive')).toUpperCase();
+  if (Number(fighter.active) === 1 && ranks?.cmr) {
+    document.querySelector('#fighter-rank').textContent = `#${ranks.cmr} of ${ranks.field_size} active ${fighter.current_weight_class || ''}${rating.provisional ? ' · provisional' : ''}`;
+  } else {
+    document.querySelector('#fighter-rank').textContent = `${status} · not included in active rankings`;
+  }
 
   const meta = [];
+  meta.push(status);
   if (fighter.stance) meta.push(fighter.stance);
   if (fighter.height_cm) meta.push(`${number(Number(fighter.height_cm) / 2.54, 0)} in height`);
   if (fighter.reach_cm) meta.push(`${number(Number(fighter.reach_cm) / 2.54, 0)} in reach`);
   if (fighter.last_fight_date) meta.push(`last UFC bout ${fighter.last_fight_date}`);
+  if (rating.provisional && Number.isFinite(Number(rating.performance_cmr))) meta.push(`performance CMR ${number(rating.performance_cmr)}`);
   document.querySelector('#fighter-meta').textContent = meta.join(' · ');
 
   renderMetricCards(rating, ranks);
@@ -156,12 +164,16 @@ async function load() {
   renderRecent(recentBouts || []);
 
   const sample = document.querySelector('#sample-card');
+  const provisionalCopy = rating.provisional
+    ? `<p><strong>PROVISIONAL.</strong> Performance CMR ${number(rating.performance_cmr)} is shown separately; ranked CMR ${number(rating.cmr)} includes uncertainty shrinkage.</p>`
+    : '<p>Established sample. Ranked CMR and underlying performance are no longer materially separated by uncertainty.</p>';
   sample.innerHTML = `<div class="confidence-number">${Math.round(Number(rating.confidence || 0))}%</div>
     <strong>Model confidence</strong>
-    <p>${Number(rating.sample_bouts || 0)} UFC bouts · ${number(rating.sample_minutes, 1)} minutes in the rated sample.</p>
+    <p>${Number(rating.sample_bouts || 0)} current-division UFC bouts · ${number(rating.sample_minutes, 1)} minutes in the rated sample.</p>
+    ${provisionalCopy}
     <div class="confidence-track"><span style="width:${Math.max(0, Math.min(100, Number(rating.confidence || 0)))}%"></span></div>`;
 
-  document.querySelector('#model-label').textContent = `${rating.model_name || 'CageMetrix'} · v${rating.model_version || '0.1.0'}`;
+  document.querySelector('#model-label').textContent = `${rating.model_name || 'CageMetrix'} · v${rating.model_version || '0.2.0'}`;
 
   loading.hidden = true;
   [content, adjustedSection, whySection, rawSection, recentSection, modelSection].forEach(el => { el.hidden = false; });
