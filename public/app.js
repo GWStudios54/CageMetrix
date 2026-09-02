@@ -29,7 +29,9 @@ async function checkHealth() {
     const data = await getJson('/api/health');
     label.textContent = data.ok ? `CageMetrix API online · model v${data.model_version || '?'}` : 'API reachable · database not ready';
     dot.classList.add(data.ok ? 'ok' : 'bad');
-    if (data.counts) dbLabel.textContent = `${Number(data.counts.active_fighters || 0).toLocaleString()} active · ${Number(data.counts.fighters || 0).toLocaleString()} fighters · ${Number(data.counts.ratings || 0).toLocaleString()} rating snapshots`;
+    dbLabel.textContent = data.ok
+      ? 'Opponent-adjusted UFC ratings database'
+      : 'CageMetrix model foundation';
   } catch {
     label.textContent = 'API setup pending';
     dot.classList.add('bad');
