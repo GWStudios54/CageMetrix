@@ -7,6 +7,16 @@
   "build": {
     "command": "node scripts/bootstrap.mjs"
   },
+  "routes": [
+    {
+      "pattern": "cagemetrix.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.cagemetrix.com",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
