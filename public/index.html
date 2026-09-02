@@ -89,18 +89,85 @@
     </section>
 
     <section class="method" id="method">
-      <div>
-        <div class="eyebrow">THE QUESTION</div>
-        <h2>Did the fighter outperform expectation?</h2>
+      <div class="method-intro">
+        <div class="eyebrow">HOW THE MODEL THINKS</div>
+        <h2>Performance is only meaningful in context.</h2>
+        <p>CageMetrix starts with familiar fight statistics, but it does not reward the same number equally against every opponent. The model asks what each opponent normally produces and allows, then measures how far the fighter moved them away from that expectation.</p>
       </div>
-      <div class="comparison">
-        <div class="comparison-row">
-          <span>Raw takedown defense</span><strong>69%</strong>
+
+      <div class="method-steps">
+        <article class="method-step">
+          <span class="step-number">01</span>
+          <div>
+            <h3>Build the expectation</h3>
+            <p>For each bout, CageMetrix estimates the opponent's normal striking and wrestling production and what that opponent typically allows to others in the same division.</p>
+          </div>
+        </article>
+        <article class="method-step">
+          <span class="step-number">02</span>
+          <div>
+            <h3>Measure overperformance</h3>
+            <p>Landing five significant strikes per minute means more against a fighter who normally allows three than against one who normally allows six. Defense works the same way: suppression of a dangerous opponent is rewarded.</p>
+          </div>
+        </article>
+        <article class="method-step">
+          <span class="step-number">03</span>
+          <div>
+            <h3>Weight the evidence</h3>
+            <p>Recent bouts matter more than old ones, stronger opponents carry more weight, and current-division performances are compared against current-division baselines. Competitive results and schedule strength are tracked separately from technical output.</p>
+          </div>
+        </article>
+        <article class="method-step">
+          <span class="step-number">04</span>
+          <div>
+            <h3>Account for uncertainty</h3>
+            <p>A four-fight prospect can post elite underlying numbers without instantly outranking established contenders. Small samples are shrunk toward the middle and labeled provisional until the model has enough evidence.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="method-example">
+        <div class="example-copy">
+          <div class="eyebrow">ILLUSTRATIVE EXAMPLE</div>
+          <h2>Two fighters can post the same raw stat and earn very different credit.</h2>
+          <p>Imagine Fighter A and Fighter B each allow <strong>1.0 takedown per 15 minutes</strong>. Raw takedown defense makes them look similar. Their opposition tells a different story.</p>
+          <p class="example-note">This is a simplified example for explaining the adjustment, not a live fighter calculation.</p>
         </div>
-        <div class="comparison-row hot">
-          <span>Opponent-adjusted wrestling defense</span><strong>94</strong>
+        <div class="example-board">
+          <div class="example-fighter">
+            <div class="example-title"><strong>Fighter A</strong><span>vs. strong wrestlers</span></div>
+            <div class="example-stat"><span>Opponent normal TD production</span><strong>3.0 / 15</strong></div>
+            <div class="example-stat"><span>Actually allowed</span><strong>1.0 / 15</strong></div>
+            <div class="example-result positive"><span>Suppression vs expectation</span><strong>−67%</strong></div>
+          </div>
+          <div class="example-fighter">
+            <div class="example-title"><strong>Fighter B</strong><span>vs. low-output wrestlers</span></div>
+            <div class="example-stat"><span>Opponent normal TD production</span><strong>1.2 / 15</strong></div>
+            <div class="example-stat"><span>Actually allowed</span><strong>1.0 / 15</strong></div>
+            <div class="example-result"><span>Suppression vs expectation</span><strong>−17%</strong></div>
+          </div>
         </div>
-        <p>If a fighter faces elite wrestlers and holds them far below their normal takedown production, CageMetrix should recognize it even when the raw percentage looks ordinary.</p>
+      </div>
+
+      <div class="cmr-breakdown">
+        <div>
+          <div class="eyebrow">FROM COMPONENTS TO CMR</div>
+          <h2>One score, with the parts left visible.</h2>
+        </div>
+        <div class="breakdown-grid">
+          <article><strong>Technical</strong><p>Opponent-adjusted striking, wrestling, grappling, pace and finishing.</p></article>
+          <article><strong>Résumé</strong><p>Competitive results and the quality of the fighters those results came against.</p></article>
+          <article><strong>Recent form</strong><p>More recent performances receive more influence than distant ones.</p></article>
+          <article><strong>Confidence</strong><p>Bout count and cage-time exposure determine how aggressively the model trusts the sample.</p></article>
+        </div>
+      </div>
+
+      <div class="performance-vs-ranked">
+        <div>
+          <span class="metric-kicker">WHY TWO CMR NUMBERS CAN APPEAR</span>
+          <h3>Performance CMR vs. Ranked CMR</h3>
+        </div>
+        <p><strong>Performance CMR</strong> shows what the underlying output looks like before uncertainty is fully applied. <strong>Ranked CMR</strong> is the conservative leaderboard score after sample confidence and uncertainty are accounted for. Established fighters usually see the two converge; prospects can have a much larger gap.</p>
       </div>
     </section>
 
