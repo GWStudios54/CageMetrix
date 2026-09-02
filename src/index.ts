@@ -38,6 +38,15 @@ function intParam(value: string | null, fallback: number, min: number, max: numb
   return Math.max(min, Math.min(max, parsed));
 }
 
+function parseJson(value: unknown): unknown {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 async function listFighters(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const limit = intParam(url.searchParams.get("limit"), 50, 1, 200);
@@ -70,13 +79,14 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
 
   if (!fighter) return json({ error: "fighter_not_found" }, { status: 404 });
 
+  const fighterId = Number(fighter.id);
   const rating = await env.DB.prepare(`
     SELECT lr.*, mv.name AS model_name, mv.version AS model_version
     FROM latest_ratings lr
     JOIN model_versions mv ON mv.id = lr.model_version_id
     WHERE lr.fighter_id = ?1
     LIMIT 1
-  `).bind(fighter.id).first();
+  `).bind(fighterId).first();
 
   const history = await env.DB.prepare(`
     SELECT rh.as_of_date, rh.weight_class, rh.cmr, rh.technical_rating, rh.resume_rating,
@@ -86,9 +96,92 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
     WHERE rh.fighter_id = ?1
     ORDER BY rh.as_of_date DESC, rh.created_at DESC
     LIMIT 50
-  `).bind(fighter.id).all();
+  `).bind(fighterId).all();
 
-  return json({ fighter, rating, history: history.results });
+  const raw = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS bouts,
+      ROUND(SUM(duration_seconds) / 60.0, 2) AS minutes,
+      CASE WHEN SUM(duration_seconds) > 0 THEN 60.0 * SUM(sig_strikes_landed) / SUM(duration_seconds) END AS slpm,
+      CASE WHEN SUM(duration_seconds) > 0 THEN 60.0 * SUM(sig_strikes_absorbed) / SUM(duration_seconds) END AS sapm,
+      CASE WHEN SUM(sig_strikes_attempted) > 0 THEN 100.0 * SUM(sig_strikes_landed) / SUM(sig_strikes_attempted) END AS strike_accuracy,
+      CASE WHEN SUM(sig_strikes_faced) > 0 THEN 100.0 * (1.0 - (1.0 * SUM(sig_strikes_absorbed) / SUM(sig_strikes_faced))) END AS strike_defense,
+      CASE WHEN SUM(duration_seconds) > 0 THEN 900.0 * SUM(takedowns_landed) / SUM(duration_seconds) END AS td15,
+      CASE WHEN SUM(takedowns_attempted) > 0 THEN 100.0 * SUM(takedowns_landed) / SUM(takedowns_attempted) END AS td_accuracy,
+      CASE WHEN SUM(takedowns_faced) > 0 THEN 100.0 * (1.0 - (1.0 * SUM(takedowns_allowed) / SUM(takedowns_faced))) END AS td_defense,
+      CASE WHEN SUM(duration_seconds) > 0 THEN 15.0 * SUM(control_seconds) / SUM(duration_seconds) END AS control_minutes_per_15
+    FROM bout_totals
+    WHERE fighter_id = ?1
+  `).bind(fighterId).first();
+
+  const recentBouts = await env.DB.prepare(`
+    SELECT
+      bt.event_date,
+      bt.weight_class,
+      bt.won,
+      bt.finish,
+      bt.sig_strikes_landed,
+      bt.sig_strikes_absorbed,
+      bt.takedowns_landed,
+      bt.takedowns_allowed,
+      bt.control_seconds,
+      opp.name AS opponent_name,
+      opp.slug AS opponent_slug
+    FROM bout_totals bt
+    JOIN fighters opp ON opp.id = bt.opponent_id
+    WHERE bt.fighter_id = ?1
+    ORDER BY bt.event_date DESC, bt.id DESC
+    LIMIT 10
+  `).bind(fighterId).all();
+
+  let ranks: Record<string, unknown> | null = null;
+  if (rating && fighter.current_weight_class) {
+    ranks = await env.DB.prepare(`
+      SELECT
+        COUNT(*) AS field_size,
+        1 + SUM(CASE WHEN lr.cmr > ?2 THEN 1 ELSE 0 END) AS cmr,
+        1 + SUM(CASE WHEN lr.technical_rating > ?3 THEN 1 ELSE 0 END) AS technical_rating,
+        1 + SUM(CASE WHEN lr.resume_rating > ?4 THEN 1 ELSE 0 END) AS resume_rating,
+        1 + SUM(CASE WHEN lr.striking_offense > ?5 THEN 1 ELSE 0 END) AS striking_offense,
+        1 + SUM(CASE WHEN lr.striking_defense > ?6 THEN 1 ELSE 0 END) AS striking_defense,
+        1 + SUM(CASE WHEN lr.wrestling_offense > ?7 THEN 1 ELSE 0 END) AS wrestling_offense,
+        1 + SUM(CASE WHEN lr.wrestling_defense > ?8 THEN 1 ELSE 0 END) AS wrestling_defense,
+        1 + SUM(CASE WHEN lr.grappling > ?9 THEN 1 ELSE 0 END) AS grappling,
+        1 + SUM(CASE WHEN lr.strength_of_schedule > ?10 THEN 1 ELSE 0 END) AS strength_of_schedule,
+        1 + SUM(CASE WHEN lr.recent_form > ?11 THEN 1 ELSE 0 END) AS recent_form
+      FROM latest_ratings lr
+      JOIN fighters f ON f.id = lr.fighter_id
+      WHERE f.current_weight_class = ?1
+        AND f.active = 1
+        AND lr.sample_bouts >= 2
+    `).bind(
+      fighter.current_weight_class,
+      rating.cmr,
+      rating.technical_rating,
+      rating.resume_rating,
+      rating.striking_offense,
+      rating.striking_defense,
+      rating.wrestling_offense,
+      rating.wrestling_defense,
+      rating.grappling,
+      rating.strength_of_schedule,
+      rating.recent_form
+    ).first();
+  }
+
+  const ratingPayload = rating ? {
+    ...rating,
+    components: parseJson(rating.components_json)
+  } : null;
+
+  return json({
+    fighter,
+    rating: ratingPayload,
+    ranks,
+    raw,
+    recent_bouts: recentBouts.results,
+    history: history.results
+  });
 }
 
 async function rankings(request: Request, env: Env): Promise<Response> {
@@ -137,7 +230,6 @@ async function rankings(request: Request, env: Env): Promise<Response> {
       lr.confidence,
       lr.sample_bouts,
       lr.sample_minutes,
-      lr.components_json,
       lr.as_of_date,
       ${sortColumn} AS metric_value
     FROM latest_ratings lr
@@ -164,6 +256,16 @@ async function divisions(env: Env): Promise<Response> {
   return json({ data: result.results });
 }
 
+async function fighterAsset(request: Request, env: Env): Promise<Response> {
+  const assetUrl = new URL(request.url);
+  assetUrl.pathname = "/fighter.html";
+  assetUrl.search = "";
+  return env.ASSETS.fetch(new Request(assetUrl.toString(), {
+    method: "GET",
+    headers: request.headers
+  }));
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -174,7 +276,8 @@ export default {
         const counts = await env.DB.prepare(`
           SELECT
             (SELECT COUNT(*) FROM fighters) AS fighters,
-            (SELECT COUNT(*) FROM ratings_history) AS ratings
+            (SELECT COUNT(*) FROM ratings_history) AS ratings,
+            (SELECT COUNT(*) FROM bout_totals) AS bout_rows
         `).first();
         return json({
           ok: db?.ok === 1,
@@ -193,6 +296,12 @@ export default {
       }
       if (request.method === "GET" && url.pathname === "/api/rankings") return rankings(request, env);
       if (request.method === "GET" && url.pathname === "/api/divisions") return divisions(env);
+
+      if (request.method === "GET" && url.pathname.startsWith("/fighters/")) {
+        const slug = decodeURIComponent(url.pathname.slice("/fighters/".length).replace(/\/$/, ""));
+        if (!slug || slug.includes("/")) return Response.redirect(new URL("/#rankings", request.url), 302);
+        return fighterAsset(request, env);
+      }
 
       return json({ error: "not_found" }, { status: 404 });
     } catch (error) {
