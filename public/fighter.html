@@ -34,7 +34,7 @@
           <p class="fighter-meta" id="fighter-meta"></p>
         </div>
         <div class="cmr-lockup">
-          <span>CMR</span>
+          <span>RANKED CMR</span>
           <strong id="fighter-cmr">—</strong>
           <small id="fighter-rank">Divisional rank pending</small>
         </div>
@@ -47,7 +47,7 @@
           <div class="eyebrow">OPPONENT-ADJUSTED RATINGS</div>
           <h2>What the competition changes</h2>
         </div>
-        <p>Scores are normalized within division. Rank reflects active fighters with at least two UFC bouts in the current model.</p>
+        <p>Scores are normalized within the fighter's current division. Small samples are shrunk toward average instead of being allowed to dominate the leaderboard immediately.</p>
       </div>
       <div class="fighter-metric-grid" id="fighter-metrics"></div>
     </section>
@@ -58,7 +58,7 @@
           <div class="eyebrow">WHY THE MODEL SEES IT</div>
           <h2>Performance vs. expectation</h2>
         </div>
-        <p>These are the most direct opponent adjustments behind the current score — performance against each opponent compared with what that opponent normally produces or allows.</p>
+        <p>These are the most direct opponent adjustments behind the current score — performance against each opponent compared with what that opponent normally produces or allows in the same division.</p>
       </div>
       <div class="explanation-grid" id="explanation-grid"></div>
     </section>
@@ -89,8 +89,8 @@
 
     <section class="fighter-section methodology-strip" id="model-section" hidden>
       <div>
-        <strong id="model-label">CageMetrix descriptive model</strong>
-        <p>This is an early opponent-adjusted descriptive rating, not yet the predictive model. Methodology will be versioned rather than silently rewritten.</p>
+        <strong id="model-label">CageMetrix model</strong>
+        <p>v0.2 separates performance from ranking certainty: provisional fighters can show elite underlying output without automatically outranking established contenders. Methodology is versioned rather than silently rewritten.</p>
       </div>
       <a href="/#method">How CageMetrix works →</a>
     </section>
