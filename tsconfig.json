@@ -6,8 +6,7 @@
     "lib": ["ES2022", "WebWorker"],
     "strict": true,
     "noEmit": true,
-    "skipLibCheck": true,
-    "types": ["./worker-configuration.d.ts"]
+    "skipLibCheck": true
   },
   "include": ["src/**/*.ts", "worker-configuration.d.ts"]
 }
