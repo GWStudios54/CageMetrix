@@ -179,7 +179,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
       FROM fighters f
       JOIN ratings_history rh
         ON rh.fighter_id = f.id
-       AND rh.model_version_id = ${currentModelIdSql()}
+       AND rh.model_version_id = (SELECT id FROM model_versions WHERE name = ?2 AND version = ?3 LIMIT 1)
       WHERE f.current_weight_class = ?1
         AND f.active = 1
         AND rh.sample_bouts >= 2
