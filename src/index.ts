@@ -38,7 +38,7 @@ function intParam(value: string | null, fallback: number, min: number, max: numb
   return Math.max(min, Math.min(max, parsed));
 }
 
-function parseJson(value: unknown): unknown {
+function parseJson(value: unknown): any {
   if (typeof value !== "string" || !value) return null;
   try {
     return JSON.parse(value);
@@ -55,14 +55,14 @@ async function listFighters(request: Request, env: Env): Promise<Response> {
 
   const statement = query
     ? env.DB.prepare(`
-        SELECT id, slug, name, current_weight_class, nationality, active, last_fight_date, ufc_bouts
+        SELECT id, slug, name, current_weight_class, nationality, active, roster_status, status_source, last_fight_date, ufc_bouts
         FROM fighters
         WHERE name LIKE ?1 OR slug LIKE ?1
         ORDER BY name COLLATE NOCASE
         LIMIT ?2 OFFSET ?3
       `).bind(`%${query}%`, limit, offset)
     : env.DB.prepare(`
-        SELECT id, slug, name, current_weight_class, nationality, active, last_fight_date, ufc_bouts
+        SELECT id, slug, name, current_weight_class, nationality, active, roster_status, status_source, last_fight_date, ufc_bouts
         FROM fighters
         ORDER BY name COLLATE NOCASE
         LIMIT ?1 OFFSET ?2
@@ -90,7 +90,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
 
   const history = await env.DB.prepare(`
     SELECT rh.as_of_date, rh.weight_class, rh.cmr, rh.technical_rating, rh.resume_rating,
-           rh.strength_of_schedule, rh.confidence, mv.name AS model_name, mv.version AS model_version
+           rh.strength_of_schedule, rh.confidence, rh.components_json, mv.name AS model_name, mv.version AS model_version
     FROM ratings_history rh
     JOIN model_versions mv ON mv.id = rh.model_version_id
     WHERE rh.fighter_id = ?1
@@ -135,7 +135,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
   `).bind(fighterId).all();
 
   let ranks: Record<string, unknown> | null = null;
-  if (rating && fighter.current_weight_class) {
+  if (rating && fighter.current_weight_class && Number(fighter.active) === 1) {
     ranks = await env.DB.prepare(`
       SELECT
         COUNT(*) AS field_size,
@@ -169,9 +169,12 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
     ).first();
   }
 
+  const components = rating ? parseJson(rating.components_json) : null;
   const ratingPayload = rating ? {
     ...rating,
-    components: parseJson(rating.components_json)
+    components,
+    performance_cmr: components?.performance_cmr ?? rating.cmr,
+    provisional: Boolean(components?.provisional)
   } : null;
 
   return json({
@@ -180,7 +183,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
     ranks,
     raw,
     recent_bouts: recentBouts.results,
-    history: history.results
+    history: history.results.map((row: any) => ({ ...row, components: parseJson(row.components_json) }))
   });
 }
 
@@ -213,6 +216,7 @@ async function rankings(request: Request, env: Env): Promise<Response> {
       f.slug,
       f.name,
       f.current_weight_class,
+      f.roster_status,
       f.last_fight_date,
       f.ufc_bouts,
       lr.cmr,
@@ -230,6 +234,7 @@ async function rankings(request: Request, env: Env): Promise<Response> {
       lr.confidence,
       lr.sample_bouts,
       lr.sample_minutes,
+      lr.components_json,
       lr.as_of_date,
       ${sortColumn} AS metric_value
     FROM latest_ratings lr
@@ -239,8 +244,19 @@ async function rankings(request: Request, env: Env): Promise<Response> {
     LIMIT ?${bindings.length}
   `).bind(...bindings).all();
 
+  const rows = result.results.map((row: any) => {
+    const components = parseJson(row.components_json);
+    const { components_json, ...clean } = row;
+    return {
+      ...clean,
+      performance_cmr: components?.performance_cmr ?? row.cmr,
+      provisional: Boolean(components?.provisional),
+      sample_reliability: components?.sample_reliability ?? null
+    };
+  });
+
   return json({
-    data: result.results,
+    data: rows,
     meta: { metric, weight_class: weightClass || null, active_only: activeOnly, min_bouts: minBouts, limit }
   });
 }
@@ -277,7 +293,8 @@ export default {
           SELECT
             (SELECT COUNT(*) FROM fighters) AS fighters,
             (SELECT COUNT(*) FROM ratings_history) AS ratings,
-            (SELECT COUNT(*) FROM bout_totals) AS bout_rows
+            (SELECT COUNT(*) FROM bout_totals) AS bout_rows,
+            (SELECT COUNT(*) FROM fighters WHERE active = 1) AS active_fighters
         `).first();
         return json({
           ok: db?.ok === 1,
