@@ -4,32 +4,41 @@ interface Env {
   MODEL_VERSION: string;
 }
 
-const jsonHeaders = {
-  "content-type": "application/json; charset=utf-8",
-  "cache-control": "no-store"
-};
+const MODEL_NAME = "CageMetrix Opponent-Adjusted Rating";
 
 const metricColumns: Record<string, string> = {
-  cmr: "lr.cmr",
-  striking_offense: "lr.striking_offense",
-  striking_defense: "lr.striking_defense",
-  wrestling_offense: "lr.wrestling_offense",
-  wrestling_defense: "lr.wrestling_defense",
-  grappling: "lr.grappling",
-  pace: "lr.pace",
-  finishing: "lr.finishing",
-  strength_of_schedule: "lr.strength_of_schedule",
-  recent_form: "lr.recent_form",
-  technical: "lr.technical_rating",
-  resume: "lr.resume_rating",
-  confidence: "lr.confidence"
+  cmr: "rh.cmr",
+  striking_offense: "rh.striking_offense",
+  striking_defense: "rh.striking_defense",
+  wrestling_offense: "rh.wrestling_offense",
+  wrestling_defense: "rh.wrestling_defense",
+  grappling: "rh.grappling",
+  pace: "rh.pace",
+  finishing: "rh.finishing",
+  strength_of_schedule: "rh.strength_of_schedule",
+  recent_form: "rh.recent_form",
+  technical: "rh.technical_rating",
+  resume: "rh.resume_rating",
+  confidence: "rh.confidence"
 };
 
-function json(data: unknown, init: ResponseInit = {}): Response {
-  return new Response(JSON.stringify(data, null, 2), {
-    ...init,
-    headers: { ...jsonHeaders, ...(init.headers || {}) }
-  });
+function json(data: unknown, init: ResponseInit = {}, cacheSeconds = 0): Response {
+  const headers = new Headers(init.headers || {});
+  headers.set("content-type", "application/json; charset=utf-8");
+  headers.set("cache-control", cacheSeconds > 0 ? `public, max-age=${cacheSeconds}` : "no-store");
+  return new Response(JSON.stringify(data, null, 2), { ...init, headers });
+}
+
+async function edgeCached(request: Request, context: ExecutionContext, producer: () => Promise<Response>): Promise<Response> {
+  const cache = caches.default;
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await producer();
+  if (response.ok && !response.headers.get("cache-control")?.includes("no-store")) {
+    context.waitUntil(cache.put(request, response.clone()));
+  }
+  return response;
 }
 
 function intParam(value: string | null, fallback: number, min: number, max: number): number {
@@ -45,6 +54,22 @@ function parseJson(value: unknown): any {
   } catch {
     return null;
   }
+}
+
+function currentModelIdSql(): string {
+  return `(SELECT id FROM model_versions WHERE name = ? AND version = ? LIMIT 1)`;
+}
+
+async function health(env: Env): Promise<Response> {
+  // Deliberately lightweight. Full-table COUNT(*) calls on every landing-page load
+  // were the single largest source of unnecessary D1 reads.
+  const db = await env.DB.prepare("SELECT 1 AS ok").first();
+  return json({
+    ok: db?.ok === 1,
+    service: "cagemetrix",
+    model_version: env.MODEL_VERSION,
+    timestamp: new Date().toISOString()
+  }, {}, 300);
 }
 
 async function listFighters(request: Request, env: Env): Promise<Response> {
@@ -81,12 +106,14 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
 
   const fighterId = Number(fighter.id);
   const rating = await env.DB.prepare(`
-    SELECT lr.*, mv.name AS model_name, mv.version AS model_version
-    FROM latest_ratings lr
-    JOIN model_versions mv ON mv.id = lr.model_version_id
-    WHERE lr.fighter_id = ?1
+    SELECT rh.*, mv.name AS model_name, mv.version AS model_version
+    FROM ratings_history rh
+    JOIN model_versions mv ON mv.id = rh.model_version_id
+    WHERE rh.fighter_id = ?1
+      AND rh.model_version_id = ${currentModelIdSql()}
+    ORDER BY rh.as_of_date DESC, rh.id DESC
     LIMIT 1
-  `).bind(fighterId).first();
+  `).bind(fighterId, MODEL_NAME, env.MODEL_VERSION).first();
 
   const history = await env.DB.prepare(`
     SELECT rh.as_of_date, rh.weight_class, rh.cmr, rh.technical_rating, rh.resume_rating,
@@ -139,23 +166,27 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
     ranks = await env.DB.prepare(`
       SELECT
         COUNT(*) AS field_size,
-        1 + SUM(CASE WHEN lr.cmr > ?2 THEN 1 ELSE 0 END) AS cmr,
-        1 + SUM(CASE WHEN lr.technical_rating > ?3 THEN 1 ELSE 0 END) AS technical_rating,
-        1 + SUM(CASE WHEN lr.resume_rating > ?4 THEN 1 ELSE 0 END) AS resume_rating,
-        1 + SUM(CASE WHEN lr.striking_offense > ?5 THEN 1 ELSE 0 END) AS striking_offense,
-        1 + SUM(CASE WHEN lr.striking_defense > ?6 THEN 1 ELSE 0 END) AS striking_defense,
-        1 + SUM(CASE WHEN lr.wrestling_offense > ?7 THEN 1 ELSE 0 END) AS wrestling_offense,
-        1 + SUM(CASE WHEN lr.wrestling_defense > ?8 THEN 1 ELSE 0 END) AS wrestling_defense,
-        1 + SUM(CASE WHEN lr.grappling > ?9 THEN 1 ELSE 0 END) AS grappling,
-        1 + SUM(CASE WHEN lr.strength_of_schedule > ?10 THEN 1 ELSE 0 END) AS strength_of_schedule,
-        1 + SUM(CASE WHEN lr.recent_form > ?11 THEN 1 ELSE 0 END) AS recent_form
-      FROM latest_ratings lr
-      JOIN fighters f ON f.id = lr.fighter_id
+        1 + SUM(CASE WHEN rh.cmr > ?4 THEN 1 ELSE 0 END) AS cmr,
+        1 + SUM(CASE WHEN rh.technical_rating > ?5 THEN 1 ELSE 0 END) AS technical_rating,
+        1 + SUM(CASE WHEN rh.resume_rating > ?6 THEN 1 ELSE 0 END) AS resume_rating,
+        1 + SUM(CASE WHEN rh.striking_offense > ?7 THEN 1 ELSE 0 END) AS striking_offense,
+        1 + SUM(CASE WHEN rh.striking_defense > ?8 THEN 1 ELSE 0 END) AS striking_defense,
+        1 + SUM(CASE WHEN rh.wrestling_offense > ?9 THEN 1 ELSE 0 END) AS wrestling_offense,
+        1 + SUM(CASE WHEN rh.wrestling_defense > ?10 THEN 1 ELSE 0 END) AS wrestling_defense,
+        1 + SUM(CASE WHEN rh.grappling > ?11 THEN 1 ELSE 0 END) AS grappling,
+        1 + SUM(CASE WHEN rh.strength_of_schedule > ?12 THEN 1 ELSE 0 END) AS strength_of_schedule,
+        1 + SUM(CASE WHEN rh.recent_form > ?13 THEN 1 ELSE 0 END) AS recent_form
+      FROM fighters f
+      JOIN ratings_history rh
+        ON rh.fighter_id = f.id
+       AND rh.model_version_id = ${currentModelIdSql()}
       WHERE f.current_weight_class = ?1
         AND f.active = 1
-        AND lr.sample_bouts >= 2
+        AND rh.sample_bouts >= 2
     `).bind(
       fighter.current_weight_class,
+      MODEL_NAME,
+      env.MODEL_VERSION,
       rating.cmr,
       rating.technical_rating,
       rating.resume_rating,
@@ -184,7 +215,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
     raw,
     recent_bouts: recentBouts.results,
     history: history.results.map((row: any) => ({ ...row, components: parseJson(row.components_json) }))
-  });
+  }, {}, 300);
 }
 
 async function rankings(request: Request, env: Env): Promise<Response> {
@@ -199,8 +230,8 @@ async function rankings(request: Request, env: Env): Promise<Response> {
     return json({ error: "invalid_metric", allowed: Object.keys(metricColumns) }, { status: 400 });
   }
 
-  const clauses: string[] = ["lr.sample_bouts >= ?1"];
-  const bindings: unknown[] = [minBouts];
+  const clauses: string[] = ["rh.sample_bouts >= ?3"];
+  const bindings: unknown[] = [MODEL_NAME, env.MODEL_VERSION, minBouts];
 
   if (weightClass) {
     clauses.push(`f.current_weight_class = ?${bindings.length + 1}`);
@@ -219,28 +250,19 @@ async function rankings(request: Request, env: Env): Promise<Response> {
       f.roster_status,
       f.last_fight_date,
       f.ufc_bouts,
-      lr.cmr,
-      lr.striking_offense,
-      lr.striking_defense,
-      lr.wrestling_offense,
-      lr.wrestling_defense,
-      lr.grappling,
-      lr.pace,
-      lr.finishing,
-      lr.strength_of_schedule,
-      lr.recent_form,
-      lr.technical_rating,
-      lr.resume_rating,
-      lr.confidence,
-      lr.sample_bouts,
-      lr.sample_minutes,
-      lr.components_json,
-      lr.as_of_date,
+      rh.cmr,
+      rh.confidence,
+      rh.sample_bouts,
+      rh.sample_minutes,
+      rh.components_json,
+      rh.as_of_date,
       ${sortColumn} AS metric_value
-    FROM latest_ratings lr
-    JOIN fighters f ON f.id = lr.fighter_id
+    FROM fighters f
+    JOIN ratings_history rh
+      ON rh.fighter_id = f.id
+     AND rh.model_version_id = ${currentModelIdSql()}
     WHERE ${clauses.join(" AND ")}
-    ORDER BY metric_value DESC, lr.confidence DESC, f.name COLLATE NOCASE
+    ORDER BY metric_value DESC, rh.confidence DESC, f.name COLLATE NOCASE
     LIMIT ?${bindings.length}
   `).bind(...bindings).all();
 
@@ -257,8 +279,8 @@ async function rankings(request: Request, env: Env): Promise<Response> {
 
   return json({
     data: rows,
-    meta: { metric, weight_class: weightClass || null, active_only: activeOnly, min_bouts: minBouts, limit }
-  });
+    meta: { metric, weight_class: weightClass || null, active_only: activeOnly, min_bouts: minBouts, limit, model_version: env.MODEL_VERSION }
+  }, {}, 600);
 }
 
 async function divisions(env: Env): Promise<Response> {
@@ -269,7 +291,7 @@ async function divisions(env: Env): Promise<Response> {
     GROUP BY current_weight_class
     ORDER BY current_weight_class COLLATE NOCASE
   `).all();
-  return json({ data: result.results });
+  return json({ data: result.results }, {}, 1800);
 }
 
 async function fighterAsset(request: Request, env: Env): Promise<Response> {
@@ -283,36 +305,26 @@ async function fighterAsset(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     try {
       if (request.method === "GET" && url.pathname === "/api/health") {
-        const db = await env.DB.prepare("SELECT 1 AS ok").first();
-        const counts = await env.DB.prepare(`
-          SELECT
-            (SELECT COUNT(*) FROM fighters) AS fighters,
-            (SELECT COUNT(*) FROM ratings_history) AS ratings,
-            (SELECT COUNT(*) FROM bout_totals) AS bout_rows,
-            (SELECT COUNT(*) FROM fighters WHERE active = 1) AS active_fighters
-        `).first();
-        return json({
-          ok: db?.ok === 1,
-          service: "cagemetrix",
-          model_version: env.MODEL_VERSION,
-          counts,
-          timestamp: new Date().toISOString()
-        });
+        return edgeCached(request, context, () => health(env));
       }
 
       if (request.method === "GET" && url.pathname === "/api/fighters") return listFighters(request, env);
       if (request.method === "GET" && url.pathname.startsWith("/api/fighters/")) {
         const slug = decodeURIComponent(url.pathname.slice("/api/fighters/".length));
         if (!slug || slug.includes("/")) return json({ error: "invalid_fighter_slug" }, { status: 400 });
-        return getFighter(slug, env);
+        return edgeCached(request, context, () => getFighter(slug, env));
       }
-      if (request.method === "GET" && url.pathname === "/api/rankings") return rankings(request, env);
-      if (request.method === "GET" && url.pathname === "/api/divisions") return divisions(env);
+      if (request.method === "GET" && url.pathname === "/api/rankings") {
+        return edgeCached(request, context, () => rankings(request, env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/divisions") {
+        return edgeCached(request, context, () => divisions(env));
+      }
 
       if (request.method === "GET" && url.pathname.startsWith("/fighters/")) {
         const slug = decodeURIComponent(url.pathname.slice("/fighters/".length).replace(/\/$/, ""));
