@@ -27,9 +27,9 @@ async function getJson(url) {
 async function checkHealth() {
   try {
     const data = await getJson('/api/health');
-    label.textContent = data.ok ? 'CageMetrix API online' : 'API reachable · database not ready';
+    label.textContent = data.ok ? `CageMetrix API online · model v${data.model_version || '?'}` : 'API reachable · database not ready';
     dot.classList.add(data.ok ? 'ok' : 'bad');
-    if (data.counts) dbLabel.textContent = `${Number(data.counts.fighters || 0).toLocaleString()} fighters · ${Number(data.counts.ratings || 0).toLocaleString()} rating snapshots`;
+    if (data.counts) dbLabel.textContent = `${Number(data.counts.active_fighters || 0).toLocaleString()} active · ${Number(data.counts.fighters || 0).toLocaleString()} fighters · ${Number(data.counts.ratings || 0).toLocaleString()} rating snapshots`;
   } catch {
     label.textContent = 'API setup pending';
     dot.classList.add('bad');
@@ -58,10 +58,16 @@ function renderRankings(rows, metric) {
   rankingList.innerHTML = rows.slice(0, 25).map((fighter, index) => {
     const score = Number(fighter.metric_value ?? fighter.cmr ?? 0).toFixed(1);
     const confidence = Math.round(Number(fighter.confidence || 0));
+    const provisional = Boolean(fighter.provisional);
+    const performance = Number(fighter.performance_cmr);
+    const sampleText = `${fighter.sample_bouts || 0} rated bouts · ${confidence}% confidence`;
+    const provisionalText = provisional && Number.isFinite(performance)
+      ? ` · PROVISIONAL · performance CMR ${performance.toFixed(1)}`
+      : '';
     return `<a class="ranking-row" href="/fighters/${encodeURIComponent(fighter.slug)}">
       <span class="rank-number">${index + 1}</span>
-      <span class="rank-fighter"><strong>${fighter.name}</strong><small>${fighter.current_weight_class || 'Unknown'} · ${fighter.sample_bouts || fighter.ufc_bouts || 0} UFC bouts</small></span>
-      <span class="rank-confidence">${confidence}% conf.</span>
+      <span class="rank-fighter"><strong>${fighter.name}</strong><small>${fighter.current_weight_class || 'Unknown'} · ${sampleText}${provisionalText}</small></span>
+      <span class="rank-confidence">${provisional ? 'PROV.' : `${confidence}% conf.`}</span>
       <span class="rank-score"><small>${metricLabels[metric] || metric}</small><strong>${score}</strong></span>
     </a>`;
   }).join('');
