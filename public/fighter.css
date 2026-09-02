@@ -1,0 +1,82 @@
+.fighter-page { padding-bottom: 72px; }
+.fighter-loading { min-height: 55vh; display: grid; place-content: center; color: var(--muted); line-height: 1.6; }
+.fighter-hero { padding: 58px 0 42px; border-bottom: 1px solid var(--line); }
+.back-link { display: inline-block; margin-bottom: 36px; color: var(--muted); font-size: 13px; }
+.back-link:hover { color: var(--text); }
+.fighter-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 42px; align-items: end; }
+.fighter-name { margin: 12px 0 14px; font-size: clamp(48px, 8vw, 92px); }
+.fighter-meta { margin: 0; color: var(--muted); line-height: 1.6; }
+.cmr-lockup { min-width: 190px; padding: 22px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel-2), var(--panel)); display: grid; justify-items: end; }
+.cmr-lockup span { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .14em; }
+.cmr-lockup strong { margin: 4px 0 8px; color: var(--accent); font-size: clamp(68px, 10vw, 112px); line-height: .9; letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
+.cmr-lockup small { color: var(--muted); text-align: right; }
+.fighter-section { margin: 72px 0 0; }
+.compact-heading { margin-bottom: 22px; }
+.fighter-metric-grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); background: var(--panel); }
+.fighter-metric-card { min-width: 0; min-height: 154px; padding: 20px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; align-content: space-between; gap: 12px; }
+.fighter-metric-card:nth-child(5n) { border-right: 0; }
+.fighter-metric-card:nth-last-child(-n+5) { border-bottom: 0; }
+.fighter-metric-card span { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+.fighter-metric-card strong { color: var(--text); font-size: 42px; line-height: 1; font-variant-numeric: tabular-nums; }
+.fighter-metric-card:first-child strong { color: var(--accent); }
+.fighter-metric-card small { color: #737d87; }
+.explanation-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.explanation-card { min-height: 176px; padding: 24px; border: 1px solid var(--line); background: var(--panel); }
+.explanation-card span { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.explanation-card strong { display: block; margin: 13px 0 5px; color: var(--accent); font-size: 42px; line-height: 1; font-variant-numeric: tabular-nums; }
+.explanation-card p { margin: 0; color: var(--muted); line-height: 1.55; }
+.split-section { display: grid; grid-template-columns: 1.35fr .65fr; gap: 18px; }
+.split-section h2 { margin-top: 8px; }
+.raw-stat-grid { border: 1px solid var(--line); background: var(--panel); }
+.raw-stat { min-height: 58px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); }
+.raw-stat:last-child { border-bottom: 0; }
+.raw-stat span { color: var(--muted); font-size: 13px; }
+.raw-stat strong { font-variant-numeric: tabular-nums; }
+.sample-card { min-height: 100%; padding: 24px; border: 1px solid var(--line); background: var(--panel); }
+.confidence-number { color: var(--accent); font-size: 64px; font-weight: 900; letter-spacing: -.05em; line-height: 1; }
+.sample-card > strong { display: block; margin-top: 10px; font-size: 20px; }
+.sample-card p { color: var(--muted); line-height: 1.55; }
+.confidence-track { height: 7px; margin-top: 24px; background: var(--line); overflow: hidden; }
+.confidence-track span { display: block; height: 100%; background: var(--accent); }
+.fight-list { border: 1px solid var(--line); background: var(--panel); }
+.fight-row { min-height: 72px; padding: 10px 16px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 100px; gap: 14px; align-items: center; border-bottom: 1px solid var(--line); }
+.fight-row:last-child { border-bottom: 0; }
+.fight-row:hover { background: var(--panel-2); }
+.fight-result { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); font-weight: 900; }
+.fight-result.win { color: #55c983; border-color: rgba(85,201,131,.45); background: rgba(85,201,131,.08); }
+.fight-result.loss { color: var(--accent); border-color: rgba(228,59,52,.5); background: var(--accent-soft); }
+.fight-result.draw { color: #d5b65b; }
+.fight-opponent, .fight-output { display: grid; gap: 4px; }
+.fight-opponent small, .fight-output small { color: var(--muted); font-size: 11px; }
+.fight-output { justify-items: end; }
+.fight-output strong { font-variant-numeric: tabular-nums; }
+.methodology-strip { padding: 22px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+.methodology-strip p { margin: 6px 0 0; color: var(--muted); line-height: 1.5; max-width: 780px; }
+.methodology-strip a { color: var(--accent); white-space: nowrap; font-weight: 800; }
+
+@media (max-width: 900px) {
+  .fighter-metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .fighter-metric-card:nth-child(n) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .fighter-metric-card:nth-child(2n) { border-right: 0; }
+  .fighter-metric-card:nth-last-child(-n+2) { border-bottom: 0; }
+  .split-section { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 650px) {
+  .fighter-hero { padding-top: 36px; }
+  .back-link { margin-bottom: 24px; }
+  .fighter-hero-grid { grid-template-columns: 1fr; gap: 22px; }
+  .cmr-lockup { justify-items: start; min-width: 0; }
+  .cmr-lockup small { text-align: left; }
+  .fighter-section { margin-top: 54px; }
+  .fighter-metric-grid, .explanation-grid { grid-template-columns: 1fr 1fr; }
+  .fighter-metric-card { min-height: 132px; padding: 16px; }
+  .fighter-metric-card:nth-child(n) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .fighter-metric-card:nth-child(2n) { border-right: 0; }
+  .fighter-metric-card:nth-last-child(-n+2) { border-bottom: 0; }
+  .fighter-metric-card strong { font-size: 34px; }
+  .explanation-grid { grid-template-columns: 1fr; }
+  .fight-row { grid-template-columns: 38px minmax(0, 1fr) 72px; padding: 9px 10px; }
+  .fight-output strong { font-size: 13px; }
+  .methodology-strip { align-items: flex-start; flex-direction: column; }
+}
