@@ -14,7 +14,7 @@
       <span>CageMetrix</span>
     </a>
     <nav>
-      <a href="#ratings">Ratings</a>
+      <a href="#rankings">Rankings</a>
       <a href="#method">Method</a>
       <a href="/api/health">API</a>
     </nav>
@@ -26,33 +26,66 @@
       <h1>Raw stats tell you <em>what</em> happened.<br />CageMetrix asks <em>against whom?</em></h1>
       <p class="lede">Fighter ratings built around performance relative to the quality and tendencies of the opposition — not just records, volume, or hype.</p>
       <div class="hero-actions">
-        <a class="button primary" href="#ratings">See the model foundation</a>
-        <a class="button secondary" href="/api/rankings">Rankings API</a>
+        <a class="button primary" href="#rankings">Explore the rankings</a>
+        <a class="button secondary" href="#method">How adjustment works</a>
       </div>
     </section>
 
-    <section class="metric-grid" id="ratings">
+    <section class="metric-grid">
       <article class="metric-card feature">
         <span class="metric-kicker">SIGNATURE METRIC</span>
-        <div class="score">92.7</div>
+        <div class="score">CMR</div>
         <h2>CageMetrix Rating</h2>
-        <p>An overall 0–100 rating assembled from opponent-adjusted performance, competitive results, schedule strength, recency and sample confidence.</p>
+        <p>A 0–100 score assembled from opponent-adjusted performance, competitive results, schedule strength, recent form and sample confidence.</p>
       </article>
       <article class="metric-card">
-        <div class="mini-score">95</div>
-        <h3>Striking</h3>
-        <p>Offense and defense measured relative to what the same opponents normally allow and produce.</p>
+        <div class="mini-score">O</div>
+        <h3>Adjusted offense</h3>
+        <p>How much more — or less — a fighter produces than those same opponents normally allow.</p>
       </article>
       <article class="metric-card">
-        <div class="mini-score">88</div>
-        <h3>Wrestling</h3>
-        <p>Takedown offense and defense adjusted for the actual wrestling threat faced.</p>
+        <div class="mini-score">D</div>
+        <h3>Adjusted defense</h3>
+        <p>How effectively a fighter suppresses offense from opponents relative to their normal production.</p>
       </article>
       <article class="metric-card">
-        <div class="mini-score">97</div>
-        <h3>Schedule</h3>
-        <p>Opponent quality at the time of each bout instead of treating every win and loss equally.</p>
+        <div class="mini-score">SoS</div>
+        <h3>Schedule strength</h3>
+        <p>Quality of opposition weighted through the competitive rating each opponent carried into the bout.</p>
       </article>
+    </section>
+
+    <section class="rankings" id="rankings">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">LIVE MODEL OUTPUT</div>
+          <h2>Who is actually performing?</h2>
+        </div>
+        <p>Switch the metric and see how the order changes when the model stops treating every opponent as equal.</p>
+      </div>
+      <div class="ranking-controls">
+        <label>Metric
+          <select id="metric-select">
+            <option value="cmr">Overall CMR</option>
+            <option value="striking_offense">Striking offense</option>
+            <option value="striking_defense">Striking defense</option>
+            <option value="wrestling_offense">Wrestling offense</option>
+            <option value="wrestling_defense">Wrestling defense</option>
+            <option value="grappling">Grappling</option>
+            <option value="strength_of_schedule">Strength of schedule</option>
+            <option value="technical">Technical rating</option>
+            <option value="resume">Résumé rating</option>
+            <option value="recent_form">Recent form</option>
+          </select>
+        </label>
+        <label>Division
+          <select id="division-select"><option value="">All active fighters</option></select>
+        </label>
+      </div>
+      <div class="ranking-list" id="ranking-list" aria-live="polite">
+        <div class="ranking-loading">Loading CageMetrix ratings…</div>
+      </div>
+      <p class="model-note">Early CageMetrix ratings are a descriptive model and will change as the methodology, source coverage and active-roster verification improve.</p>
     </section>
 
     <section class="method" id="method">
@@ -62,12 +95,12 @@
       </div>
       <div class="comparison">
         <div class="comparison-row">
-          <span>Raw TD defense</span><strong>69%</strong>
+          <span>Raw takedown defense</span><strong>69%</strong>
         </div>
         <div class="comparison-row hot">
           <span>Opponent-adjusted wrestling defense</span><strong>94</strong>
         </div>
-        <p>If a fighter faces elite wrestlers and holds them far below their normal takedown success, CageMetrix should recognize that even when the raw percentage looks ordinary.</p>
+        <p>If a fighter faces elite wrestlers and holds them far below their normal takedown production, CageMetrix should recognize it even when the raw percentage looks ordinary.</p>
       </div>
     </section>
 
@@ -76,13 +109,13 @@
         <span class="status-dot" id="status-dot"></span>
         <strong id="status-label">Checking API…</strong>
       </div>
-      <span class="muted">CageMetrix v0.1 foundation</span>
+      <span class="muted" id="database-label">CageMetrix model foundation</span>
     </section>
   </main>
 
   <footer>
     <span>CageMetrix</span>
-    <span>Built for transparent MMA analytics.</span>
+    <span>Transparent, opponent-adjusted MMA analytics.</span>
   </footer>
   <script src="/app.js" defer></script>
 </body>
