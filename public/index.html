@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="CageMetrix — opponent-adjusted MMA analytics, fighter ratings, rankings and transparent bout predictions." />
+  <title>CageMetrix — Opponent-Adjusted MMA Analytics</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="CageMetrix home">
+      <span class="brand-mark">CM</span>
+      <span>CageMetrix</span>
+    </a>
+    <nav>
+      <a href="#ratings">Ratings</a>
+      <a href="#method">Method</a>
+      <a href="/api/health">API</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">OPPONENT-ADJUSTED MMA ANALYTICS</div>
+      <h1>Raw stats tell you <em>what</em> happened.<br />CageMetrix asks <em>against whom?</em></h1>
+      <p class="lede">Fighter ratings built around performance relative to the quality and tendencies of the opposition — not just records, volume, or hype.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#ratings">See the model foundation</a>
+        <a class="button secondary" href="/api/rankings">Rankings API</a>
+      </div>
+    </section>
+
+    <section class="metric-grid" id="ratings">
+      <article class="metric-card feature">
+        <span class="metric-kicker">SIGNATURE METRIC</span>
+        <div class="score">92.7</div>
+        <h2>CageMetrix Rating</h2>
+        <p>An overall 0–100 rating assembled from opponent-adjusted performance, competitive results, schedule strength, recency and sample confidence.</p>
+      </article>
+      <article class="metric-card">
+        <div class="mini-score">95</div>
+        <h3>Striking</h3>
+        <p>Offense and defense measured relative to what the same opponents normally allow and produce.</p>
+      </article>
+      <article class="metric-card">
+        <div class="mini-score">88</div>
+        <h3>Wrestling</h3>
+        <p>Takedown offense and defense adjusted for the actual wrestling threat faced.</p>
+      </article>
+      <article class="metric-card">
+        <div class="mini-score">97</div>
+        <h3>Schedule</h3>
+        <p>Opponent quality at the time of each bout instead of treating every win and loss equally.</p>
+      </article>
+    </section>
+
+    <section class="method" id="method">
+      <div>
+        <div class="eyebrow">THE QUESTION</div>
+        <h2>Did the fighter outperform expectation?</h2>
+      </div>
+      <div class="comparison">
+        <div class="comparison-row">
+          <span>Raw TD defense</span><strong>69%</strong>
+        </div>
+        <div class="comparison-row hot">
+          <span>Opponent-adjusted wrestling defense</span><strong>94</strong>
+        </div>
+        <p>If a fighter faces elite wrestlers and holds them far below their normal takedown success, CageMetrix should recognize that even when the raw percentage looks ordinary.</p>
+      </div>
+    </section>
+
+    <section class="status-panel">
+      <div>
+        <span class="status-dot" id="status-dot"></span>
+        <strong id="status-label">Checking API…</strong>
+      </div>
+      <span class="muted">CageMetrix v0.1 foundation</span>
+    </section>
+  </main>
+
+  <footer>
+    <span>CageMetrix</span>
+    <span>Built for transparent MMA analytics.</span>
+  </footer>
+  <script src="/app.js" defer></script>
+</body>
+</html>
