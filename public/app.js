@@ -58,7 +58,7 @@ function renderRankings(rows, metric) {
   rankingList.innerHTML = rows.slice(0, 25).map((fighter, index) => {
     const score = Number(fighter.metric_value ?? fighter.cmr ?? 0).toFixed(1);
     const confidence = Math.round(Number(fighter.confidence || 0));
-    return `<a class="ranking-row" href="/api/fighters/${encodeURIComponent(fighter.slug)}">
+    return `<a class="ranking-row" href="/fighters/${encodeURIComponent(fighter.slug)}">
       <span class="rank-number">${index + 1}</span>
       <span class="rank-fighter"><strong>${fighter.name}</strong><small>${fighter.current_weight_class || 'Unknown'} · ${fighter.sample_bouts || fighter.ufc_bouts || 0} UFC bouts</small></span>
       <span class="rank-confidence">${confidence}% conf.</span>
