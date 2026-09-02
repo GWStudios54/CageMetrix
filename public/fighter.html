@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="CageMetrix fighter profile with opponent-adjusted MMA ratings, raw statistics and divisional ranks." />
+  <meta name="robots" content="index,follow" />
+  <title>Fighter — CageMetrix</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="CageMetrix home">
+      <span class="brand-mark">CM</span>
+      <span>CageMetrix</span>
+    </a>
+    <nav>
+      <a href="/#rankings">Rankings</a>
+      <a href="/#method">Method</a>
+      <a href="/api/health">API</a>
+    </nav>
+  </header>
+
+  <main class="fighter-page" id="fighter-page">
+    <div class="fighter-loading" id="fighter-loading">Loading fighter profile…</div>
+
+    <section class="fighter-hero" id="fighter-content" hidden>
+      <a class="back-link" href="/#rankings">← Back to rankings</a>
+      <div class="fighter-hero-grid">
+        <div>
+          <div class="eyebrow" id="fighter-division">CAGEMETRIX FIGHTER PROFILE</div>
+          <h1 class="fighter-name" id="fighter-name">Fighter</h1>
+          <p class="fighter-meta" id="fighter-meta"></p>
+        </div>
+        <div class="cmr-lockup">
+          <span>CMR</span>
+          <strong id="fighter-cmr">—</strong>
+          <small id="fighter-rank">Divisional rank pending</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="fighter-section" id="adjusted-section" hidden>
+      <div class="section-heading compact-heading">
+        <div>
+          <div class="eyebrow">OPPONENT-ADJUSTED RATINGS</div>
+          <h2>What the competition changes</h2>
+        </div>
+        <p>Scores are normalized within division. Rank reflects active fighters with at least two UFC bouts in the current model.</p>
+      </div>
+      <div class="fighter-metric-grid" id="fighter-metrics"></div>
+    </section>
+
+    <section class="fighter-section" id="why-section" hidden>
+      <div class="section-heading compact-heading">
+        <div>
+          <div class="eyebrow">WHY THE MODEL SEES IT</div>
+          <h2>Performance vs. expectation</h2>
+        </div>
+        <p>These are the most direct opponent adjustments behind the current score — performance against each opponent compared with what that opponent normally produces or allows.</p>
+      </div>
+      <div class="explanation-grid" id="explanation-grid"></div>
+    </section>
+
+    <section class="fighter-section split-section" id="raw-section" hidden>
+      <div>
+        <div class="eyebrow">RAW UFC OUTPUT</div>
+        <h2>Before adjustment</h2>
+        <div class="raw-stat-grid" id="raw-stats"></div>
+      </div>
+      <div>
+        <div class="eyebrow">SAMPLE QUALITY</div>
+        <h2>How much do we know?</h2>
+        <div class="sample-card" id="sample-card"></div>
+      </div>
+    </section>
+
+    <section class="fighter-section" id="recent-section" hidden>
+      <div class="section-heading compact-heading">
+        <div>
+          <div class="eyebrow">RECENT UFC BOUTS</div>
+          <h2>Recent sample</h2>
+        </div>
+        <p>Fight-level records are used for model context and raw-stat verification. Full bout pages come later.</p>
+      </div>
+      <div class="fight-list" id="fight-list"></div>
+    </section>
+
+    <section class="fighter-section methodology-strip" id="model-section" hidden>
+      <div>
+        <strong id="model-label">CageMetrix descriptive model</strong>
+        <p>This is an early opponent-adjusted descriptive rating, not yet the predictive model. Methodology will be versioned rather than silently rewritten.</p>
+      </div>
+      <a href="/#method">How CageMetrix works →</a>
+    </section>
+  </main>
+
+  <footer>
+    <span>CageMetrix</span>
+    <span>Transparent, opponent-adjusted MMA analytics.</span>
+  </footer>
+  <script src="/fighter.js" defer></script>
+</body>
+</html>
