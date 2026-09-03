@@ -3,11 +3,12 @@
   const pct=v=>`${(v*100).toFixed(1)}%`,num=(v,d=1)=>typeof v==='number'&&Number.isFinite(v)?v.toFixed(d):'—';
   const date=v=>v?new Date(v).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Unavailable';
   const fields=[['cmr','CMR'],['technical','Technical'],['resume','Résumé'],['strikingOffense','Striking offense'],['strikingDefense','Striking defense'],['wrestlingOffense','Wrestling offense'],['wrestlingDefense','Wrestling defense'],['grappling','Grappling'],['pace','Pace'],['finishing','Finishing'],['strengthOfSchedule','Strength of schedule'],['recentForm','Recent form'],['confidence','Sample strength'],['eloRaw','Elo'],['bouts','Rated UFC bouts'],['minutes','Rated minutes']];
-  let payload=null,initialized=false,who=null,token='',revision=0,saving=false,dirty=false;
+  let payload=null,initialized=false,who=null,token='',remembered=false,revision=0,saving=false,dirty=false;
   const id=location.pathname.match(/^\/fights\/([1-9]\d*)\/?$/)?.[1];
   const query=new URLSearchParams(location.search),selection=query.get('prediction');
   const api=`/api/fights/${id}${selection?`?prediction=${encodeURIComponent(selection)}`:''}`;
   const names=()=>payload.prediction.snapshot?.available?payload.prediction.snapshot.fighters:{a:{name:payload.bout.fighter_a_name,slug:payload.bout.fighter_a_slug},b:{name:payload.bout.fighter_b_name,slug:payload.bout.fighter_b_slug}};
+  const authHeaders=extra=>{const headers={...extra};if(token)headers.authorization=`Bearer ${token}`;return headers;};
   function renderSnapshot(){
     const {bout:b,prediction:p}=payload,s=p.snapshot,f=names();
     $('#fight-title').textContent=`${f.a.name} vs ${f.b.name}`;
@@ -53,6 +54,7 @@
     const selected=$('#contributor-select').value;
     $('#contributor-select').innerHTML=payload.commentary.length?payload.commentary.map(c=>`<option value="${c.contributor_id}">${esc(c.display_name)}</option>`).join(''):'<option value="">No published contributors yet</option>';
     if(payload.commentary.some(c=>String(c.contributor_id)===selected))$('#contributor-select').value=selected;
+    else if(who&&payload.commentary.some(c=>c.contributor_id===who.id))$('#contributor-select').value=String(who.id);
     renderCommentary();
   }
   function renderCommentary(){
@@ -72,12 +74,20 @@
     const existing=payload.commentary.find(c=>c.contributor_id===who.id),b=payload.bout,f=names();
     revision=existing?.revision||0;dirty=false;
     $('#editor-name').textContent=`Publishing as ${who.display_name}`;
+    $('#contributor-name').value=who.display_name||'';
+    $('#contributor-profile').hidden=false;
+    $('#device-status').textContent=remembered?'This phone is remembered as your primary contributor device.':'Connected for this page only.';
+    $('#remember-device').checked=remembered;
     $('#round-editors').innerHTML=Array.from({length:5},(_,i)=>i+1).map(round=>{
       const r=existing?.rounds.find(x=>x.round===round),disabled=round>b.scheduled_rounds||b.status==='cancelled'||Date.now()<Date.parse(b.starts_at)||b.status==='completed'&&b.result_round&&round>b.result_round;
       return `<fieldset class="editor-round" data-round="${round}" ${disabled?'disabled':''}><legend>Round ${round}${round>b.scheduled_rounds?' · Not scheduled':''}</legend><label for="round-text-${round}">Commentary</label><textarea id="round-text-${round}" rows="3" maxlength="4000">${esc(r?.text||'')}</textarea><div class="editor-score">${['a','b'].map(side=>`<label for="score-${round}-${side}">${esc(f[side].name)}<select id="score-${round}-${side}"><option value="">Unscored</option>${[10,9,8,7].map(score=>`<option value="${score}" ${r?.[`score_${side}`]===score?'selected':''}>${score}</option>`).join('')}</select></label>`).join('')}</div></fieldset>`;
     }).join('');
     $('#final-thoughts').value=existing?.final_thoughts||'';
     $('#scorecard-editor').hidden=false;$('#contributor-connect').hidden=true;updateTotal();
+    if(existing){$('#contributor-select').value=String(who.id);renderCommentary();}
+  }
+  function activateContributor(body,persistent=false){
+    who=body;remembered=persistent;if(persistent)token='';loadEditor();
   }
   function editorCard(){
     const rounds=[...document.querySelectorAll('.editor-round')].filter(el=>!el.disabled).map(el=>{
@@ -90,21 +100,42 @@
   $('#contributor-select').addEventListener('change',renderCommentary);
   $('#scorecard-editor').addEventListener('input',()=>{dirty=true;updateTotal();});
   $('#reload-card').addEventListener('click',()=>{loadEditor();feedback('Loaded the latest published card.');});
-  $('#disconnect').addEventListener('click',()=>{token='';who=null;dirty=false;$('#scorecard-editor').hidden=true;$('#contributor-connect').hidden=false;$('#round-editors').innerHTML='';$('#final-thoughts').value='';feedback('Disconnected.');});
+  $('#disconnect').addEventListener('click',async()=>{
+    if(remembered){try{await fetch('/api/contributors/device',{method:'DELETE',cache:'no-store'});}catch{}}
+    token='';who=null;remembered=false;dirty=false;$('#scorecard-editor').hidden=true;$('#contributor-profile').hidden=true;$('#contributor-connect').hidden=false;$('#remember-device').checked=false;$('#round-editors').innerHTML='';$('#final-thoughts').value='';feedback('Disconnected from this phone.');
+  });
   $('#contributor-connect').addEventListener('submit',async event=>{event.preventDefault();
-    const candidate=$('#publishing-key').value.trim();$('#publishing-key').value='';
-    try{const r=await fetch('/api/contributors/me',{headers:{authorization:`Bearer ${candidate}`},cache:'no-store'});const body=await r.json();if(!r.ok)throw new Error(body.error);token=candidate;who=body;loadEditor();feedback('Connected. Published cards are visible to everyone.');}catch(e){feedback(e.message||'Could not connect.');}
+    const candidate=$('#publishing-key').value.trim(),remember=$('#remember-device').checked;$('#publishing-key').value='';
+    try{
+      const r=await fetch('/api/contributors/me',{headers:{authorization:`Bearer ${candidate}`},cache:'no-store'});let body=await r.json();if(!r.ok)throw new Error(body.error);
+      if(remember){const keep=await fetch('/api/contributors/device',{method:'POST',headers:{authorization:`Bearer ${candidate}`},cache:'no-store'});body=await keep.json();if(!keep.ok)throw new Error(body.error);activateContributor(body,true);feedback(`This phone will open as ${body.display_name}.`);}
+      else{token=candidate;activateContributor(body,false);feedback('Connected for this page. Published cards are visible to everyone.');}
+    }catch(e){feedback(e.message||'Could not connect.');}
+  });
+  $('#contributor-profile').addEventListener('submit',async event=>{event.preventDefault();
+    const display_name=$('#contributor-name').value.trim();
+    try{
+      const r=await fetch('/api/contributors/me',{method:'PATCH',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({display_name}),cache:'no-store'});const body=await r.json();if(!r.ok)throw new Error(body.error);
+      who=body;for(const card of payload.commentary)if(card.contributor_id===who.id)card.display_name=who.display_name;
+      $('#editor-name').textContent=`Publishing as ${who.display_name}`;$('#contributor-name').value=who.display_name;
+      const option=[...$('#contributor-select').options].find(o=>o.value===String(who.id));if(option)option.textContent=who.display_name;
+      renderCommentary();feedback('Public contributor name updated.');
+    }catch(e){feedback(e.message||'Could not update your public name.');}
   });
   $('#scorecard-editor').addEventListener('submit',async event=>{event.preventDefault();if(saving)return;saving=true;
     const button=$('#scorecard-editor button[type="submit"]');button.disabled=true;
     try{
-      const r=await fetch(`/api/fights/${id}/commentary`,{method:'PUT',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify(editorCard())});
+      const r=await fetch(`/api/fights/${id}/commentary`,{method:'PUT',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(editorCard())});
       const body=await r.json();if(!r.ok)throw new Error(body.error);
       revision=body.revision;payload.commentary=body.commentary;dirty=false;renderResult();$('#contributor-select').value=String(who.id);renderCommentary();feedback('Card published.');
     }catch(e){feedback(e.message||'Could not publish. Your edits are still here.');}finally{saving=false;button.disabled=false;}
   });
+  async function restoreContributor(){
+    try{const r=await fetch('/api/contributors/me',{cache:'no-store'});if(!r.ok)return;const body=await r.json();activateContributor(body,true);feedback(`This phone is remembered as ${body.display_name}.`);}catch{}
+  }
   function render(data){payload=data;if(!initialized){renderSnapshot();initialized=true;}renderResult();if(who&&dirty&&payload.commentary.find(c=>c.contributor_id===who.id)?.revision>revision)feedback('A newer card has been published. Your unsaved edits are retained; reload the published card before saving.');}
   try{const initial=JSON.parse($('#fight-data').textContent);if(initial)render(initial);}catch{}
   if(!id){$('#fight-message').textContent='Open a fight from the Predictions page.';return;}
+  restoreContributor();
   startAutoRefresh(async()=>{const r=await fetch(api,{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error('Fight unavailable');render(await r.json());},()=>{$('#fight-message').textContent='Connection interrupted. The last loaded prediction and results are retained; retrying automatically.';$('#fight-message').classList.add('warning');});
 })();
