@@ -1,6 +1,7 @@
 import base from './index.ts';
 import {fanRecord,getFanSummary,saveFanPrediction,saveFanScorecard} from './fans.ts';
 import {contributor,forgetContributor,rememberContributor,updateContributorProfile} from './contributors.ts';
+import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
 
 interface Env {
   DB:D1Database;
@@ -44,6 +45,12 @@ export default {
   async fetch(request:Request,env:Env,context:ExecutionContext):Promise<Response>{
     const url=new URL(request.url);
     if(request.method==='GET'&&url.pathname==='/api/fans/record')return fanRecord(request,env);
+    const notes=url.pathname.match(/^\/api\/fights\/([1-9]\d*)\/notes$/);
+    if(notes){
+      if(request.method==='GET')return getContributorNotes(request,env,notes[1]);
+      if(request.method==='PUT')return saveContributorNote(request,env,notes[1]);
+      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+    }
     const match=url.pathname.match(/^\/api\/fights\/([1-9]\d*)\/(fans|fan-prediction|fan-scorecard)$/);
     if(match){
       if(match[2]==='fans'&&request.method==='GET')return getFanSummary(request,env,match[1]);
