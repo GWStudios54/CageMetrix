@@ -26,9 +26,10 @@
       <span>CageMetrix</span>
     </a>
     <nav>
+      <a href="/predictions.html">Predictions</a>
       <a href="#rankings">Rankings</a>
       <a href="#method">Method</a>
-      <a href="/api/health">API</a>
+      <a href="/validation.html">Track record</a>
     </nav>
   </header>
 
@@ -36,10 +37,10 @@
     <section class="hero">
       <div class="eyebrow">OPPONENT-ADJUSTED MMA ANALYTICS</div>
       <h1>Raw stats tell you <em>what</em> happened.<br />CageMetrix asks <em>against whom?</em></h1>
-      <p class="lede">Explore UFC fighter ratings with the quality and tendencies of the opposition factored in.</p>
+      <p class="lede">Explore opponent-adjusted fighter ratings, upcoming win probabilities and a prediction record you can check.</p>
       <div class="hero-actions">
         <a class="button primary" href="#rankings">Explore the rankings</a>
-        <a class="button secondary" href="#method">How adjustment works</a>
+        <a class="button secondary" href="/predictions.html">Upcoming fight predictions</a>
       </div>
     </section>
 
@@ -81,7 +82,7 @@
         <span id="results-status" role="status" aria-live="polite">Loading rankings…</span>
         <span id="snapshot-label"></span>
       </div>
-      <div class="ranking-column-head" aria-hidden="true"><span>Rank</span><span>Fighter</span><span>Sample confidence</span><span>Score</span></div>
+      <div class="ranking-column-head" aria-hidden="true"><span>Rank</span><span>Fighter</span><span>Sample strength</span><span>Score</span></div>
       <div class="ranking-list" id="ranking-list" aria-busy="true">
         <div class="ranking-loading">Loading CageMetrix ratings…</div>
       </div>
@@ -94,8 +95,8 @@
       <details class="score-guide">
         <summary>How to read these scores</summary>
         <p><strong>CMR</strong> combines opponent-adjusted performance, results, schedule strength and recent form on a 0–100 scale. Category scores are normalized within each fighter’s division. All-division rankings compare those normalized scores.</p>
-        <p><strong>Sample confidence</strong> measures the evidence from bout count and cage time. Higher values mean less uncertainty adjustment. <strong>Provisional</strong> fighters have limited evidence; their profiles show performance CMR alongside the more conservative ranked CMR.</p>
-        <p>Search keeps each fighter’s rank within the selected division and metric. The rating snapshot date identifies when the displayed ratings were calculated; it does not confirm that every recent bout is included. <a href="#method">Read the method →</a></p>
+        <p><strong>Sample strength</strong> is a 0–100 index based on bout count and cage time. It is not an accuracy probability or confidence interval. <strong>Provisional</strong> fighters have limited evidence; their profiles show performance CMR alongside the sample-adjusted ranked CMR.</p>
+        <p>Search keeps each fighter’s rank within the selected division and metric. “Data through” identifies the latest included event date. Active status is based on recent UFC activity and known retirement overrides. <a href="/validation.html">See model validation →</a></p>
       </details>
       <p class="model-note">Early CageMetrix ratings are a descriptive model and will change as the methodology, source coverage and active-roster verification improve.</p>
     </section>
@@ -167,10 +168,10 @@
           <h2>One score, with the parts left visible.</h2>
         </div>
         <div class="breakdown-grid">
-          <article><strong>Technical</strong><p>Opponent-adjusted striking, wrestling, grappling, pace and finishing.</p></article>
+          <article><strong>Technical · 56%</strong><p>Opponent-adjusted striking and wrestling, plus grappling, pace and finishing measures.</p></article>
           <article><strong>Résumé</strong><p>Competitive results and the quality of the fighters those results came against.</p></article>
           <article><strong>Recent form</strong><p>More recent performances receive more influence than distant ones.</p></article>
-          <article><strong>Confidence</strong><p>Bout count and cage-time exposure determine how aggressively the model trusts the sample.</p></article>
+          <article><strong>Sample strength</strong><p>Bout count and cage-time exposure control sample penalties. This is not a win probability.</p></article>
         </div>
       </div>
 
@@ -179,7 +180,7 @@
           <span class="metric-kicker">WHY TWO CMR NUMBERS CAN APPEAR</span>
           <h3>Performance CMR vs. Ranked CMR</h3>
         </div>
-        <p><strong>Performance CMR</strong> shows what the underlying output looks like before uncertainty is fully applied. <strong>Ranked CMR</strong> is the conservative leaderboard score after sample confidence and uncertainty are accounted for. Established fighters usually see the two converge; prospects can have a much larger gap.</p>
+        <p><strong>Performance CMR</strong> shows the underlying output before sample penalties. <strong>Ranked CMR</strong> applies bout-count and cage-time adjustments. The blend remains a descriptive model; <a href="/validation.html">historical testing</a> has not established an overall forecasting advantage over Elo.</p>
       </div>
     </section>
 
@@ -196,7 +197,7 @@
     <span>CageMetrix</span>
     <span>Transparent, opponent-adjusted MMA analytics.</span>
   </footer>
-  <script src="/fighter-media.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script src="/fighter-media.js?v=initials-1" defer></script>
+  <script src="/app.js?v=0.3.0" defer></script>
 </body>
 </html>

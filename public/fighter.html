@@ -18,9 +18,10 @@
       <span>CageMetrix</span>
     </a>
     <nav>
+      <a href="/predictions.html">Predictions</a>
       <a href="/#rankings">Rankings</a>
       <a href="/#method">Method</a>
-      <a href="/api/health">API</a>
+      <a href="/validation.html">Track record</a>
     </nav>
   </header>
 
@@ -94,7 +95,7 @@
     <section class="fighter-section methodology-strip" id="model-section" hidden>
       <div>
         <strong id="model-label">CageMetrix model</strong>
-        <p>v0.2 separates performance from ranking certainty: provisional fighters can show elite underlying output without automatically outranking established contenders. Methodology is versioned rather than silently rewritten.</p>
+          <p>v0.3 separates fighter identities and men’s/women’s divisions, excludes no-contests from ratings, and preserves source-versioned snapshots. CMR is descriptive; win probabilities use a separate model.</p>
       </div>
       <a href="/#method">How CageMetrix works →</a>
     </section>
@@ -104,7 +105,7 @@
     <span>CageMetrix</span>
     <span>Transparent, opponent-adjusted MMA analytics.</span>
   </footer>
-  <script src="/fighter-media.js" defer></script>
-  <script src="/fighter.js" defer></script>
+  <script src="/fighter-media.js?v=initials-1" defer></script>
+  <script src="/fighter.js?v=0.3.0" defer></script>
 </body>
 </html>

@@ -31,12 +31,15 @@ function json(data: unknown, init: ResponseInit = {}, cacheSeconds = 0): Respons
 
 async function edgeCached(request: Request, context: ExecutionContext, producer: () => Promise<Response>): Promise<Response> {
   const cache = (caches as CacheStorage & { default: Cache }).default;
-  const cached = await cache.match(request);
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.set('_cache_version', '0.3.0');
+  const cacheKey = new Request(cacheUrl, request);
+  const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
   const response = await producer();
   if (response.ok && !response.headers.get("cache-control")?.includes("no-store")) {
-    context.waitUntil(cache.put(request, response.clone()));
+    context.waitUntil(cache.put(cacheKey, response.clone()));
   }
   return response;
 }
@@ -60,6 +63,20 @@ function currentModelIdSql(): string {
   return `(SELECT id FROM model_versions WHERE name = ? AND version = ? LIMIT 1)`;
 }
 
+function latestRatingSql(): string {
+  return `rh.id = (SELECT newest.id FROM ratings_history newest
+    WHERE newest.fighter_id = rh.fighter_id AND newest.model_version_id = rh.model_version_id
+    ORDER BY newest.as_of_date DESC, newest.id DESC LIMIT 1)`;
+}
+
+async function dataStatus(env: Env) {
+  const row = await env.DB.prepare("SELECT value FROM bootstrap_state WHERE key='data:latest'").first();
+  const value = parseJson(row?.value);
+  if (!value) return null;
+  const ageDays = Math.max(0, Math.floor((Date.now() - Date.parse(`${value.source_max_date}T00:00:00Z`)) / 86400000));
+  return { ...value, age_days: ageDays, stale: ageDays > 21 };
+}
+
 async function health(env: Env): Promise<Response> {
   // Deliberately lightweight. Full-table COUNT(*) calls on every landing-page load
   // were the single largest source of unnecessary D1 reads.
@@ -68,6 +85,7 @@ async function health(env: Env): Promise<Response> {
     ok: db?.ok === 1,
     service: "cagemetrix",
     model_version: env.MODEL_VERSION,
+    data: await dataStatus(env),
     timestamp: new Date().toISOString()
   }, {}, 300);
 }
@@ -146,6 +164,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
       bt.event_date,
       bt.weight_class,
       bt.won,
+      bt.result,
       bt.finish,
       bt.sig_strikes_landed,
       bt.sig_strikes_absorbed,
@@ -183,6 +202,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
       WHERE f.current_weight_class = ?1
         AND f.active = 1
         AND rh.sample_bouts >= 1
+        AND ${latestRatingSql()}
     `).bind(
       fighter.current_weight_class,
       MODEL_NAME,
@@ -233,7 +253,7 @@ async function rankings(request: Request, env: Env): Promise<Response> {
     return json({ error: "invalid_metric", allowed: Object.keys(metricColumns) }, { status: 400 });
   }
 
-  const clauses: string[] = ["rh.sample_bouts >= ?3"];
+  const clauses: string[] = ["rh.sample_bouts >= ?3", latestRatingSql()];
   const bindings: unknown[] = [MODEL_NAME, env.MODEL_VERSION, minBouts];
 
   if (weightClass) {
@@ -299,6 +319,7 @@ async function rankings(request: Request, env: Env): Promise<Response> {
       metric, weight_class: weightClass || null, active_only: activeOnly,
       min_bouts: minBouts, limit, offset, query,
       total: Number(result.results[0]?.total || 0),
+      data: await dataStatus(env),
       model_version: env.MODEL_VERSION
     }
   }, {}, 600);
@@ -315,6 +336,40 @@ async function divisions(env: Env): Promise<Response> {
   return json({ data: result.results }, {}, 1800);
 }
 
+async function forecasts(env: Env): Promise<Response> {
+  const result = await env.DB.prepare(`
+    SELECT p.id, p.created_at, p.locked_at, p.fighter_a_probability, p.fighter_b_probability,
+      p.picked_fighter_id, p.sample_strength, p.notes, p.input_snapshot_key,
+      e.name AS event_name, e.event_date, e.starts_at, e.slug AS event_slug, e.source_url,
+      b.status, b.weight_class, b.bout_order, b.winner_id, b.result_method,
+      a.id AS fighter_a_id, a.name AS fighter_a_name, a.slug AS fighter_a_slug,
+      z.id AS fighter_b_id, z.name AS fighter_b_name, z.slug AS fighter_b_slug,
+      mv.version AS model_version,
+      CASE WHEN b.status='completed' AND b.winner_id IS NOT NULL
+        AND p.picked_fighter_id IS NOT NULL AND p.locked_at < e.starts_at
+        THEN CASE WHEN p.picked_fighter_id=b.winner_id THEN 'correct' ELSE 'incorrect' END
+        WHEN b.status='cancelled' THEN 'cancelled'
+        WHEN b.status='completed' THEN 'void' ELSE 'pending' END AS grade
+    FROM predictions p JOIN bouts b ON b.id=p.bout_id
+    JOIN events e ON e.id=b.event_id JOIN model_versions mv ON mv.id=p.model_version_id
+    JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id
+    WHERE mv.name='CageMetrix Win Probability' AND mv.version='0.1.0'
+    ORDER BY e.event_date DESC, b.bout_order, p.id
+  `).all();
+  const rows = result.results as any[];
+  const graded = rows.filter(r => r.grade === 'correct' || r.grade === 'incorrect');
+  const correct = graded.filter(r => r.grade === 'correct').length;
+  const brier = graded.length ? graded.reduce((sum,r) => sum + (r.fighter_a_probability - Number(r.winner_id === r.fighter_a_id)) ** 2,0) / graded.length : null;
+  return json({ data: rows, summary: {
+    correct, incorrect: graded.length-correct, graded: graded.length,
+    accuracy: graded.length ? correct/graded.length : null, brier,
+    pending: rows.filter(r=>r.grade==='pending').length,
+    void: rows.filter(r=>r.grade==='void'||r.grade==='cancelled').length,
+    first_prediction_at: rows.map(r=>r.locked_at).sort()[0] || null,
+    policy: 'Only predictions saved before the event starts are graded. Draws, no-contests, cancellations and 50/50 no-picks are excluded. Historical backtests are separate.'
+  }, meta: { model_version:'0.1.0', data:await dataStatus(env) } }, {}, 300);
+}
+
 async function fighterAsset(request: Request, env: Env, slug: string): Promise<Response> {
   const assetUrl = new URL(request.url);
   assetUrl.pathname = "/fighter.html";
@@ -326,21 +381,14 @@ async function fighterAsset(request: Request, env: Env, slug: string): Promise<R
   const fighter = await env.DB.prepare("SELECT slug, name, current_weight_class FROM fighters WHERE slug = ?1 LIMIT 1").bind(slug).first();
   if (!fighter) return new Response(response.body, { status: 404, headers: response.headers });
   const title = `${fighter.name} — CageMetrix`;
-  const description = `${fighter.name}'s opponent-adjusted ${fighter.current_weight_class || "UFC"} ratings, performance breakdown and sample confidence.`;
+  const description = `${fighter.name}'s opponent-adjusted ${fighter.current_weight_class || "UFC"} ratings, performance breakdown and sample strength.`;
   const canonical = `https://cagemetrix.com/fighters/${encodeURIComponent(slug)}`;
   const escape = (value: string) => value.replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
-  let image = "";
-  try {
-    const photoUrl = new URL("/headshots.json", request.url);
-    const photos = await env.ASSETS.fetch(new Request(photoUrl)).then(r => r.json()) as Record<string, { url: string }>;
-    const candidate = photos[slug]?.url;
-    if (candidate && /^https:\/\/(?:www\.)?ufc\.com\/images\//.test(candidate)) image = candidate;
-  } catch { /* A missing photo must not prevent the fighter profile loading. */ }
   return new HTMLRewriter()
     .on("title", { element(el) { el.setInnerContent(title); } })
     .on('meta[name="description"]', { element(el) { el.setAttribute("content", description); } })
     .on("head", { element(el) {
-      el.append(`<link rel="canonical" href="${canonical}"><meta property="og:type" content="profile"><meta property="og:url" content="${canonical}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:description" content="${escape(description)}">${image ? `<meta property="og:image" content="${escape(image)}"><meta name="twitter:image" content="${escape(image)}">` : ""}`, { html: true });
+      el.append(`<link rel="canonical" href="${canonical}"><meta property="og:type" content="profile"><meta property="og:url" content="${canonical}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:description" content="${escape(description)}"><meta property="og:image" content="https://cagemetrix.com/og.png"><meta name="twitter:image" content="https://cagemetrix.com/og.png">`, { html: true });
     } })
     .transform(response);
 }
@@ -365,6 +413,9 @@ export default {
       }
       if (request.method === "GET" && url.pathname === "/api/divisions") {
         return edgeCached(request, context, () => divisions(env));
+      }
+      if (request.method === "GET" && url.pathname === "/api/forecasts") {
+        return edgeCached(request, context, () => forecasts(env));
       }
 
       if (request.method === "GET" && url.pathname.startsWith("/fighters/")) {
