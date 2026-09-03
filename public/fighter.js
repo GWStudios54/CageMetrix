@@ -1,6 +1,7 @@
 const loading = document.querySelector('#fighter-loading');
 const content = document.querySelector('#fighter-content');
 const adjustedSection = document.querySelector('#adjusted-section');
+const historySection = document.querySelector('#history-section');
 const whySection = document.querySelector('#why-section');
 const rawSection = document.querySelector('#raw-section');
 const recentSection = document.querySelector('#recent-section');
@@ -79,6 +80,37 @@ function renderMetricCards(rating, ranks) {
   }).join('');
 }
 
+function renderHistory(rows, rating) {
+  const root = document.querySelector('#cmr-history');
+  const seen = new Set();
+  const snapshots = (rows || []).filter(row => {
+    if (row.model_name !== rating.model_name || row.model_version !== rating.model_version) return false;
+    const key = `${row.model_version}:${row.as_of_date}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return Number.isFinite(Number(row.cmr));
+  }).slice(0, 12);
+
+  if (!snapshots.length) {
+    root.innerHTML = '<div class="ranking-loading">No preserved rating history is available yet.</div>';
+    return;
+  }
+
+  root.innerHTML = snapshots.map((row, index) => {
+    const older = snapshots[index + 1];
+    const delta = older ? Number(row.cmr) - Number(older.cmr) : null;
+    const change = delta === null
+      ? '<span class="cmr-change flat">First snapshot</span>'
+      : `<span class="cmr-change ${delta > 0.049 ? 'up' : delta < -0.049 ? 'down' : 'flat'}">${delta > 0.049 ? '+' : ''}${delta.toFixed(1)}</span>`;
+    return `<article class="cmr-history-row">
+      <div><span>Data through ${esc(row.as_of_date)}</span><small>${esc(row.weight_class || '')}${index === 0 ? ' · Current' : ''}</small></div>
+      <strong>${number(row.cmr)}</strong>
+      ${change}
+      <small>Technical ${number(row.technical_rating)} · Résumé ${number(row.resume_rating)} · SoS ${number(row.strength_of_schedule)}</small>
+    </article>`;
+  }).join('');
+}
+
 function renderExplanations(components) {
   const root = document.querySelector('#explanation-grid');
   const entries = [
@@ -136,7 +168,7 @@ async function load() {
   const response = await fetch(`/api/fighters/${encodeURIComponent(slug)}`, { headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const [payload] = await Promise.all([response.json(), fighterMedia.ready]);
-  const { fighter, rating: storedRating, ranks, raw, recent_bouts: recentBouts } = payload;
+  const { fighter, rating: storedRating, ranks, raw, recent_bouts: recentBouts, history } = payload;
   if (!fighter) throw new Error('Fighter not available');
   const rating = storedRating || { cmr:null, confidence:0, sample_bouts:0, sample_minutes:0, provisional:true, model_version:'0.3.0', components:{} };
 
@@ -166,6 +198,7 @@ async function load() {
   document.querySelector('#fighter-snapshot').textContent = `Rating snapshot: ${rating.as_of_date || 'unavailable'} · Model v${rating.model_version || '?'}`;
 
   renderMetricCards(rating, ranks);
+  renderHistory(history || [], rating);
   renderExplanations(rating.components || {});
   renderRaw(raw || {});
   renderRecent(recentBouts || []);
@@ -191,7 +224,7 @@ async function load() {
   document.querySelector('#model-label').textContent = `${rating.model_name || 'CageMetrix'} · v${rating.model_version || '0.2.0'}`;
 
   loading.hidden = true;
-  [content, adjustedSection, whySection, rawSection, recentSection, modelSection].forEach(el => { el.hidden = false; });
+  [content, adjustedSection, historySection, whySection, rawSection, recentSection, modelSection].forEach(el => { el.hidden = false; });
 }
 
 load().catch(error => {
