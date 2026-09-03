@@ -13,6 +13,11 @@ function resultLabel(row){
   return `${winner?`${winner} wins`:row.result_method||'Draw / no contest'}${winner&&row.result_method?` · ${row.result_method}`:''} · ${row.grade==='void'?'Excluded from accuracy':row.grade==='correct'?'Correct pick':'Incorrect pick'}`;
 }
 function fightLink(row){return `/fights/${Number(row.bout_id)}`;}
+function confidenceBlurb(row){
+  if(row.sample_strength===null||row.sample_strength===undefined)return '';
+  const value=Number(row.sample_strength);
+  return Number.isFinite(value)?`<small class="muted" title="Based on the weaker fighter's pre-fight sample strength">Model confidence: ${Math.round(value)}%</small>`:'';
+}
 async function loadForecasts(){
   const response=await fetch('/api/forecasts?live=1',{cache:'no-store',signal:AbortSignal.timeout(15_000)});
   if(!response.ok)throw new Error('Forecasts unavailable');
@@ -38,7 +43,7 @@ async function loadForecasts(){
   for(const row of upcoming){if(!events.has(row.event_slug))events.set(row.event_slug,[]);events.get(row.event_slug).push(row);}
   document.querySelector('#event-cards').innerHTML=[...events.values()].sort((a,b)=>a[0].starts_at.localeCompare(b[0].starts_at)).map(rows=>{
     const event=rows[0];
-    return `<article class="event-card"><header><div><div class="eyebrow">${escapeHtml(event.event_date)}${event.event_live?' · FIGHT DAY':''}</div><h2>${escapeHtml(event.event_name)}</h2><span class="muted">${rows.length} saved predictions · Starts ${escapeHtml(savedTime(event.starts_at))}</span></div><a href="${escapeHtml(event.source_url)}" target="_blank" rel="noopener">Official card ↗</a></header>${rows.map(r=>`<div class="forecast-bout"><div class="forecast-matchup">${fighter(r,'a')}<span class="forecast-versus">VS</span>${fighter(r,'b')}</div><div class="probability-bar" aria-hidden="true"><span style="width:${Number(r.fighter_a_probability)*100}%"></span></div><p class="result-label grade-${escapeHtml(r.grade)}">${escapeHtml(resultLabel(r))}</p><p><a class="fight-detail-link" href="${fightLink(r)}">Fight details, stats & reasoning →</a></p><div class="forecast-meta"><span>${escapeHtml(r.weight_class)}</span><span>Locked ${escapeHtml(savedTime(r.locked_at))}</span></div></div>`).join('')}</article>`;
+    return `<article class="event-card"><header><div><div class="eyebrow">${escapeHtml(event.event_date)}${event.event_live?' · FIGHT DAY':''}</div><h2>${escapeHtml(event.event_name)}</h2><span class="muted">${rows.length} saved predictions · Starts ${escapeHtml(savedTime(event.starts_at))}</span></div><a href="${escapeHtml(event.source_url)}" target="_blank" rel="noopener">Official card ↗</a></header>${rows.map(r=>`<div class="forecast-bout"><div class="forecast-matchup">${fighter(r,'a')}<span class="forecast-versus">VS</span>${fighter(r,'b')}</div><div class="probability-bar" aria-hidden="true"><span style="width:${Number(r.fighter_a_probability)*100}%"></span></div><p class="result-label grade-${escapeHtml(r.grade)}">${escapeHtml(resultLabel(r))}</p>${confidenceBlurb(r)}<p><a class="fight-detail-link" href="${fightLink(r)}">Fight details, stats & reasoning →</a></p><div class="forecast-meta"><span>${escapeHtml(r.weight_class)}</span><span>Locked ${escapeHtml(savedTime(r.locked_at))}</span></div></div>`).join('')}</article>`;
   }).join('')||'<p class="ranking-loading">No upcoming predictions saved yet. Cards appear after matchups are confirmed.</p>';
   const history=data.filter(r=>r.grade!=='pending');
   document.querySelector('#prediction-history').innerHTML=history.map(r=>`<div class="prediction-row"><div><a class="fight-detail-link" href="${fightLink(r)}"><strong>${escapeHtml(r.fighter_a_name)} vs ${escapeHtml(r.fighter_b_name)}</strong> →</a><small class="muted"> · ${escapeHtml(r.event_date)} · ${percent(r.fighter_a_probability)} / ${percent(r.fighter_b_probability)}</small></div><strong class="grade-${escapeHtml(r.grade)}">${escapeHtml(resultLabel(r))}</strong></div>`).join('')||'<p class="ranking-loading">The record begins with these locked forecasts. Completed fights will appear here automatically.</p>';
