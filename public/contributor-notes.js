@@ -17,23 +17,23 @@
       return `<article class="prefight-note"><header><div><div class="byline">By ${esc(note.display_name)}</div><h3>${esc(note.title||'Contributor note')}</h3></div>${pick?`<span class="pick-badge">Pick: ${esc(pick)}</span>`:''}</header><div class="prefight-note-body">${paragraphs(note.body)}</div></article>`;
     }).join('')}</div>`:'<p class="prefight-note-empty">No contributor pre-fight notes have been published yet.</p>';
     const lock=$('#note-lock');if(lock){lock.hidden=data.meta.can_publish;lock.textContent='Pre-fight notes are locked once the published card starts. Existing notes remain on the record.';}
-    if(who)loadEditor();
+    const editor=$('.note-editor');if(editor)editor.hidden=!data.meta.can_publish;
+    if(who&&data.meta.can_publish)loadEditor();
   }
   function loadEditor(){
-    const form=$('#prefight-note-form');if(!form)return;
+    const form=$('#prefight-note-form');if(!form||!data.meta.can_publish)return;
     const mine=data.notes.find(n=>n.contributor_id===who.id);revision=mine?.revision||0;
     $('#note-title').value=mine?.title||'';$('#note-body').value=mine?.body||'';
     $('#note-pick').value=mine?.picked_fighter_id==null?'':String(mine.picked_fighter_id);
     $('#note-editor-name').textContent=`Publishing as ${who.display_name}`;
-    $('#note-connect').hidden=true;form.hidden=!data.meta.can_publish;
-    if(!data.meta.can_publish)$('#note-editor-status').textContent='This card has started, so pre-fight notes are read-only.';
+    $('#note-connect').hidden=true;form.hidden=false;
   }
   async function load(){
     const r=await fetch(`/api/fights/${id}/notes`,{cache:'no-store'});if(!r.ok)throw new Error('Contributor notes unavailable');
     data=await r.json();renderNotes();
   }
   async function restore(){
-    try{const r=await fetch('/api/contributors/me',{cache:'no-store'});if(!r.ok)return;who=await r.json();token='';loadEditor();}catch{}
+    try{const r=await fetch('/api/contributors/me',{cache:'no-store'});if(!r.ok)return;who=await r.json();token='';if(data.meta.can_publish)loadEditor();}catch{}
   }
   if(fighters){
     $('#note-pick').innerHTML=`<option value="">No pick — analysis only</option><option value="${fighters.a.id}">${esc(fighters.a.name)}</option><option value="${fighters.b.id}">${esc(fighters.b.name)}</option>`;
