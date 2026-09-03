@@ -29,14 +29,12 @@ export function buildStyleProfiles(fightPairs) {
         weightedMinutes: 0,
         sigAttempts: 0,
         tdAttempts: 0,
-        controlSeconds: 0,
         submissionAttempts: 0
       };
     }
     p.weightedMinutes += weightedMinutes;
     p.sigAttempts += Math.max(0, obs.sigA || 0) * recency;
     p.tdAttempts += Math.max(0, obs.tdA || 0) * recency;
-    p.controlSeconds += Math.max(0, obs.ctrlSec || 0) * recency;
     p.submissionAttempts += Math.max(0, obs.sub || 0) * recency;
     map.set(obs.fighterId, p);
   };
@@ -48,16 +46,11 @@ export function buildStyleProfiles(fightPairs) {
 
   for (const [fighterId, p] of map) {
     const minutes = p.weightedMinutes;
-    const sigAttemptsPerMin = safeDiv(p.sigAttempts, minutes, 0);
-    const tdAttemptsPer15 = safeDiv(p.tdAttempts * 15, minutes, 0);
-    const controlShare = safeDiv(p.controlSeconds, minutes * 60, 0);
-    const subAttemptsPer15 = safeDiv(p.submissionAttempts * 15, minutes, 0);
     map.set(fighterId, {
       fighterId,
-      sigAttemptsPerMin,
-      tdAttemptsPer15,
-      controlShare,
-      subAttemptsPer15,
+      sigAttemptsPerMin: safeDiv(p.sigAttempts, minutes, 0),
+      tdAttemptsPer15: safeDiv(p.tdAttempts * 15, minutes, 0),
+      subAttemptsPer15: safeDiv(p.submissionAttempts * 15, minutes, 0),
       reliability: reliability(minutes),
       weightedMinutes: minutes
     });
@@ -70,7 +63,6 @@ export function neutralStyle() {
   return {
     sigAttemptsPerMin: 0,
     tdAttemptsPer15: 0,
-    controlShare: 0,
     subAttemptsPer15: 0,
     reliability: 0,
     weightedMinutes: 0
