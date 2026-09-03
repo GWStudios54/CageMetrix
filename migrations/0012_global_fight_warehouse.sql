@@ -98,10 +98,18 @@ CREATE INDEX idx_warehouse_bouts_f2 ON warehouse_bouts(source_key, fighter_2_sou
 CREATE INDEX idx_warehouse_bouts_name1 ON warehouse_bouts(fighter_1_normalized, event_date DESC);
 CREATE INDEX idx_warehouse_bouts_name2 ON warehouse_bouts(fighter_2_normalized, event_date DESC);
 
+-- The source's detailed UFC table uses its own native fight-ID namespace and
+-- does not reliably share fight_id with the global longitudinal table. Keep
+-- every detailed row under its source-native ID and store a nullable,
+-- explicitly described cross-table match instead of inventing an identity.
 CREATE TABLE warehouse_bout_stats (
-  source_key TEXT NOT NULL,
-  source_bout_id TEXT NOT NULL,
+  source_key TEXT NOT NULL REFERENCES warehouse_sources(source_key),
+  source_detail_bout_id TEXT NOT NULL,
+  matched_global_bout_id TEXT,
+  match_method TEXT NOT NULL DEFAULT 'unresolved' CHECK(match_method IN ('source_id','exact_date_pair','date_window_surnames','unresolved')),
+  match_confidence REAL NOT NULL DEFAULT 0 CHECK(match_confidence >= 0 AND match_confidence <= 1),
   organization TEXT NOT NULL,
+  event_name TEXT,
   event_date TEXT NOT NULL,
   fighter_1_name TEXT NOT NULL,
   fighter_2_name TEXT NOT NULL,
@@ -130,10 +138,11 @@ CREATE TABLE warehouse_bout_stats (
   source_version TEXT NOT NULL,
   last_seen_run_id TEXT NOT NULL REFERENCES warehouse_ingestion_runs(run_id),
   imported_at TEXT NOT NULL,
-  PRIMARY KEY(source_key, source_bout_id),
-  FOREIGN KEY(source_key, source_bout_id) REFERENCES warehouse_bouts(source_key, source_bout_id)
+  PRIMARY KEY(source_key, source_detail_bout_id),
+  FOREIGN KEY(source_key, matched_global_bout_id) REFERENCES warehouse_bouts(source_key, source_bout_id)
 );
 CREATE INDEX idx_warehouse_stats_date ON warehouse_bout_stats(event_date DESC);
+CREATE INDEX idx_warehouse_stats_match ON warehouse_bout_stats(source_key, matched_global_bout_id);
 CREATE INDEX idx_warehouse_stats_f1 ON warehouse_bout_stats(source_key, fighter_1_source_id, event_date DESC);
 CREATE INDEX idx_warehouse_stats_f2 ON warehouse_bout_stats(source_key, fighter_2_source_id, event_date DESC);
 
