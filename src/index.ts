@@ -182,7 +182,7 @@ async function getFighter(slug: string, env: Env): Promise<Response> {
        AND rh.model_version_id = (SELECT id FROM model_versions WHERE name = ?2 AND version = ?3 LIMIT 1)
       WHERE f.current_weight_class = ?1
         AND f.active = 1
-        AND rh.sample_bouts >= 2
+        AND rh.sample_bouts >= 1
     `).bind(
       fighter.current_weight_class,
       MODEL_NAME,
@@ -223,7 +223,8 @@ async function rankings(request: Request, env: Env): Promise<Response> {
   const weightClass = (url.searchParams.get("weight_class") || "").trim();
   const activeOnly = url.searchParams.get("active") !== "false";
   const limit = intParam(url.searchParams.get("limit"), 50, 1, 200);
-  const minBouts = intParam(url.searchParams.get("min_bouts"), 2, 0, 100);
+  // One current-division bout is enough to appear, but small samples remain PROVISIONAL.
+  const minBouts = intParam(url.searchParams.get("min_bouts"), 1, 0, 100);
   const metric = (url.searchParams.get("metric") || "cmr").trim();
   const sortColumn = metricColumns[metric];
   if (!sortColumn) {
