@@ -23,6 +23,8 @@ jobs:
           npm run build
       - name: Prepare current data without touching D1
         run: node scripts/refresh-data.mjs --dry-run
+      - name: Re-run leakage-safe Predictor 0.1 benchmark
+        run: npm run predictor:validate
       - name: Generate Predictor 0.1 forecasts without touching D1
         run: node scripts/sync-forecasts.mjs --dry-run
       - name: Verify model handoff SQL
@@ -35,6 +37,8 @@ jobs:
           name: predictor-v01-production-audit
           path: |
             .cache/refresh/summary.json
+            .cache/predictor-validation.json
+            .cache/predictor-predictions.json
             .cache/forecasts/summary.json
             .cache/forecasts/forecasts.sql
           retention-days: 7
