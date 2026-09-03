@@ -1,6 +1,7 @@
 export const RESULT_POLL_SECONDS = 120;
 export const PAGE_POLL_SECONDS = 30;
 const HOUR = 3_600_000;
+const SOURCE_VERSION = 'ufc-live-v1';
 
 export type OfficialBout = {
   officialId: string; red: string; blue: string; redSlug: string; blueSlug: string;
@@ -19,9 +20,10 @@ const aliases: Record<string,string> = { celiu:'liuce', cameronnelson:'camnelson
 const nameKey = (value: string) => aliases[key(value)] || key(value);
 
 // HTMLRewriter reads text and profile links only; it never requests page images.
-export async function readOfficialCard(response: Response): Promise<OfficialBout[]> {
+export async function readOfficialCard(response: Response): Promise<{bouts:OfficialBout[];eventId:string}> {
   const bouts: OfficialBout[] = [];
   let current: OfficialBout | undefined;
+  let eventId='';
   const parser = new HTMLRewriter().on('.c-listing-fight', { element(el) {
     current = { officialId:el.getAttribute('data-fmid') || '', sourceStatus:el.getAttribute('data-status') || '', red:'', blue:'', redSlug:'', blueSlug:'', redOutcome:'', blueOutcome:'', methods:[], rounds:[], times:[] };
     bouts.push(current);
@@ -34,6 +36,14 @@ export async function readOfficialCard(response: Response): Promise<OfficialBout
       text(chunk) { value += chunk.text; }
     });
   }
+  let settings='';
+  parser.on('script[data-drupal-selector="drupal-settings-json"]', {
+    text(chunk) { settings+=chunk.text; },
+    element(el) { el.onEndTag(() => { try {
+      const value=JSON.parse(settings)?.eventLiveStats?.event_fmid;
+      if(/^\d+$/.test(String(value)))eventId=String(value);
+    } catch { /* A card without live settings can still publish completed HTML results. */ } }); }
+  });
   for (const side of ['red','blue'] as const) {
     collect(`.c-listing-fight__corner-name--${side}`, (bout,value) => { bout[side]=value; });
     collect(`.c-listing-fight__corner--${side} .c-listing-fight__outcome-wrapper`, (bout,value) => { bout[`${side}Outcome`]=value.toLowerCase(); });
@@ -48,6 +58,27 @@ export async function readOfficialCard(response: Response): Promise<OfficialBout
   }
   await parser.transform(response).arrayBuffer();
   if(!bouts.length || bouts.some(b=>!/^\d+$/.test(b.officialId) || !b.red || !b.blue) || new Set(bouts.map(b=>b.officialId)).size!==bouts.length) throw new Error('Official card format unavailable');
+  return {bouts,eventId};
+}
+
+// This is the public JSON endpoint used by UFC's own LiveStats page script.
+// Its explicit Final status separates an official result from an unofficial winner.
+export function liveFeedBouts(payload: any, expectedEventId: string): OfficialBout[] {
+  const event=payload?.LiveEventDetail;
+  if(String(event?.EventId)!==expectedEventId || !Array.isArray(event.FightCard) || !event.FightCard.length)throw new Error('Live feed event mismatch or unavailable');
+  const bouts:OfficialBout[]=[];
+  for(const fight of event.FightCard) {
+    if(!/^\d+$/.test(String(fight.FightId)) || !Array.isArray(fight.Fighters))throw new Error('Live feed bout format unavailable');
+    const red=fight.Fighters.find((f:any)=>f.Corner==='Red'),blue=fight.Fighters.find((f:any)=>f.Corner==='Blue');
+    if(!red || !blue)continue;
+    const name=(f:any)=>tidy(`${f.Name?.FirstName||''} ${f.Name?.LastName||''}`);
+    const slug=(f:any)=>{try { const url=new URL(f.UFCLink); return ['www.ufc.com','ufc.com'].includes(url.hostname)?url.pathname.split('/').filter(Boolean).at(-1)?.toLowerCase()||'':''; } catch { return ''; }};
+    const final=fight.Status==='Final';
+    bouts.push({officialId:String(fight.FightId),red:name(red),blue:name(blue),redSlug:slug(red),blueSlug:slug(blue),
+      redOutcome:final?String(red.Outcome?.Outcome||'').toLowerCase():'',blueOutcome:final?String(blue.Outcome?.Outcome||'').toLowerCase():'',
+      methods:final&&fight.Result?.Method?[String(fight.Result.Method)]:[],rounds:final&&fight.Result?.EndingRound?[String(fight.Result.EndingRound)]:[],times:final&&fight.Result?.EndingTime?[String(fight.Result.EndingTime)]:[],sourceStatus:String(fight.Status||'')});
+  }
+  if(!bouts.length || new Set(bouts.map(b=>b.officialId)).size!==bouts.length)throw new Error('Empty or duplicate bout identifiers in live feed');
   return bouts;
 }
 
@@ -89,13 +120,16 @@ export function resultCheckDue(startsAt: string, lastAttempt: string | null, now
 
 export async function syncLiveResults(env: {DB:D1Database}, nowMs=Date.now(), fetchCard: typeof fetch=fetch) {
   const now=new Date(nowMs).toISOString();
+  const prior=await env.DB.prepare("SELECT value FROM bootstrap_state WHERE key='results:poller'").first<{value:string}>();
+  let upgraded=true;
+  try { upgraded=JSON.parse(prior?.value || '{}').source_version!==SOURCE_VERSION; } catch { /* Recheck after an unreadable heartbeat. */ }
   const events=await env.DB.prepare(`SELECT e.id,e.starts_at,e.source_url,s.last_attempted_at FROM events e
     LEFT JOIN event_result_sync s ON s.event_id=e.id
     WHERE e.starts_at BETWEEN ? AND ? AND e.source_url IS NOT NULL ORDER BY e.starts_at LIMIT 10`)
     .bind(new Date(nowMs-72*HOUR).toISOString(),new Date(nowMs+7*24*HOUR).toISOString()).all<{id:number;starts_at:string;source_url:string;last_attempted_at:string|null}>();
   let checked=0, changed=0, failures=0;
   for(const event of events.results) {
-    if(!resultCheckDue(event.starts_at,event.last_attempted_at,nowMs))continue;
+    if(!resultCheckDue(event.starts_at,upgraded?null:event.last_attempted_at,nowMs))continue;
     checked++;
     try {
       let url=new URL(event.source_url);
@@ -112,7 +146,14 @@ export async function syncLiveResults(env: {DB:D1Database}, nowMs=Date.now(), fe
       }
       if(!response)throw new Error('Official source unavailable');
       if(!response.ok)throw new Error(`Official source returned HTTP ${response.status}`);
-      const card=await readOfficialCard(response);
+      const official=await readOfficialCard(response);
+      let card=official.bouts, resultSource=event.source_url;
+      if(official.eventId) {
+        resultSource=`https://d29dxerjsp82wz.cloudfront.net/api/v3/event/live/${official.eventId}.json`;
+        const feed=await fetchCard(resultSource,{headers:{accept:'application/json','cache-control':'no-cache'},redirect:'manual',signal:AbortSignal.timeout(15000),cf:{cacheTtl:0}});
+        if(!feed.ok)throw new Error(`Official live feed returned HTTP ${feed.status}`);
+        card=liveFeedBouts(await feed.json(),official.eventId);
+      }
       const stored=await env.DB.prepare(`SELECT b.*,a.name AS fighter_a_name,a.slug AS fighter_a_slug,z.name AS fighter_b_name,z.slug AS fighter_b_slug
         FROM bouts b JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id WHERE b.event_id=? AND b.source_key IS NOT NULL`).bind(event.id).all<StoredBout>();
       const writes:D1PreparedStatement[]=[];
@@ -122,7 +163,7 @@ export async function syncLiveResults(env: {DB:D1Database}, nowMs=Date.now(), fe
         if(!source)continue; // Missing rows on a partial live page never imply cancellation.
         const result=confirmedResult(source,bout);
         if(!result || Object.entries(result).every(([key,value])=>bout[key as keyof StoredBout]===value))continue;
-        writes.push(env.DB.prepare(`INSERT INTO bout_result_observations(bout_id,observed_at,source_url,result_json) VALUES(?,?,?,?)`).bind(bout.id,now,event.source_url,JSON.stringify(result)));
+        writes.push(env.DB.prepare(`INSERT INTO bout_result_observations(bout_id,observed_at,source_url,result_json) VALUES(?,?,?,?)`).bind(bout.id,now,resultSource,JSON.stringify(result)));
         writes.push(env.DB.prepare(`UPDATE bouts SET status=?,winner_id=?,result_method=?,result_round=?,result_time_seconds=?,updated_at=? WHERE id=?`)
           .bind(result.status,result.winner_id,result.result_method,result.result_round,result.result_time_seconds,now,bout.id));
         eventChanges++;
@@ -141,7 +182,7 @@ export async function syncLiveResults(env: {DB:D1Database}, nowMs=Date.now(), fe
         ON CONFLICT(event_id) DO UPDATE SET last_attempted_at=excluded.last_attempted_at,error=excluded.error`).bind(event.id,now,message).run();
     }
   }
-  const status={ran_at:now,checked,changed,failures};
+  const status={ran_at:now,checked,changed,failures,source_version:SOURCE_VERSION};
   await env.DB.prepare(`INSERT INTO bootstrap_state(key,value) VALUES('results:poller',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).bind(JSON.stringify(status)).run();
   return status;
 }
