@@ -1,0 +1,31 @@
+name: Validate Predictor 0.1
+on:
+  push:
+    branches:
+      - model/predictor-v01
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm test
+      - name: Prepare current merged statistics without touching D1
+        run: node scripts/refresh-data.mjs --dry-run
+      - name: Run leakage-safe Predictor 0.1 benchmark
+        run: npm run predictor:validate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: predictor-v01-validation
+          path: |
+            .cache/predictor-validation.json
+            .cache/predictor-predictions.json
+          retention-days: 14
