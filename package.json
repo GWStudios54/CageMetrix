@@ -18,7 +18,8 @@
     "data:refresh": "node scripts/refresh-data.mjs --remote",
     "data:sync-recent": "node scripts/sync-recent.mjs --fresh --remote",
     "forecasts:sync": "node scripts/sync-forecasts.mjs --remote",
-    "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv"
+    "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv",
+    "predictor:validate": "node scripts/validate-predictor.mjs --stats .cache/refresh/stats.csv --output .cache/predictor-validation.json"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
