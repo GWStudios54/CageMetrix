@@ -1,4 +1,5 @@
 import { syncLiveResults, RESULT_POLL_SECONDS, PAGE_POLL_SECONDS } from './live-results.ts';
+import { fightApi, fightPage, saveCommentary, contributor, fightJson } from './fights.ts';
 
 interface Env {
   DB: D1Database;
@@ -34,7 +35,7 @@ function json(data: unknown, init: ResponseInit = {}, cacheSeconds = 0): Respons
 async function edgeCached(request: Request, context: ExecutionContext, producer: () => Promise<Response>): Promise<Response> {
   const cache = (caches as CacheStorage & { default: Cache }).default;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set('_cache_version', '0.3.0-live-1');
+  cacheUrl.searchParams.set('_cache_version', '0.3.0-fights-1');
   const cacheKey = new Request(cacheUrl, request);
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
@@ -340,7 +341,7 @@ async function divisions(env: Env): Promise<Response> {
 
 async function forecasts(env: Env): Promise<Response> {
   const result = await env.DB.prepare(`
-    SELECT p.id, p.created_at, p.locked_at, p.fighter_a_probability, p.fighter_b_probability,
+    SELECT p.id, p.bout_id, p.created_at, p.locked_at, p.fighter_a_probability, p.fighter_b_probability,
       p.picked_fighter_id, p.sample_strength, p.notes, p.input_snapshot_key,
       e.name AS event_name, e.event_date, e.starts_at, e.slug AS event_slug, e.source_url,
       b.status, b.weight_class, b.bout_order, b.winner_id, b.result_method, b.updated_at AS result_updated_at,
@@ -361,6 +362,7 @@ async function forecasts(env: Env): Promise<Response> {
     ORDER BY e.event_date DESC, b.bout_order, p.id
   `).all();
   const rows = (result.results as any[]).map(row => ({ ...row,
+    fight_url: `/fights/${row.bout_id}`,
     event_live: Date.now() >= Date.parse(row.starts_at)-30*60_000 && Date.now() <= Date.parse(row.starts_at)+12*3_600_000
   }));
   const pollerRow=await env.DB.prepare("SELECT value FROM bootstrap_state WHERE key='results:poller'").first();
@@ -411,6 +413,21 @@ export default {
     const url = new URL(request.url);
 
     try {
+      const fightRoute=url.pathname.match(/^\/api\/fights\/([1-9]\d*)(\/(snapshot|commentary))?$/);
+      if(fightRoute){
+        if(request.method==='GET'&&fightRoute[3]!=='commentary')return fightApi(request,env,fightRoute[1],fightRoute[3]==='snapshot');
+        if(request.method==='PUT'&&fightRoute[3]==='commentary')return saveCommentary(request,env,fightRoute[1]);
+        return fightJson({error:'method_not_allowed'},405);
+      }
+      if(url.pathname==='/api/contributors/me'&&request.method==='GET'){
+        const who=await contributor(request,env.DB);
+        return who?fightJson(who):fightJson({error:'Invalid or revoked publishing key.'},401);
+      }
+      const fightPath=url.pathname.match(/^\/fights\/([1-9]\d*)\/?$/);
+      if(fightPath&&request.method==='GET'){
+        if(url.pathname.endsWith('/'))return Response.redirect(new URL(`/fights/${fightPath[1]}${url.search}`,request.url),308);
+        return fightPage(request,env,fightPath[1]);
+      }
       if (request.method === "GET" && url.pathname === "/api/health") {
         return edgeCached(request, context, () => health(env));
       }

@@ -6,6 +6,7 @@ import { slugify, displayName } from './lib/csv.mjs';
 import { nameKey } from './lib/recent-source.mjs';
 import { fighterIdentity } from './lib/identity.mjs';
 import { FORECAST_NAME, FORECAST_VERSION, FORECAST_PARAMETERS, forecast } from './lib/forecast.mjs';
+import { predictionSnapshot } from './lib/prediction-snapshot.mjs';
 
 const args = process.argv.slice(2), remote = args.includes('--remote'), dry = args.includes('--dry-run');
 if (!remote && !dry && !args.includes('--local')) throw new Error('Choose --dry-run, --local or --remote');
@@ -62,8 +63,9 @@ for (const url of urls) {
     const sourceKey = `ufc:${card.dataset.fmid}:${[a.slug,b.slug].sort().join(':')}`;
     const boutId = `(SELECT id FROM bouts WHERE source_key=${q(sourceKey)})`;
     const probabilities = forecast(ratings.get(a.id),ratings.get(b.id),{a:a.name,b:b.name});
+    const snapshot = predictionSnapshot({a,b,ratingA:ratings.get(a.id),ratingB:ratings.get(b.id),probabilities,snapshotKey:dataset.snapshotKey,sourceMaxDate:dataset.sourceMaxDate,lockedAt:now});
     sql.push(`INSERT INTO bouts (event_id,bout_order,fighter_a_id,fighter_b_id,weight_class,scheduled_rounds,status,source_key) VALUES (${eventId},${index},${fighterId(a.slug)},${fighterId(b.slug)},${q(division)},${index===0||/Title/.test(division)?5:3},'scheduled',${q(sourceKey)}) ON CONFLICT(source_key) WHERE source_key IS NOT NULL DO NOTHING;`);
-    sql.push(`INSERT INTO predictions (bout_id,model_version_id,created_at,locked_at,fighter_a_probability,fighter_b_probability,confidence,sample_strength,picked_fighter_id,input_snapshot_key,top_factors_json,notes) VALUES (${boutId},${modelId},${q(now)},${q(now)},${probabilities.probabilityA},${probabilities.probabilityB},NULL,${probabilities.sampleStrength},${probabilities.pick ? fighterId(probabilities.pick==='a'?a.slug:b.slug) : 'NULL'},${q(dataset.snapshotKey)},${q(JSON.stringify(probabilities.drivers || []))},${q(probabilities.notes)}) ON CONFLICT(bout_id,model_version_id,context_adjusted) DO NOTHING;`);
+    sql.push(`INSERT INTO predictions (bout_id,model_version_id,created_at,locked_at,fighter_a_probability,fighter_b_probability,confidence,sample_strength,picked_fighter_id,input_snapshot_key,top_factors_json,notes,input_snapshot_json) VALUES (${boutId},${modelId},${q(now)},${q(now)},${probabilities.probabilityA},${probabilities.probabilityB},NULL,${probabilities.sampleStrength},${probabilities.pick ? fighterId(probabilities.pick==='a'?a.slug:b.slug) : 'NULL'},${q(dataset.snapshotKey)},${q(JSON.stringify(probabilities.drivers || []))},${q(probabilities.notes)},${q(JSON.stringify(snapshot))}) ON CONFLICT(bout_id,model_version_id,context_adjusted) DO NOTHING;`);
     bouts.push({sourceKey,a:a.name,b:b.name,...probabilities});
   }
   if (!bouts.length) throw new Error(`No confirmed matchups for ${title}`);
