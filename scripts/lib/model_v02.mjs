@@ -2,6 +2,7 @@ import { displayName, parseClock, parseDate, parsePair } from './csv.mjs';
 
 const PRIOR_MINUTES = 45;
 const EPS = 0.25;
+const MS_PER_YEAR = 31557600000;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const key = (name, division) => `${name}::${division}`;
@@ -217,23 +218,91 @@ function computeElo(fightPairs) {
   return { current, opponentPre };
 }
 
-export function buildRatings(fightPairs, aggs) {
+function yearsBefore(dateString, years) {
+  if (!dateString || !years) return null;
+  const date = new Date(`${dateString}T00:00:00Z`);
+  if (!Number.isFinite(date.valueOf())) return null;
+  date.setUTCFullYear(date.getUTCFullYear() - years);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildTransferScopes(fightPairs, aggregates, lookbackYears) {
+  if (!(lookbackYears > 0)) return new Map();
+
+  const byFighter = new Map();
+  const add = obs => {
+    if (!obs.eventDate) return;
+    if (!byFighter.has(obs.name)) byFighter.set(obs.name, []);
+    byFighter.get(obs.name).push(obs);
+  };
+  for (const { red, blue } of fightPairs) { add(red); add(blue); }
+
+  const scopes = new Map();
+  for (const [name, observations] of byFighter) {
+    const currentDivision = aggregates.get(name)?.weightClass;
+    if (!currentDivision) continue;
+
+    const ordered = observations
+      .filter(obs => obs.eventDate)
+      .sort((a, b) => a.eventDate.localeCompare(b.eventDate) || a.index - b.index);
+    if (!ordered.length) continue;
+
+    let end = ordered.length - 1;
+    while (end >= 0 && ordered[end].weightClass !== currentDivision) end -= 1;
+    if (end < 0) continue;
+
+    let start = end;
+    while (start > 0 && ordered[start - 1].weightClass === currentDivision) start -= 1;
+    if (start === 0) continue;
+
+    const previousDivision = ordered[start - 1].weightClass;
+    const currentDebutDate = ordered[start].eventDate;
+    const cutoffDate = yearsBefore(currentDebutDate, lookbackYears);
+    if (!previousDivision || !currentDebutDate || !cutoffDate) continue;
+
+    scopes.set(name, {
+      currentDivision,
+      previousDivision,
+      currentDebutDate,
+      cutoffDate,
+      lookbackYears
+    });
+  }
+  return scopes;
+}
+
+export function buildRatings(fightPairs, aggs, options = {}) {
   const priors = divisionPriors(fightPairs);
   const divisionAggs = divisionOpponentAggregates(fightPairs);
   const { current: elo, opponentPre } = computeElo(fightPairs);
   const sourceMaxDate = fightPairs.map(p => p.red.eventDate).filter(Boolean).sort().at(-1);
   const maxDate = sourceMaxDate ? new Date(`${sourceMaxDate}T00:00:00Z`) : new Date();
+  const previousDivisionLookbackYears = Number(options.previousDivisionLookbackYears) || 0;
+  const transferScopes = buildTransferScopes(fightPairs, aggs, previousDivisionLookbackYears);
   const perf = new Map();
 
   for (const pair of fightPairs) {
     for (const obs of [pair.red, pair.blue]) {
       const fighterCareer = aggs.get(obs.name);
-      if (!fighterCareer || obs.weightClass !== fighterCareer.weightClass) continue;
+      if (!fighterCareer) continue;
+
+      const currentDivision = fighterCareer.weightClass;
+      const transferScope = transferScopes.get(obs.name);
+      const isCurrentDivision = obs.weightClass === currentDivision;
+      const isTransferred = Boolean(
+        transferScope &&
+        obs.weightClass === transferScope.previousDivision &&
+        obs.eventDate &&
+        obs.eventDate >= transferScope.cutoffDate &&
+        obs.eventDate < transferScope.currentDebutDate
+      );
+      if (!isCurrentDivision && !isTransferred) continue;
+
       const oppAgg = divisionAggs.get(key(obs.opponent, obs.weightClass));
       const prior = priors.get(obs.weightClass);
       if (!oppAgg || !prior) continue;
 
-      const years = obs.eventDate ? Math.max(0, (maxDate - new Date(`${obs.eventDate}T00:00:00Z`)) / 31557600000) : 10;
+      const years = obs.eventDate ? Math.max(0, (maxDate - new Date(`${obs.eventDate}T00:00:00Z`)) / MS_PER_YEAR) : 10;
       const recency = Math.exp(-years / 3.5);
       const sampleWeight = clamp(Math.sqrt(obs.durationMin / 15), 0.35, 1.4);
       const opponentElo = opponentPre.get(`${obs.index}:${obs.side}`) ?? 1500;
@@ -253,9 +322,31 @@ export function buildRatings(fightPairs, aggs) {
       const finishing = obs.kd / obs.durationMin * 15 + obs.sub / obs.durationMin * 15 + (obs.won === 1 && obs.finish ? 0.6 : 0);
 
       let p = perf.get(obs.name);
-      if (!p) p = { name: obs.name, weightClass: obs.weightClass, lastFight: obs.eventDate, bouts: 0, minutes: 0, sigOff: [], sigDef: [], tdOff: [], tdDef: [], grappling: [], pace: [], finishing: [], sos: [], results: [] };
+      if (!p) {
+        p = {
+          name: obs.name,
+          weightClass: currentDivision,
+          lastFight: fighterCareer.lastFight,
+          bouts: 0,
+          minutes: 0,
+          currentDivisionBouts: 0,
+          currentDivisionMinutes: 0,
+          transferredBouts: 0,
+          transferredMinutes: 0,
+          transferScope: transferScope || null,
+          sigOff: [], sigDef: [], tdOff: [], tdDef: [], grappling: [], pace: [], finishing: [], sos: [], results: []
+        };
+      }
+
       p.bouts += 1;
       p.minutes += obs.durationMin;
+      if (isTransferred) {
+        p.transferredBouts += 1;
+        p.transferredMinutes += obs.durationMin;
+      } else {
+        p.currentDivisionBouts += 1;
+        p.currentDivisionMinutes += obs.durationMin;
+      }
       p.sigOff.push([sigOff, w]);
       p.sigDef.push([sigDef, w]);
       p.tdOff.push([tdOff, w]);
@@ -264,8 +355,7 @@ export function buildRatings(fightPairs, aggs) {
       p.pace.push([pace, w]);
       p.finishing.push([finishing, w]);
       p.sos.push([opponentElo, w]);
-      p.results.push({ date: obs.eventDate, won: obs.won, opponentElo });
-      if (!p.lastFight || (obs.eventDate && obs.eventDate > p.lastFight)) p.lastFight = obs.eventDate;
+      p.results.push({ date: obs.eventDate, won: obs.won, opponentElo, weightClass: obs.weightClass, transferred: isTransferred });
       perf.set(obs.name, p);
     }
   }
@@ -344,6 +434,7 @@ export function buildRatings(fightPairs, aggs) {
       const uncertaintyPenalty = (1 - reliability) * 6.5;
       const cmr = calibrateCmr(rankedBase - uncertaintyPenalty);
       const provisional = row.bouts < 5 || row.minutes < 45 || confidence < 60;
+      const transfer = row.transferScope && row.transferredBouts > 0 ? row.transferScope : null;
 
       ratings.push({
         ...row,
@@ -373,8 +464,22 @@ export function buildRatings(fightPairs, aggs) {
           provisional,
           sample_reliability: Number(reliability.toFixed(4)),
           uncertainty_penalty: Number(uncertaintyPenalty.toFixed(2)),
-          sample_scope: 'current_division_only',
-          recent: recent.map(x => ({ date: x.date, result: x.won === 1 ? 'W' : x.won === 0 ? 'L' : 'D', opponent_elo: Math.round(x.opponentElo) }))
+          sample_scope: transfer ? 'current_division_plus_previous_division_2y' : 'current_division_only',
+          current_division_bouts: row.currentDivisionBouts,
+          current_division_minutes: Number(row.currentDivisionMinutes.toFixed(3)),
+          transferred_bouts: row.transferredBouts,
+          transferred_minutes: Number(row.transferredMinutes.toFixed(3)),
+          previous_division: transfer?.previousDivision ?? null,
+          current_division_debut: transfer?.currentDebutDate ?? null,
+          transfer_cutoff: transfer?.cutoffDate ?? null,
+          transfer_lookback_years: transfer?.lookbackYears ?? 0,
+          recent: recent.map(x => ({
+            date: x.date,
+            result: x.won === 1 ? 'W' : x.won === 0 ? 'L' : 'D',
+            opponent_elo: Math.round(x.opponentElo),
+            weight_class: x.weightClass,
+            transferred: Boolean(x.transferred)
+          }))
         }
       });
     }

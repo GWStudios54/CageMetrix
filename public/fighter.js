@@ -167,9 +167,16 @@ async function load() {
   const provisionalCopy = rating.provisional
     ? `<p><strong>PROVISIONAL.</strong> Performance CMR ${number(rating.performance_cmr)} is shown separately; ranked CMR ${number(rating.cmr)} includes uncertainty shrinkage.</p>`
     : '<p>Established sample. Ranked CMR and underlying performance are no longer materially separated by uncertainty.</p>';
+  const sampleComponents = rating.components || {};
+  const transferredBouts = Number(sampleComponents.transferred_bouts || 0);
+  const currentDivisionBouts = Number(sampleComponents.current_division_bouts ?? Math.max(0, Number(rating.sample_bouts || 0) - transferredBouts));
+  const previousDivision = sampleComponents.previous_division;
+  const sampleCopy = transferredBouts > 0
+    ? `${currentDivisionBouts} current-division UFC bouts + ${transferredBouts} ${esc(previousDivision || 'previous-division')} bouts from the two-year transfer window · ${number(rating.sample_minutes, 1)} minutes in the rated sample.`
+    : `${Number(rating.sample_bouts || 0)} current-division UFC bouts · ${number(rating.sample_minutes, 1)} minutes in the rated sample.`;
   sample.innerHTML = `<div class="confidence-number">${Math.round(Number(rating.confidence || 0))}%</div>
     <strong>Model confidence</strong>
-    <p>${Number(rating.sample_bouts || 0)} current-division UFC bouts · ${number(rating.sample_minutes, 1)} minutes in the rated sample.</p>
+    <p>${sampleCopy}</p>
     ${provisionalCopy}
     <div class="confidence-track"><span style="width:${Math.max(0, Math.min(100, Number(rating.confidence || 0)))}%"></span></div>`;
 

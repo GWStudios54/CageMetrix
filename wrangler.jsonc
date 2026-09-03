@@ -23,7 +23,7 @@
     "run_worker_first": ["/api/*", "/fighters/*"]
   },
   "vars": {
-    "MODEL_VERSION": "0.2.1"
+    "MODEL_VERSION": "0.2.2"
   },
   "d1_databases": [
     {

@@ -18,8 +18,8 @@ function rankingReliability(minutes, bouts) {
   return clamp(0.42 * minuteRel + 0.58 * boutRel, 0.08, 0.99);
 }
 
-export function buildRatings(fightPairs, aggregates) {
-  const result = buildRatingsV02(fightPairs, aggregates);
+export function buildRatings(fightPairs, aggregates, options = {}) {
+  const result = buildRatingsV02(fightPairs, aggregates, options);
 
   const ratings = result.ratings.map(rating => {
     const reliability = rankingReliability(rating.minutes, rating.bouts);
