@@ -1,0 +1,306 @@
+{
+  "selected": {
+    "experiment": "age",
+    "lambda": 0.01,
+    "metrics": {
+      "bouts": 417,
+      "accuracy": 0.5611510791366906,
+      "brier": 0.2331083223362721,
+      "log_loss": 0.6574962080013165
+    }
+  },
+  "selection_period": "2022 only",
+  "trials": [
+    {
+      "experiment": "ratings_only",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5875299760191847,
+        "brier": 0.23712932476056386,
+        "log_loss": 0.6668273155463661
+      }
+    },
+    {
+      "experiment": "ratings_only",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5995203836930456,
+        "brier": 0.23673166992313,
+        "log_loss": 0.6658649343819889
+      }
+    },
+    {
+      "experiment": "ratings_only",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5995203836930456,
+        "brier": 0.23762684663145267,
+        "log_loss": 0.6676885046825408
+      }
+    },
+    {
+      "experiment": "ratings_only",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5947242206235012,
+        "brier": 0.23940351526315085,
+        "log_loss": 0.6715819825952438
+      }
+    },
+    {
+      "experiment": "age",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5707434052757794,
+        "brier": 0.233259238987273,
+        "log_loss": 0.6579298632559877
+      }
+    },
+    {
+      "experiment": "age",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5611510791366906,
+        "brier": 0.2331083223362721,
+        "log_loss": 0.6574962080013165
+      }
+    },
+    {
+      "experiment": "age",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.580335731414868,
+        "brier": 0.23377634816924509,
+        "log_loss": 0.6591498466879263
+      }
+    },
+    {
+      "experiment": "age",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5851318944844125,
+        "brier": 0.23622099799319507,
+        "log_loss": 0.664847562463355
+      }
+    },
+    {
+      "experiment": "layoff",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5875299760191847,
+        "brier": 0.23742417004786043,
+        "log_loss": 0.6674008493498402
+      }
+    },
+    {
+      "experiment": "layoff",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5947242206235012,
+        "brier": 0.23692349296434248,
+        "log_loss": 0.6661694815147873
+      }
+    },
+    {
+      "experiment": "layoff",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.580335731414868,
+        "brier": 0.2376316688465832,
+        "log_loss": 0.6676735140615704
+      }
+    },
+    {
+      "experiment": "layoff",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5827338129496403,
+        "brier": 0.2392771237917851,
+        "log_loss": 0.6713286825498098
+      }
+    },
+    {
+      "experiment": "age_layoff",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.580335731414868,
+        "brier": 0.23360164564510078,
+        "log_loss": 0.6587437415309966
+      }
+    },
+    {
+      "experiment": "age_layoff",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5707434052757794,
+        "brier": 0.2333501365590625,
+        "log_loss": 0.6580500374079847
+      }
+    },
+    {
+      "experiment": "age_layoff",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5947242206235012,
+        "brier": 0.23389984912338008,
+        "log_loss": 0.6594543726531429
+      }
+    },
+    {
+      "experiment": "age_layoff",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5875299760191847,
+        "brier": 0.2361899973135452,
+        "log_loss": 0.6648045845797995
+      }
+    },
+    {
+      "experiment": "age_layoff_reach",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.580335731414868,
+        "brier": 0.23625907434199644,
+        "log_loss": 0.6646837898556183
+      }
+    },
+    {
+      "experiment": "age_layoff_reach",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5731414868105515,
+        "brier": 0.2349640612925112,
+        "log_loss": 0.6616708179591723
+      }
+    },
+    {
+      "experiment": "age_layoff_reach",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5779376498800959,
+        "brier": 0.2346140028437116,
+        "log_loss": 0.6609885633518628
+      }
+    },
+    {
+      "experiment": "age_layoff_reach",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5755395683453237,
+        "brier": 0.23661543905480237,
+        "log_loss": 0.6656668071323308
+      }
+    },
+    {
+      "experiment": "age_layoff_stance",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5827338129496403,
+        "brier": 0.23342925158049213,
+        "log_loss": 0.658667427119021
+      }
+    },
+    {
+      "experiment": "age_layoff_stance",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5731414868105515,
+        "brier": 0.23300383755405135,
+        "log_loss": 0.657508173784823
+      }
+    },
+    {
+      "experiment": "age_layoff_stance",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5827338129496403,
+        "brier": 0.23373872878609941,
+        "log_loss": 0.6590966661878307
+      }
+    },
+    {
+      "experiment": "age_layoff_stance",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5899280575539568,
+        "brier": 0.23623271775296675,
+        "log_loss": 0.6648521944024328
+      }
+    },
+    {
+      "experiment": "all_context",
+      "lambda": 0.001,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5875299760191847,
+        "brier": 0.2365145756452472,
+        "log_loss": 0.6658673411873202
+      }
+    },
+    {
+      "experiment": "all_context",
+      "lambda": 0.01,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5731414868105515,
+        "brier": 0.23465183584735638,
+        "log_loss": 0.6612716415262371
+      }
+    },
+    {
+      "experiment": "all_context",
+      "lambda": 0.1,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.5683453237410072,
+        "brier": 0.23442238538664403,
+        "log_loss": 0.6606293722358736
+      }
+    },
+    {
+      "experiment": "all_context",
+      "lambda": 0.5,
+      "metrics": {
+        "bouts": 417,
+        "accuracy": 0.580335731414868,
+        "brier": 0.23660832541311835,
+        "log_loss": 0.665632268568831
+      }
+    }
+  ],
+  "source": {
+    "stats_sha256": "6d29abc32a10d7ec3c92093dfb8358ba6ab2150a347b3700e6b0248bb0047385",
+    "details_sha256": "6532dcb2eb7743d716be46ad472382132dbb241b575917e0ac75de493a3fbaed",
+    "profiles_observed_on": "2026-09-03",
+    "evaluation_end": "2026-08-29",
+    "stats_url": "https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/stats/stats_raw.csv",
+    "details_url": "https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/external_data/raw_fighter_details.csv",
+    "supplement": "scripts/data/recent-bouts.json",
+    "code_sha256": "f56b179bcff44652c736deb8a0ca77afa21d77727671505e0b0afc06bac7a88e",
+    "protocol_sha256": "de0e7066fe13c81ed8a6962d89fb40711ffeb3932973af9b605e55159ee3583d"
+  }
+}
