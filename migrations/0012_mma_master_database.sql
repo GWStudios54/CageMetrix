@@ -145,13 +145,28 @@ JOIN mma_source_registry s
   ON s.source_key = p.source_key
  AND s.active_snapshot_id = p.snapshot_id;
 
+-- Safe default for modeling: never include scheduled/future rows or unresolved outcomes.
+CREATE VIEW IF NOT EXISTS mma_completed_fights AS
+SELECT *
+FROM mma_active_fights
+WHERE outcome <> 'unknown'
+  AND event_date <= DATE('now');
+
+CREATE VIEW IF NOT EXISTS mma_completed_participants AS
+SELECT p.*
+FROM mma_active_participants p
+JOIN mma_completed_fights f
+  ON f.source_key = p.source_key
+ AND f.snapshot_id = p.snapshot_id
+ AND f.source_fight_id = p.source_fight_id;
+
 CREATE VIEW IF NOT EXISTS mma_major_fights AS
-SELECT * FROM mma_active_fights WHERE is_major_org = 1;
+SELECT * FROM mma_completed_fights WHERE is_major_org = 1;
 
 CREATE VIEW IF NOT EXISTS mma_technical_participants AS
 SELECT p.*
-FROM mma_active_participants p
-JOIN mma_active_fights f
+FROM mma_completed_participants p
+JOIN mma_completed_fights f
   ON f.source_key = p.source_key
  AND f.snapshot_id = p.snapshot_id
  AND f.source_fight_id = p.source_fight_id
