@@ -13,7 +13,6 @@ function resultLabel(row){
   return `${winner?`${winner} wins`:row.result_method||'Draw / no contest'}${winner&&row.result_method?` · ${row.result_method}`:''} · ${row.grade==='void'?'Excluded from accuracy':row.grade==='correct'?'Correct pick':'Incorrect pick'}`;
 }
 function fightLink(row){return `/fights/${Number(row.bout_id)}`;}
-function explanation(row){return row.notes?`<p class="forecast-explanation">${escapeHtml(row.notes)}</p>`:'';}
 async function loadForecasts(){
   const response=await fetch('/api/forecasts?live=1',{cache:'no-store',signal:AbortSignal.timeout(15_000)});
   if(!response.ok)throw new Error('Forecasts unavailable');
@@ -24,7 +23,7 @@ async function loadForecasts(){
   document.querySelector('#live-record').textContent=`${summary.correct} / ${summary.graded}`;
   document.querySelector('#pending-count').textContent=summary.pending;
   document.querySelector('#accuracy-detail').textContent=summary.graded?`${summary.incorrect} incorrect · Brier ${summary.brier.toFixed(3)}`:'Waiting for the first graded fight';
-  document.querySelector('#forecast-coverage').textContent=`Rating data through ${meta.data?.source_max_date||'unavailable'} · Predictor v${meta.model_version}`;
+  document.querySelector('#forecast-coverage').textContent=`Data through ${meta.data?.source_max_date||'unavailable'} · Predictor ${meta.model_version}`;
   const active=data.filter(r=>r.event_live);
   const successes=active.map(r=>r.results_success_at).filter(Boolean).sort();
   const lastCheck=successes[0];
@@ -32,14 +31,14 @@ async function loadForecasts(){
   const status=document.querySelector('#live-refresh-status');
   status.classList.toggle('coverage-warning',Boolean(delayed));
   status.textContent=active.length
-    ? `${delayed?'Waiting for fresh official results':'Fight-day result checks active'} · ${lastCheck?`Source checked ${savedTime(lastCheck)}`:'First source check pending'} · Page refreshes every 30 seconds`
-    : 'Page refreshes every 30 seconds. Live result checks begin 30 minutes before the card starts.';
+    ? `${delayed?'Waiting for fresh official results':'Fight-day result checks active'}${lastCheck?` · Updated ${savedTime(lastCheck)}`:''}`
+    : 'Results update automatically on fight day.';
   const upcoming=data.filter(r=>r.grade==='pending'||r.event_live);
   const events=new Map();
   for(const row of upcoming){if(!events.has(row.event_slug))events.set(row.event_slug,[]);events.get(row.event_slug).push(row);}
   document.querySelector('#event-cards').innerHTML=[...events.values()].sort((a,b)=>a[0].starts_at.localeCompare(b[0].starts_at)).map(rows=>{
     const event=rows[0];
-    return `<article class="event-card"><header><div><div class="eyebrow">${escapeHtml(event.event_date)}${event.event_live?' · FIGHT DAY':''}</div><h2>${escapeHtml(event.event_name)}</h2><span class="muted">${rows.length} saved predictions · Starts ${escapeHtml(savedTime(event.starts_at))}</span></div><a href="${escapeHtml(event.source_url)}" target="_blank" rel="noopener">Official card ↗</a></header>${rows.map(r=>`<div class="forecast-bout"><div class="forecast-matchup">${fighter(r,'a')}<span class="forecast-versus">VS</span>${fighter(r,'b')}</div><div class="probability-bar" aria-hidden="true"><span style="width:${Number(r.fighter_a_probability)*100}%"></span></div><p class="result-label grade-${escapeHtml(r.grade)}">${escapeHtml(resultLabel(r))}</p>${explanation(r)}<p><a class="fight-detail-link" href="${fightLink(r)}">Fight details, stats & scorecards →</a></p><div class="forecast-meta"><span>${escapeHtml(r.weight_class)}${r.notes?.includes('Limited UFC')?' · Limited UFC sample':''}</span><span>Locked ${escapeHtml(savedTime(r.locked_at))}</span></div></div>`).join('')}</article>`;
+    return `<article class="event-card"><header><div><div class="eyebrow">${escapeHtml(event.event_date)}${event.event_live?' · FIGHT DAY':''}</div><h2>${escapeHtml(event.event_name)}</h2><span class="muted">${rows.length} saved predictions · Starts ${escapeHtml(savedTime(event.starts_at))}</span></div><a href="${escapeHtml(event.source_url)}" target="_blank" rel="noopener">Official card ↗</a></header>${rows.map(r=>`<div class="forecast-bout"><div class="forecast-matchup">${fighter(r,'a')}<span class="forecast-versus">VS</span>${fighter(r,'b')}</div><div class="probability-bar" aria-hidden="true"><span style="width:${Number(r.fighter_a_probability)*100}%"></span></div><p class="result-label grade-${escapeHtml(r.grade)}">${escapeHtml(resultLabel(r))}</p><p><a class="fight-detail-link" href="${fightLink(r)}">Fight details, stats & reasoning →</a></p><div class="forecast-meta"><span>${escapeHtml(r.weight_class)}</span><span>Locked ${escapeHtml(savedTime(r.locked_at))}</span></div></div>`).join('')}</article>`;
   }).join('')||'<p class="ranking-loading">No upcoming predictions saved yet. Cards appear after matchups are confirmed.</p>';
   const history=data.filter(r=>r.grade!=='pending');
   document.querySelector('#prediction-history').innerHTML=history.map(r=>`<div class="prediction-row"><div><a class="fight-detail-link" href="${fightLink(r)}"><strong>${escapeHtml(r.fighter_a_name)} vs ${escapeHtml(r.fighter_b_name)}</strong> →</a><small class="muted"> · ${escapeHtml(r.event_date)} · ${percent(r.fighter_a_probability)} / ${percent(r.fighter_b_probability)}</small></div><strong class="grade-${escapeHtml(r.grade)}">${escapeHtml(resultLabel(r))}</strong></div>`).join('')||'<p class="ranking-loading">The record begins with these locked forecasts. Completed fights will appear here automatically.</p>';
@@ -47,6 +46,6 @@ async function loadForecasts(){
 startAutoRefresh(loadForecasts,()=>{
   const status=document.querySelector('#live-refresh-status');
   status.classList.add('coverage-warning');
-  status.textContent='Connection interrupted. Retrying automatically; displayed results may be out of date.';
+  status.textContent='Connection interrupted. Retrying automatically.';
   if(!loaded){document.querySelector('#event-cards').innerHTML='<p class="ranking-loading">Couldn’t load predictions. Retrying automatically…</p>';document.querySelector('#accuracy-detail').textContent='Record temporarily unavailable';}
 });
