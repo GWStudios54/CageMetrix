@@ -6,6 +6,7 @@ on:
       - 'scripts/lib/predictor_v02.mjs'
       - 'scripts/validate-cmr-v04.mjs'
       - 'scripts/validate-predictor-v02.mjs'
+      - 'scripts/validate-predictor-v01-on-cmr-v04.mjs'
       - 'tests/cmr-v04.test.mjs'
       - '.github/workflows/cmr-v04-candidate.yml'
   workflow_dispatch:
@@ -28,6 +29,8 @@ jobs:
         run: node scripts/refresh-data.mjs --dry-run
       - name: Build leakage-safe CMR 0.4 history and comparison
         run: npm run cmr04:validate -- --stats .cache/refresh/stats.csv
+      - name: Test frozen Predictor 0.1 on CMR 0.4 inputs
+        run: node scripts/validate-predictor-v01-on-cmr-v04.mjs --stats .cache/refresh/stats.csv
       - name: Train and evaluate Predictor 0.2 candidate
         run: npm run predictor02:validate
       - name: Summarize candidate
