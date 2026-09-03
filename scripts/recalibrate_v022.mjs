@@ -23,7 +23,10 @@ const q = value => value === null || value === undefined || value === ''
   ? 'NULL'
   : `'${String(value).replaceAll("'", "''")}'`;
 
-function insertStatements(records, chunkSize = 80) {
+// Rating component metadata is intentionally verbose, so keep each INSERT well
+// below D1/SQLite statement-size limits. This is still only a ratings refresh,
+// not a full fighter/bout reseed.
+function insertStatements(records, chunkSize = 10) {
   const out = [];
   for (let i = 0; i < records.length; i += chunkSize) {
     const values = records.slice(i, i + chunkSize).map(r => `(
@@ -105,7 +108,9 @@ async function main() {
   console.log(`CageMetrix v0.2.2 recalibration complete: ${ratingRows.length} ratings through ${sourceMaxDate}.`);
 }
 
-main().catch(error => {
+try {
+  await main();
+} catch (error) {
   console.error(error);
   process.exit(1);
-});
+}
