@@ -16,7 +16,12 @@ const bySlug = new Map(dataset.fighters.map(f => [f.slug, f]));
 const ratings = new Map(dataset.ratings.map(r => [r.fighterId,r]));
 const modelId = `(SELECT id FROM model_versions WHERE name=${q(FORECAST_NAME)} AND version=${q(FORECAST_VERSION)})`;
 const fighterId = slug => `(SELECT id FROM fighters WHERE slug=${q(slug)})`;
-const sql = [`INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(FORECAST_NAME)},${q(FORECAST_VERSION)},'prediction','production','Frozen Predictor 0.1 skill-interaction probabilities using CMR components plus Elo; no betting-market inputs. Unrated UFC debutants use the documented neutral-start Elo fallback.',${q(JSON.stringify(FORECAST_PARAMETERS))},${q(FORECAST_PARAMETERS.trained_through)}) ON CONFLICT(name,version) DO NOTHING;`];
+const sql = [
+  // Preserve every Elo forecast under a separate model identity before reusing
+  // the public v0.1 key for Predictor 0.1. This is idempotent on later syncs.
+  `UPDATE model_versions SET name='CageMetrix Elo Baseline' WHERE name='CageMetrix Win Probability' AND version='0.1.0' AND description LIKE 'Chronological Elo probabilities%';`,
+  `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(FORECAST_NAME)},${q(FORECAST_VERSION)},'prediction','production','Frozen Predictor 0.1 skill-interaction probabilities using CMR components plus Elo; no betting-market inputs. Unrated UFC debutants use the documented neutral-start Elo fallback.',${q(JSON.stringify(FORECAST_PARAMETERS))},${q(FORECAST_PARAMETERS.trained_through)}) ON CONFLICT(name,version) DO NOTHING;`
+];
 async function html(url) {
   const response = await fetch(url,{signal:AbortSignal.timeout(45000)});
   if (!response.ok) throw new Error(`Official card unavailable (${response.status}): ${url}`);
