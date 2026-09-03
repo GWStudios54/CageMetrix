@@ -32,19 +32,42 @@ The warehouse lives in prefixed D1 tables:
 - `warehouse_sources` — provenance and latest imported source version;
 - `warehouse_ingestion_runs` — immutable import/run metadata and quality report;
 - `warehouse_fighters` — source-native fighter identities and measurements;
-- `warehouse_bouts` — global professional fight history/results;
-- `warehouse_bout_stats` — detailed technical statistics when available;
+- `warehouse_bouts` — global professional fight-history rows;
+- `warehouse_bout_stats` — source-native detailed technical rows, plus nullable cross-table match metadata;
 - `warehouse_fighter_links` — explicit links from source identities to CageMetrix canonical fighters.
 
-All source-native rows keep the source key, source ID, exact source version and ingestion run that produced them.
+All source-native rows keep the source key, exact native row ID, source version and ingestion run that produced them.
+
+## Raw warehouse versus curated modeling data
+
+The warehouse is a **lossless landing zone**, not automatically a clean training table.
+
+The upstream global and detailed tables use separate native fight-ID namespaces. Detailed rows are therefore retained under their own IDs even when no safe match to a global row can be established. A cross-table match is stored only when it satisfies a conservative rule; unresolved rows remain available rather than being discarded or force-joined.
+
+The ingestion report also measures duplicate canonical signatures and other quality signals. A later curated layer must resolve/deduplicate source rows before any global model is trained. Raw warehouse row count must never be mistaken for clean independent training-sample count.
+
+The existing CageMetrix UFC technical dataset remains the preferred technical-stat source until a warehouse-derived detailed row has passed that curation process.
 
 ## Identity rule
 
 **Names alone do not establish identity.**
 
-The importer may attach a source fighter ID to a bout participant only when the normalized participant name maps to exactly one fighter in that same source snapshot. Ambiguous names remain unresolved. Links from warehouse identities into CageMetrix's canonical fighter table are stored separately with a match method, confidence and verification status.
+The importer may attach a source fighter ID to a bout participant only when the normalized participant name maps to exactly one fighter in that same source snapshot. Ambiguous or absent mappings remain unresolved. Links from warehouse identities into CageMetrix's canonical fighter table are stored separately with a match method, confidence and verification status.
 
 This prevents same-name fighters from being silently merged.
+
+## Detailed-fight cross-table linking
+
+The source documentation describes joining its UFCStats-derived detail layer to the global layer using fight context rather than a shared fight ID. CageMetrix preserves that distinction.
+
+The importer records only these cross-table match classes:
+
+1. `source_id` — native IDs actually agree;
+2. `exact_date_pair` — a unique UFC global row has the exact date and exact normalized fighter pair;
+3. `date_window_surnames` — a unique UFC global candidate has the same fighter surnames within two calendar days, mirroring the upstream source's documented reconciliation idea;
+4. `unresolved` — no unique safe candidate.
+
+The detailed row itself is retained in every case. The match is metadata, not identity truth.
 
 ## Import and refresh
 
@@ -62,6 +85,10 @@ The workflow:
 8. on `main`, applies the same schema/import to remote D1 and verifies counts.
 
 The generated raw SQL and third-party source database are transient CI files and are not committed to the CageMetrix repository.
+
+## Scheduled/future source rows
+
+A source snapshot may contain rows dated after the ingestion date. The warehouse preserves those source rows but does not treat an `unknown` outcome as a completed fight. Any future modeling feature must require that the underlying bout was completed and knowable at the prediction cutoff.
 
 ## Provenance / public use
 
