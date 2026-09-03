@@ -1,3 +1,5 @@
+import { syncLiveResults, RESULT_POLL_SECONDS, PAGE_POLL_SECONDS } from './live-results.ts';
+
 interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
@@ -32,7 +34,7 @@ function json(data: unknown, init: ResponseInit = {}, cacheSeconds = 0): Respons
 async function edgeCached(request: Request, context: ExecutionContext, producer: () => Promise<Response>): Promise<Response> {
   const cache = (caches as CacheStorage & { default: Cache }).default;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set('_cache_version', '0.3.0');
+  cacheUrl.searchParams.set('_cache_version', '0.3.0-live-1');
   const cacheKey = new Request(cacheUrl, request);
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
@@ -341,7 +343,8 @@ async function forecasts(env: Env): Promise<Response> {
     SELECT p.id, p.created_at, p.locked_at, p.fighter_a_probability, p.fighter_b_probability,
       p.picked_fighter_id, p.sample_strength, p.notes, p.input_snapshot_key,
       e.name AS event_name, e.event_date, e.starts_at, e.slug AS event_slug, e.source_url,
-      b.status, b.weight_class, b.bout_order, b.winner_id, b.result_method,
+      b.status, b.weight_class, b.bout_order, b.winner_id, b.result_method, b.updated_at AS result_updated_at,
+      s.last_attempted_at AS results_checked_at,s.last_success_at AS results_success_at,s.error AS results_error,
       a.id AS fighter_a_id, a.name AS fighter_a_name, a.slug AS fighter_a_slug,
       z.id AS fighter_b_id, z.name AS fighter_b_name, z.slug AS fighter_b_slug,
       mv.version AS model_version,
@@ -353,10 +356,14 @@ async function forecasts(env: Env): Promise<Response> {
     FROM predictions p JOIN bouts b ON b.id=p.bout_id
     JOIN events e ON e.id=b.event_id JOIN model_versions mv ON mv.id=p.model_version_id
     JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id
+    LEFT JOIN event_result_sync s ON s.event_id=e.id
     WHERE mv.name='CageMetrix Win Probability' AND mv.version='0.1.0'
     ORDER BY e.event_date DESC, b.bout_order, p.id
   `).all();
-  const rows = result.results as any[];
+  const rows = (result.results as any[]).map(row => ({ ...row,
+    event_live: Date.now() >= Date.parse(row.starts_at)-30*60_000 && Date.now() <= Date.parse(row.starts_at)+12*3_600_000
+  }));
+  const pollerRow=await env.DB.prepare("SELECT value FROM bootstrap_state WHERE key='results:poller'").first();
   const graded = rows.filter(r => r.grade === 'correct' || r.grade === 'incorrect');
   const correct = graded.filter(r => r.grade === 'correct').length;
   const brier = graded.length ? graded.reduce((sum,r) => sum + (r.fighter_a_probability - Number(r.winner_id === r.fighter_a_id)) ** 2,0) / graded.length : null;
@@ -367,7 +374,10 @@ async function forecasts(env: Env): Promise<Response> {
     void: rows.filter(r=>r.grade==='void'||r.grade==='cancelled').length,
     first_prediction_at: rows.map(r=>r.locked_at).sort()[0] || null,
     policy: 'Only predictions saved before the event starts are graded. Draws, no-contests, cancellations and 50/50 no-picks are excluded. Historical backtests are separate.'
-  }, meta: { model_version:'0.1.0', data:await dataStatus(env) } }, {}, 300);
+  }, meta: { model_version:'0.1.0', data:await dataStatus(env), live_results: {
+    poll_seconds:RESULT_POLL_SECONDS,page_refresh_seconds:PAGE_POLL_SECONDS,
+    scheduler:parseJson(pollerRow?.value),source:'UFC official event cards'
+  } } }, {}, 15);
 }
 
 async function fighterAsset(request: Request, env: Env, slug: string): Promise<Response> {
@@ -394,6 +404,9 @@ async function fighterAsset(request: Request, env: Env, slug: string): Promise<R
 }
 
 export default {
+  async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext) {
+    context.waitUntil(syncLiveResults(env,controller.scheduledTime));
+  },
   async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
