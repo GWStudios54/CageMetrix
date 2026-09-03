@@ -2,7 +2,8 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { parseDelimited } from './lib/csv.mjs';
 import { buildRatings as buildRatings03 } from './lib/model_v03.mjs';
 import { buildObservations, buildRatings as buildRatings04, CMR_V04_VERSION } from './lib/model_v04.mjs';
-import { featureVector } from './lib/predictor_v02.mjs';
+import { featureVector as featureVectorV01, predictFrozenVector as predictFrozenV01 } from './lib/predictor_v01.mjs';
+import { featureVector as featureVectorV02 } from './lib/predictor_v02.mjs';
 import { hash, STATS_URL } from './lib/dataset.mjs';
 
 export function probability(difference, slope) {
@@ -111,6 +112,7 @@ export function historicalRows(pairs, start = '2018-01-01') {
       const a04 = ratings04.get(pair.red.fighterId);
       const b04 = ratings04.get(pair.blue.fighterId);
       if (!a03 || !b03 || !a04 || !b04) continue;
+      const xV01Cmr03 = featureVectorV01(a03, b03);
       rows.push({
         date,
         a: pair.red.fighterId,
@@ -121,7 +123,9 @@ export function historicalRows(pairs, start = '2018-01-01') {
         cmr04: a04.cmr - b04.cmr,
         elo04: a04.eloRaw - b04.eloRaw,
         min_bouts: Math.min(a04.bouts, b04.bouts),
-        x: featureVector(a04, b04)
+        x: featureVectorV02(a04, b04),
+        x_v01_cmr04: featureVectorV01(a04, b04),
+        v01_p_cmr03: predictFrozenV01(xV01Cmr03)
       });
     }
     if (index % 50 === 0) console.log(`CMR 0.4 history: ${index + 1}/${dates.length} event dates (${date})`);
