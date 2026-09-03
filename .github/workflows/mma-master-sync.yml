@@ -1,0 +1,117 @@
+name: Sync MMA master database
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/0012_mma_master_database.sql'
+      - 'scripts/import-mma-master.py'
+      - '.github/workflows/mma-master-sync.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/0012_mma_master_database.sql'
+      - 'scripts/import-mma-master.py'
+      - '.github/workflows/mma-master-sync.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: cagemetrix-production
+  cancel-in-progress: false
+
+jobs:
+  prepare-and-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install data importer dependencies
+        run: python -m pip install --disable-pip-version-check 'duckdb>=1.3,<2' 'kagglehub>=1.0,<2'
+
+      - name: Download and prepare MMA master snapshot
+        run: python scripts/import-mma-master.py
+
+      - name: Validate prepared coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('.cache/mma-master/summary.json').read_text())
+          assert summary['fighters'] >= 15000, summary
+          assert summary['fights'] >= 120000, summary
+          assert summary['participants'] == summary['fights'] * 2, summary
+          assert summary['organizations'] >= 4000, summary
+          assert summary['technical_fights_matched'] > 5000, summary
+          print('Prepared master snapshot:', json.dumps(summary, indent=2))
+          PY
+
+      - name: Apply D1 schema
+        if: github.event_name != 'pull_request'
+        run: npx wrangler d1 migrations apply cagemetrix --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Import immutable snapshot into D1
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SNAPSHOT_ID="$(jq -r '.snapshot_id' .cache/mma-master/summary.json)"
+          SOURCE_KEY="$(jq -r '.source_key' .cache/mma-master/summary.json)"
+          STATUS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT status FROM mma_source_snapshots WHERE source_key='${SOURCE_KEY}' AND snapshot_id='${SNAPSHOT_ID}' LIMIT 1" --json | jq -r '.[0].results[0].status // ""')"
+          if [ "$STATUS" = "complete" ]; then
+            echo "Snapshot ${SNAPSHOT_ID} is already complete; nothing to write."
+            exit 0
+          fi
+          for file in .cache/mma-master/sql/*.sql; do
+            echo "Applying $(basename "$file")"
+            npx wrangler d1 execute cagemetrix --remote --file "$file"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify remote master database
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute cagemetrix --remote --command "SELECT s.source_key,s.active_snapshot_id,x.status,x.fighter_count,x.fight_count,x.participant_count,x.technical_fight_count,x.organization_count,x.source_max_date FROM mma_source_registry s JOIN mma_source_snapshots x ON x.source_key=s.source_key AND x.snapshot_id=s.active_snapshot_id WHERE s.source_key='leandroiber_mmastats'" --json | tee .cache/mma-master/remote-verification.json
+          ACTIVE_FIGHTS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT COUNT(*) AS n FROM mma_active_fights" --json | jq -r '.[0].results[0].n')"
+          if [ "$ACTIVE_FIGHTS" -lt 120000 ]; then
+            echo "Remote active fight count is too small: $ACTIVE_FIGHTS" >&2
+            exit 1
+          fi
+          echo "Remote master database contains $ACTIVE_FIGHTS active fights."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Upload import audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mma-master-import-audit
+          path: |
+            .cache/mma-master/summary.json
+            .cache/mma-master/remote-verification.json
+          if-no-files-found: ignore
+          retention-days: 14
