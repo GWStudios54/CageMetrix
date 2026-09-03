@@ -26,7 +26,11 @@ Elo begins at 1500. Decisive results update with K=28, multiplied by 1.15 for KO
 
 Predictions are saved before the earliest published card start, with their timestamp, model version, explicit pick and input snapshot hash. A database trigger prevents overwrites. This version uses the first saved forecast for each matchup. Replacements get a new matchup; cancelled originals remain auditable.
 
-The public counter grades only saved pre-start predictions on completed decisive bouts. It reports correct, incorrect, pending, excluded, accuracy and Brier score. Draws, no-contests, cancellations, missing winners and 50/50 no-picks are excluded. Backtests never create live wins. Grading waits for a verified result import, so this is not an in-fight feed.
+The public counter grades only saved pre-start predictions on completed decisive bouts. It reports correct, incorrect, pending, excluded, accuracy and Brier score. Draws, no-contests, cancellations, missing winners and 50/50 no-picks are excluded. Backtests never create live wins.
+
+On fight day, a Cloudflare scheduled handler checks official UFC cards every two minutes, from 30 minutes before the prelims through 12 hours after their scheduled start. It grades each explicit final result without waiting for the full card's statistics. Matching requires the official bout identifier and both fighters; incomplete, conflicting or missing source rows cannot create a winner. Result changes and corrections are recorded in an audit table without changing saved predictions. Source failures retain the previous results and expose a freshness warning. Hourly checks cover the preceding week and the first 72 hours after the start; later statistical reconciliation uses the daily import.
+
+Prediction and track-record pages refresh every 30 seconds while visible, with a 15-second forecast API cache. Timing depends on the official source's publication delay. This is a final-result feed, with no live odds or round-by-round scoring; detailed ratings still wait for verified statistics.
 
 ## Validation
 

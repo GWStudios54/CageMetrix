@@ -38,6 +38,10 @@ The rankings support `q`, `metric`, `weight_class`, and `page` in the page URL. 
 
 Fighters use initials throughout the site. Photography is disabled until suitable licensed assets are supplied; see [PHOTO-SOURCES.md](docs/PHOTO-SOURCES.md).
 
+Fight-day results use a Cloudflare scheduled handler every two minutes. It checks official UFC event pages from 30 minutes before the card starts through 12 hours after the start, with hourly preflight checks during the preceding week and hourly reconciliation through 72 hours afterward. Only explicit final outcomes with matching bout and fighter identities update accuracy; partial or missing rows stay pending. Result changes are recorded in `bout_result_observations`, and source health is stored in `event_result_sync`.
+
+Prediction and track-record pages refresh every 30 seconds while visible. The forecast API caches for 15 seconds. Timing depends on the official source publishing the result. Pre-fight probabilities remain immutable; the separate daily GitHub workflow still handles complete statistical imports and rating recalculation.
+
 ## Cloudflare setup
 
 Cloudflare recommends `wrangler.jsonc` for new Workers projects. CageMetrix uses Workers Static Assets instead of the deprecated Workers Sites setup.

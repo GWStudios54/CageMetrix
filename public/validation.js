@@ -1,7 +1,11 @@
+let benchmark;
 async function loadValidation(){
-  const responses=await Promise.all([fetch('/model-validation.json'),fetch('/api/forecasts')]);
-  if(responses.some(r=>!r.ok))throw new Error('Unavailable');
-  const [report,live]=await Promise.all(responses.map(r=>r.json()));
+  const response=await fetch('/api/forecasts?live=1',{cache:'no-store',signal:AbortSignal.timeout(15_000)});
+  if(!response.ok)throw new Error('Unavailable');
+  const live=await response.json();
+  if(!benchmark){const r=await fetch('/model-validation.json');if(!r.ok)throw new Error('Unavailable');benchmark=await r.json();}
+  const report=benchmark;
+  document.querySelector('#live-record-status').textContent='Refreshes every 30 seconds during your visit.';
   const s=live.summary;
   document.querySelector('#prospective-record').textContent=s.graded?`${s.correct} correct out of ${s.graded} graded fights (${(100*s.accuracy).toFixed(1)}%). ${s.pending} predictions await results.`:`No fights graded yet. ${s.pending} predictions are saved. Accuracy will appear after the first completed, decisive fight; historical tests do not add wins to this counter.`;
   document.querySelector('#benchmark-period').textContent=`Evaluation: ${report.evaluation_start} through ${report.source_max_date}. ${report.results.cmr.bouts.toLocaleString()} matched fights; probability conversion trained on ${report.train_bouts.toLocaleString()} earlier fights.`;
@@ -9,4 +13,4 @@ async function loadValidation(){
   const interval=report.brier_difference_cmr_minus_elo_95_interval;
   document.querySelector('#benchmark-conclusion').textContent=`The 95% event-bootstrap interval for CMR minus Elo Brier score is ${interval[0].toFixed(4)} to ${interval[1].toFixed(4)}. ${interval[0]<=0&&interval[1]>=0?'It spans zero, so this test does not establish a probability-quality difference.':'This is a retrospective comparison; prospective results are still needed.'}`;
 }
-loadValidation().catch(()=>{document.querySelector('#benchmark-period').textContent='The benchmark is temporarily unavailable. Please refresh to try again.';document.querySelector('#prospective-record').textContent='The live record is temporarily unavailable.';});
+startAutoRefresh(loadValidation,()=>{document.querySelector('#live-record-status').textContent='Connection interrupted. Retrying automatically; displayed results may be out of date.';});
