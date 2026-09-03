@@ -4,6 +4,7 @@ type Row=Record<string,any>;
 const PUBLIC_MODEL='CageMetrix Win Probability';
 const PUBLIC_VERSION='0.1.0';
 const COOKIE='cm_fan_id';
+const SCORECARD_WINDOW_MS=48*60*60*1000;
 const idValid=(id:string)=>/^[1-9]\d{0,14}$/.test(id)&&Number.isSafeInteger(Number(id));
 
 function fanJson(data:unknown,status=200,setCookie?:string){
@@ -23,9 +24,14 @@ export function fanIdentity(request:Request){
 async function trackedBout(db:D1Database,id:string){
   if(!idValid(id))return null;
   return db.prepare(`SELECT b.*,e.starts_at,e.name event_name,e.event_date,
+    CASE WHEN s.last_changed_at IS NOT NULL AND NOT EXISTS(
+      SELECT 1 FROM bouts terminal_check
+      WHERE terminal_check.event_id=e.id AND terminal_check.status NOT IN ('completed','cancelled')
+    ) THEN s.last_changed_at ELSE NULL END AS card_finished_at,
     a.name fighter_a_name,a.slug fighter_a_slug,z.name fighter_b_name,z.slug fighter_b_slug
     FROM bouts b JOIN events e ON e.id=b.event_id
     JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id
+    LEFT JOIN event_result_sync s ON s.event_id=e.id
     WHERE b.id=? AND EXISTS(
       SELECT 1 FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id
       WHERE p.bout_id=b.id AND mv.name=? AND mv.version=?
@@ -44,7 +50,20 @@ export function scorableRounds(bout:Row){
   const scheduled=Math.max(0,Math.min(5,Number(bout.scheduled_rounds)||0));
   const resultRound=Math.max(0,Math.min(scheduled,Number(bout.result_round)||scheduled));
   if(/decision/i.test(String(bout.result_method||'')))return resultRound||scheduled;
+  // A finish ends the current round before it is complete. Every earlier round
+  // remains available for fan scoring (for example, a R3 KO leaves R1-R2 scorable).
   return Math.max(0,resultRound-1);
+}
+
+export function fanScorecardWindow(bout:Row,now=Date.now()){
+  const rounds=scorableRounds(bout);
+  if(bout.status!=='completed'||rounds<1)return {open:false,closed:false,closes_at:null as string|null};
+  const finished=Date.parse(String(bout.card_finished_at||''));
+  // A completed fight can be scored while the rest of the card is still live.
+  // The 48-hour clock begins only after the last tracked bout is officially final.
+  if(!Number.isFinite(finished))return {open:true,closed:false,closes_at:null as string|null};
+  const closes=finished+SCORECARD_WINDOW_MS;
+  return {open:now<closes,closed:now>=closes,closes_at:new Date(closes).toISOString()};
 }
 
 export function validateFanScorecard(body:any,bout:Row){
@@ -96,6 +115,7 @@ async function summary(db:D1Database,bout:Row,voterId:string){
   const now=Date.now(),lock=Date.parse(bout.starts_at);
   const predictionOpen=bout.status==='scheduled'&&Number.isFinite(lock)&&now<lock;
   const cardTotal=Number(overall?.total||0);
+  const cardWindow=fanScorecardWindow(bout,now);
   const rounds=(roundRows.results||[]).map((r:Row)=>({
     round:Number(r.round),total:Number(r.total||0),
     average_a:r.avg_score_a===null?null:Number(r.avg_score_a),average_b:r.avg_score_b===null?null:Number(r.avg_score_b),
@@ -107,7 +127,7 @@ async function summary(db:D1Database,bout:Row,voterId:string){
   if(myCard){try{mine={rounds:JSON.parse(String(myCard.rounds_json)),total_a:Number(myCard.total_a),total_b:Number(myCard.total_b),scored_rounds:Number(myCard.scored_rounds)};}catch{mine=null;}}
   const myPickId=myVote?.picked_fighter_id?Number(myVote.picked_fighter_id):null;
   return {
-    bout:{id:Number(bout.id),status:bout.status,starts_at:bout.starts_at,event_name:bout.event_name,event_date:bout.event_date,
+    bout:{id:Number(bout.id),status:bout.status,starts_at:bout.starts_at,event_name:bout.event_name,event_date:bout.event_date,card_finished_at:bout.card_finished_at||null,
       fighter_a_id:Number(bout.fighter_a_id),fighter_a_name:bout.fighter_a_name,fighter_a_slug:bout.fighter_a_slug,
       fighter_b_id:Number(bout.fighter_b_id),fighter_b_name:bout.fighter_b_name,fighter_b_slug:bout.fighter_b_slug,
       winner_id:bout.winner_id===null?null:Number(bout.winner_id),result_method:bout.result_method,result_round:bout.result_round,scheduled_rounds:bout.scheduled_rounds},
@@ -116,7 +136,8 @@ async function summary(db:D1Database,bout:Row,voterId:string){
       total,a_votes:aVotes,b_votes:bVotes,a_pct:total?aVotes/total:null,b_pct:total?bVotes/total:null,
       consensus_pick:pick===bout.fighter_a_id?'a':pick===bout.fighter_b_id?'b':null,
       grade:total?predictionGrade(bout,pick):'no_votes',my_pick:myPickId===bout.fighter_a_id?'a':myPickId===bout.fighter_b_id?'b':null},
-    scorecards:{open:bout.status==='completed'&&scorableRounds(bout)>0,scorable_rounds:scorableRounds(bout),total:cardTotal,
+    scorecards:{...cardWindow,scorable_rounds:scorableRounds(bout),total:cardTotal,
+      lock_policy:'Fan scorecards open after a fight is final and lock 48 hours after the full card finishes. Finishes leave all previously completed rounds scorable.',
       overall:{average_a:cardTotal?Number(overall?.avg_total_a):null,average_b:cardTotal?Number(overall?.avg_total_b):null,
         a_pct:cardTotal?Number(overall?.a_cards||0)/cardTotal:null,b_pct:cardTotal?Number(overall?.b_cards||0)/cardTotal:null,tie_pct:cardTotal?Number(overall?.tied_cards||0)/cardTotal:null},
       rounds,mine}
@@ -162,6 +183,8 @@ export async function saveFanScorecard(request:Request,env:Env,id:string){
   if(!writeAllowed(request))return fanJson({error:'Cross-origin fan scorecards are not allowed.'},403,identity.setCookie);
   const bout=await trackedBout(env.DB,id);if(!bout)return fanJson({error:'fight_not_found'},404,identity.setCookie);
   if(bout.status!=='completed')return fanJson({error:'Fan scorecards open after the official fight result is confirmed.'},409,identity.setCookie);
+  const window=fanScorecardWindow(bout);
+  if(window.closed)return fanJson({error:'Fan scorecard submissions closed 48 hours after this card finished.'},409,identity.setCookie);
   let input:any;try{input=await body(request,4096);}catch(error:any){return fanJson({error:error.message==='content_type'?'Send application/json.':error.message==='too_large'?'Request is too large.':'Invalid JSON.'},error.message==='content_type'?415:error.message==='too_large'?413:400,identity.setCookie);}
   const validation=validateFanScorecard(input,bout);if(validation)return fanJson({error:validation},400,identity.setCookie);
   const rounds=input.rounds.map((r:Row)=>({round:r.round,score_a:r.score_a,score_b:r.score_b})).sort((a:Row,b:Row)=>a.round-b.round);
