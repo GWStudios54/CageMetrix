@@ -16,7 +16,7 @@ import math
 import re
 import unicodedata
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -42,6 +42,25 @@ def normalize_name(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
 
+def date_key(value: Any) -> str:
+    return str(value or "")[:10]
+
+
+def fight_signature(event_date: Any, fighter_1: Any, fighter_2: Any) -> tuple[str, str, str]:
+    a, b = sorted((normalize_name(fighter_1), normalize_name(fighter_2)))
+    return (date_key(event_date), a, b)
+
+
+def nearby_signatures(event_date: Any, fighter_1: Any, fighter_2: Any) -> list[tuple[str, str, str]]:
+    raw = date_key(event_date)
+    try:
+        base = date.fromisoformat(raw)
+    except ValueError:
+        return [fight_signature(event_date, fighter_1, fighter_2)]
+    a, b = sorted((normalize_name(fighter_1), normalize_name(fighter_2)))
+    return [((base + timedelta(days=d)).isoformat(), a, b) for d in (0, -1, 1, -2, 2)]
+
+
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -61,8 +80,7 @@ def sql(value: Any) -> str:
         if not math.isfinite(value):
             return "NULL"
         return repr(value)
-    text = str(value)
-    return "'" + text.replace("'", "''") + "'"
+    return "'" + str(value).replace("'", "''") + "'"
 
 
 def as_bool(value: Any) -> int:
@@ -96,8 +114,7 @@ def table_columns(con, table: str) -> set[str]:
 
 
 def require_columns(con, table: str, required: set[str]) -> None:
-    cols = table_columns(con, table)
-    missing = sorted(required - cols)
+    missing = sorted(required - table_columns(con, table))
     if missing:
         raise RuntimeError(f"{table} is missing required columns: {', '.join(missing)}")
 
@@ -169,7 +186,7 @@ def resolve_source(args: argparse.Namespace) -> Path:
             raise FileNotFoundError(path)
         return path
 
-    import kagglehub  # installed only for the data-sync workflow
+    import kagglehub
 
     download_dir = Path(args.download_dir).resolve()
     download_dir.mkdir(parents=True, exist_ok=True)
@@ -206,35 +223,23 @@ def main() -> None:
 
     required_tables = {"fighters_master", "fights_career_longitudinal", "fights_master_typed"}
     found_tables = {r[0] for r in con.execute("SHOW TABLES").fetchall()}
-    missing_tables = sorted(required_tables - found_tables)
-    if missing_tables:
-        raise RuntimeError(f"Source database missing tables: {', '.join(missing_tables)}")
+    if required_tables - found_tables:
+        raise RuntimeError(f"Source database missing tables: {sorted(required_tables - found_tables)}")
 
     require_columns(con, "fighters_master", {"fighter_id", "fighter_name"})
-    require_columns(
-        con,
-        "fights_career_longitudinal",
-        {"fight_id", "organization", "event_name", "event_date", "fighter_1", "fighter_2"},
-    )
-    require_columns(con, "fights_master_typed", {"fight_id", "fighter_1", "fighter_2"})
+    require_columns(con, "fights_career_longitudinal", {"fight_id", "organization", "event_name", "event_date", "fighter_1", "fighter_2"})
+    require_columns(con, "fights_master_typed", {"fight_id", "event_date", "fighter_1", "fighter_2", "has_stats"})
 
     fighter_count = con.execute("SELECT COUNT(*) FROM fighters_master").fetchone()[0]
     fight_count = con.execute("SELECT COUNT(*) FROM fights_career_longitudinal").fetchone()[0]
-    technical_count = con.execute(
-        "SELECT COUNT(DISTINCT fight_id) FROM fights_master_typed WHERE COALESCE(has_stats, TRUE)"
-    ).fetchone()[0]
-    organization_count = con.execute(
-        "SELECT COUNT(DISTINCT organization) FROM fights_career_longitudinal"
-    ).fetchone()[0]
+    technical_count = con.execute("SELECT COUNT(DISTINCT fight_id) FROM fights_master_typed WHERE COALESCE(has_stats, TRUE)").fetchone()[0]
+    organization_count = con.execute("SELECT COUNT(DISTINCT organization) FROM fights_career_longitudinal").fetchone()[0]
     source_max_date = str(con.execute("SELECT MAX(event_date) FROM fights_career_longitudinal").fetchone()[0])
+    completed_max_date = str(con.execute("SELECT MAX(event_date) FROM fights_career_longitudinal WHERE winner_side IN (1,2)").fetchone()[0])
 
     if fighter_count < MIN_FIGHTERS or fight_count < MIN_FIGHTS:
-        raise RuntimeError(
-            f"Source coverage regressed: {fighter_count} fighters / {fight_count} fights; "
-            f"expected at least {MIN_FIGHTERS} / {MIN_FIGHTS}"
-        )
+        raise RuntimeError(f"Source coverage regressed: {fighter_count} fighters / {fight_count} fights")
 
-    # Build source-fighter lookup. Duplicate normalized names remain deliberately unresolved.
     fighter_rows = con.execute("SELECT * FROM fighters_master ORDER BY fighter_id").fetchall()
     fighter_desc = con.description
     fighter_dicts = [row_dict(fighter_desc, row) for row in fighter_rows]
@@ -242,20 +247,30 @@ def main() -> None:
     for f in fighter_dicts:
         ids_by_name[normalize_name(f.get("fighter_name"))].append(str(f.get("fighter_id")))
 
-    # Technical rows are small enough to index in memory. Reject duplicates instead of silently exploding joins.
-    tech_rows = con.execute("SELECT * FROM fights_master_typed").fetchall()
+    # The longitudinal and technical tables use different fight-id namespaces.
+    # Index technical rows by both native ID and event date + unordered fighter pair.
+    tech_rows = con.execute("SELECT * FROM fights_master_typed WHERE COALESCE(has_stats, TRUE)").fetchall()
     tech_desc = con.description
-    tech_by_fight: dict[str, dict[str, Any]] = {}
+    tech_by_id: dict[str, dict[str, Any]] = {}
+    tech_by_signature: dict[tuple[str, str, str], dict[str, Any]] = {}
     duplicate_technical_ids: set[str] = set()
+    duplicate_technical_signatures: set[tuple[str, str, str]] = set()
     for raw in tech_rows:
         t = row_dict(tech_desc, raw)
         fight_id = str(t.get("fight_id"))
-        if fight_id in tech_by_fight:
+        sig = fight_signature(t.get("event_date"), t.get("fighter_1"), t.get("fighter_2"))
+        if fight_id in tech_by_id:
             duplicate_technical_ids.add(fight_id)
-            continue
-        tech_by_fight[fight_id] = t
+        else:
+            tech_by_id[fight_id] = t
+        if sig in tech_by_signature:
+            duplicate_technical_signatures.add(sig)
+        else:
+            tech_by_signature[sig] = t
     for fight_id in duplicate_technical_ids:
-        tech_by_fight.pop(fight_id, None)
+        tech_by_id.pop(fight_id, None)
+    for sig in duplicate_technical_signatures:
+        tech_by_signature.pop(sig, None)
 
     init_sql = f"""BEGIN;
 INSERT OR IGNORE INTO mma_source_registry (
@@ -263,7 +278,7 @@ INSERT OR IGNORE INTO mma_source_registry (
 ) VALUES (
   {sql(SOURCE_KEY)},{sql(SOURCE_NAME)},{sql(DATASET_HOMEPAGE)},{sql(CODE_HOMEPAGE)},
   {sql(CODE_LICENSE)},{sql(json.dumps(UPSTREAM_SOURCES))},
-  {sql('Private research mirror. Broad career results are sourced primarily from Sherdog; granular technical stats are primarily UFCStats-derived. Raw source provenance is retained and CageMetrix production predictions remain separate.')}
+  {sql('Private research mirror. Broad career results are sourced primarily from Sherdog; granular technical stats are primarily UFCStats-derived. Source provenance is retained and CageMetrix production predictions remain separate.')}
 );
 INSERT OR REPLACE INTO mma_source_snapshots (
   source_key,snapshot_id,source_sha256,source_version,source_max_date,status,
@@ -277,37 +292,20 @@ COMMIT;
     (output / "0000-init.sql").write_text(init_sql, encoding="utf-8")
 
     writer = SqlChunkWriter(output)
-    fighter_columns = [
-        "source_key", "snapshot_id", "source_fighter_id", "fighter_name", "normalized_name",
-        "dob", "height_cm", "reach_cm", "stance", "nationality", "gym",
-    ]
-    fighter_values = []
-    for f in fighter_dicts:
-        fighter_values.append([
-            SOURCE_KEY, snapshot_id, str(f.get("fighter_id")), f.get("fighter_name"),
-            normalize_name(f.get("fighter_name")), f.get("dob"), f.get("height_cm"), f.get("reach_cm"),
-            f.get("stance"), f.get("nationality"), f.get("gym"),
-        ])
+    fighter_columns = ["source_key", "snapshot_id", "source_fighter_id", "fighter_name", "normalized_name", "dob", "height_cm", "reach_cm", "stance", "nationality", "gym"]
+    fighter_values = [[SOURCE_KEY, snapshot_id, str(f.get("fighter_id")), f.get("fighter_name"), normalize_name(f.get("fighter_name")), f.get("dob"), f.get("height_cm"), f.get("reach_cm"), f.get("stance"), f.get("nationality"), f.get("gym")] for f in fighter_dicts]
     for statement in insert_statements("mma_fighters", fighter_columns, fighter_values):
         writer.add(statement)
 
-    fight_columns = [
-        "source_key", "snapshot_id", "source_fight_id", "organization", "event_name", "event_date",
-        "event_year", "event_location", "weight_class", "is_major_org", "outcome", "winner_side",
-        "is_title_fight", "method_raw", "method_normalized", "method_detail", "round_num",
-        "time_finish_seconds", "referee", "has_technical_stats",
-    ]
-    participant_columns = [
-        "source_key", "snapshot_id", "source_fight_id", "side", "source_fighter_id", "fighter_name",
-        "normalized_name", "result", "height_cm", "weight_kg", "reach_cm", "stance", "dob", "gym",
-        "nationality", "knockdowns", "sig_str_landed", "sig_str_attempted", "td_landed", "td_attempted",
-        "ctrl_seconds",
-    ]
+    fight_columns = ["source_key", "snapshot_id", "source_fight_id", "organization", "event_name", "event_date", "event_year", "event_location", "weight_class", "is_major_org", "outcome", "winner_side", "is_title_fight", "method_raw", "method_normalized", "method_detail", "round_num", "time_finish_seconds", "referee", "has_technical_stats"]
+    participant_columns = ["source_key", "snapshot_id", "source_fight_id", "side", "source_fighter_id", "fighter_name", "normalized_name", "result", "height_cm", "weight_kg", "reach_cm", "stance", "dob", "gym", "nationality", "knockdowns", "sig_str_landed", "sig_str_attempted", "td_landed", "td_attempted", "ctrl_seconds"]
 
     fight_batch: list[list[Any]] = []
     participant_batch: list[list[Any]] = []
     unresolved_identity_rows = 0
     matched_technical = 0
+    technical_match_by_id = 0
+    technical_match_by_signature = 0
 
     cursor = con.execute("SELECT * FROM fights_career_longitudinal ORDER BY event_date, fight_id")
     fight_desc = cursor.description
@@ -318,11 +316,21 @@ COMMIT;
         for raw in raw_rows:
             f = row_dict(fight_desc, raw)
             fight_id = str(f.get("fight_id"))
-            t = tech_by_fight.get(fight_id)
             f1_name = str(f.get("fighter_1") or "")
             f2_name = str(f.get("fighter_2") or "")
-            n1 = normalize_name(f1_name)
-            n2 = normalize_name(f2_name)
+            n1, n2 = normalize_name(f1_name), normalize_name(f2_name)
+
+            t = tech_by_id.get(fight_id)
+            if t:
+                technical_match_by_id += 1
+            else:
+                for sig in nearby_signatures(f.get("event_date"), f1_name, f2_name):
+                    candidate = tech_by_signature.get(sig)
+                    if candidate:
+                        t = candidate
+                        technical_match_by_signature += 1
+                        break
+
             f1_ids = ids_by_name.get(n1, [])
             f2_ids = ids_by_name.get(n2, [])
             f1_id = f1_ids[0] if len(f1_ids) == 1 else None
@@ -350,41 +358,25 @@ COMMIT;
 
             tech_for_side: dict[int, dict[str, Any] | None] = {1: None, 2: None}
             has_tech = 0
-            if t and as_bool(first(t, "has_stats")):
-                tn1 = normalize_name(t.get("fighter_1"))
-                tn2 = normalize_name(t.get("fighter_2"))
+            if t:
+                tn1, tn2 = normalize_name(t.get("fighter_1")), normalize_name(t.get("fighter_2"))
                 if tn1 == n1 and tn2 == n2:
                     tech_for_side = {1: t, 2: t}
                     has_tech = 1
                 elif tn1 == n2 and tn2 == n1:
-                    # A reversed source orientation is handled below with swapped prefixes.
-                    tech_for_side = {1: {**t, "_swap": True}, 2: {**t, "_swap": True}}
+                    swapped = {**t, "_swap": True}
+                    tech_for_side = {1: swapped, 2: swapped}
                     has_tech = 1
             matched_technical += has_tech
 
-            fight_batch.append([
-                SOURCE_KEY, snapshot_id, fight_id, str(f.get("organization") or "unknown").lower(),
-                f.get("event_name") or "Unknown event", f.get("event_date"), as_int(f.get("event_year")),
-                f.get("event_location"), f.get("weight_class"), as_bool(f.get("is_major_org")), outcome,
-                winner_side, as_bool(f.get("is_title_fight")), method_raw, method_norm, f.get("method_detail"),
-                as_int(f.get("round_num")), as_int(f.get("time_finish_seconds")), f.get("referee"), has_tech,
-            ])
+            fight_batch.append([SOURCE_KEY, snapshot_id, fight_id, str(f.get("organization") or "unknown").lower(), f.get("event_name") or "Unknown event", f.get("event_date"), as_int(f.get("event_year")), f.get("event_location"), f.get("weight_class"), as_bool(f.get("is_major_org")), outcome, winner_side, as_bool(f.get("is_title_fight")), method_raw, method_norm, f.get("method_detail"), as_int(f.get("round_num")), as_int(f.get("time_finish_seconds")), f.get("referee"), has_tech])
 
             def participant(side: int, name: str, norm: str, source_id: str | None, result: str) -> list[Any]:
                 prefix = "f1" if side == 1 else "f2"
                 tech = tech_for_side[side]
                 if tech and tech.get("_swap"):
                     prefix = "f2" if side == 1 else "f1"
-                return [
-                    SOURCE_KEY, snapshot_id, fight_id, side, source_id, name, norm, result,
-                    f.get(f"f{side}_height_cm"), f.get(f"f{side}_weight_kg"),
-                    first(tech, f"{prefix}_reach_cm"), first(tech, f"{prefix}_stance"), first(tech, f"{prefix}_dob"),
-                    first(tech, f"{prefix}_gym") or f.get(f"f{side}_gym"),
-                    first(tech, f"{prefix}_nationality") or f.get(f"f{side}_nationality"),
-                    as_int(first(tech, f"{prefix}_kd")), as_int(first(tech, f"{prefix}_sig_str_landed")),
-                    as_int(first(tech, f"{prefix}_sig_str_attempted")), as_int(first(tech, f"{prefix}_td_landed")),
-                    as_int(first(tech, f"{prefix}_td_attempted")), as_int(first(tech, f"{prefix}_ctrl_seconds")),
-                ]
+                return [SOURCE_KEY, snapshot_id, fight_id, side, source_id, name, norm, result, f.get(f"f{side}_height_cm"), f.get(f"f{side}_weight_kg"), first(tech, f"{prefix}_reach_cm"), first(tech, f"{prefix}_stance"), first(tech, f"{prefix}_dob"), first(tech, f"{prefix}_gym") or f.get(f"f{side}_gym"), first(tech, f"{prefix}_nationality") or f.get(f"f{side}_nationality"), as_int(first(tech, f"{prefix}_kd")), as_int(first(tech, f"{prefix}_sig_str_landed")), as_int(first(tech, f"{prefix}_sig_str_attempted")), as_int(first(tech, f"{prefix}_td_landed")), as_int(first(tech, f"{prefix}_td_attempted")), as_int(first(tech, f"{prefix}_ctrl_seconds"))]
 
             participant_batch.append(participant(1, f1_name, n1, f1_id, result1))
             participant_batch.append(participant(2, f2_name, n2, f2_id, result2))
@@ -394,8 +386,7 @@ COMMIT;
                 writer.add(statement)
             for statement in insert_statements("mma_fight_participants", participant_columns, participant_batch):
                 writer.add(statement)
-            fight_batch = []
-            participant_batch = []
+            fight_batch, participant_batch = [], []
 
     if fight_batch:
         for statement in insert_statements("mma_fights", fight_columns, fight_batch):
@@ -412,10 +403,9 @@ SET status='complete', completed_at={sql(completed)}, error_text=NULL,
     technical_fight_count={matched_technical}, organization_count={organization_count}
 WHERE source_key={sql(SOURCE_KEY)} AND snapshot_id={sql(snapshot_id)};
 UPDATE mma_source_registry
-SET display_name={sql(SOURCE_NAME)}, dataset_homepage={sql(DATASET_HOMEPAGE)},
-    code_homepage={sql(CODE_HOMEPAGE)}, code_license={sql(CODE_LICENSE)},
-    upstream_sources_json={sql(json.dumps(UPSTREAM_SOURCES))}, active_snapshot_id={sql(snapshot_id)},
-    active_since={sql(completed)}
+SET display_name={sql(SOURCE_NAME)}, dataset_homepage={sql(DATASET_HOMEPAGE)}, code_homepage={sql(CODE_HOMEPAGE)},
+    code_license={sql(CODE_LICENSE)}, upstream_sources_json={sql(json.dumps(UPSTREAM_SOURCES))},
+    active_snapshot_id={sql(snapshot_id)}, active_since={sql(completed)}
 WHERE source_key={sql(SOURCE_KEY)};
 COMMIT;
 """
@@ -427,13 +417,17 @@ COMMIT;
         "source_sha256": source_hash,
         "snapshot_id": snapshot_id,
         "source_max_date": source_max_date,
+        "latest_completed_win_date": completed_max_date,
         "fighters": fighter_count,
         "fights": fight_count,
         "participants": fight_count * 2,
         "organizations": organization_count,
         "technical_fights_source": technical_count,
         "technical_fights_matched": matched_technical,
+        "technical_match_by_id": technical_match_by_id,
+        "technical_match_by_signature": technical_match_by_signature,
         "duplicate_technical_fight_ids_excluded": len(duplicate_technical_ids),
+        "duplicate_technical_signatures_excluded": len(duplicate_technical_signatures),
         "participant_identity_rows_unresolved": unresolved_identity_rows,
         "sql_chunks": 2 + len(writer.files),
         "generated_at": completed,
