@@ -38,6 +38,17 @@ def normalize_name(value: object) -> str:
     return " ".join(text.split())
 
 
+def date_string(value: object) -> str:
+    if isinstance(value, (dt.date, dt.datetime)):
+        return value.isoformat()[:10]
+    return str(value or "")[:10]
+
+
+def bout_match_key(event_date: object, fighter_1: object, fighter_2: object) -> tuple[str, str, str]:
+    names = sorted((normalize_name(fighter_1), normalize_name(fighter_2)))
+    return (date_string(event_date), names[0], names[1])
+
+
 def sql_literal(value: object) -> str:
     if value is None:
         return "NULL"
@@ -250,13 +261,13 @@ def main() -> None:
         "before public display. Imported history is never represented as a historical CageMetrix prediction."
     )
     writer.raw(
-        "INSERT INTO warehouse_sources(source_key,display_name,source_url,upstream_sources_json,usage_note) VALUES(" 
+        "INSERT INTO warehouse_sources(source_key,display_name,source_url,upstream_sources_json,usage_note) VALUES("
         + ",".join(sql_literal(v) for v in (SOURCE_KEY, SOURCE_NAME, SOURCE_URL, upstream_json, usage_note))
         + ") ON CONFLICT(source_key) DO UPDATE SET display_name=excluded.display_name,source_url=excluded.source_url,"
           "upstream_sources_json=excluded.upstream_sources_json,usage_note=excluded.usage_note;"
     )
     writer.raw(
-        "INSERT INTO warehouse_ingestion_runs(run_id,source_key,source_hash,source_version,started_at) VALUES(" 
+        "INSERT INTO warehouse_ingestion_runs(run_id,source_key,source_hash,source_version,started_at) VALUES("
         + ",".join(sql_literal(v) for v in (run_id, SOURCE_KEY, source_hash, source_version, imported_at))
         + ") ON CONFLICT(run_id) DO UPDATE SET started_at=excluded.started_at,completed_at=NULL;"
     )
@@ -302,13 +313,27 @@ def main() -> None:
     participant_links = 0
     ambiguous_names: set[str] = set()
     bout_ids: set[str] = set()
+    bout_identity_by_id: dict[str, tuple[str, str]] = {}
+    bout_key_map: dict[tuple[str, str, str], tuple[str, str, str] | None] = {}
+    ambiguous_composite_bout_keys = 0
 
     def bout_output():
-        nonlocal participant_instances, participant_links
+        nonlocal participant_instances, participant_links, ambiguous_composite_bout_keys
         cursor = connection.execute("SELECT * FROM fights_career_longitudinal ORDER BY event_date, fight_id")
         for row in rows_as_dicts(cursor):
             source_bout_id = str(row["fight_id"])
+            f1_normalized = normalize_name(row["fighter_1"])
+            f2_normalized = normalize_name(row["fighter_2"])
             bout_ids.add(source_bout_id)
+            bout_identity_by_id[source_bout_id] = (f1_normalized, f2_normalized)
+            match_key = bout_match_key(row["event_date"], row["fighter_1"], row["fighter_2"])
+            if match_key in bout_key_map:
+                if bout_key_map[match_key] is not None:
+                    ambiguous_composite_bout_keys += 1
+                bout_key_map[match_key] = None
+            else:
+                bout_key_map[match_key] = (source_bout_id, f1_normalized, f2_normalized)
+
             f1_id = unique_source_id(row["fighter_1"])
             f2_id = unique_source_id(row["fighter_2"])
             participant_instances += 2
@@ -328,8 +353,8 @@ def main() -> None:
                 "weight_class": row.get("weight_class"),
                 "fighter_1_name": row["fighter_1"],
                 "fighter_2_name": row["fighter_2"],
-                "fighter_1_normalized": normalize_name(row["fighter_1"]),
-                "fighter_2_normalized": normalize_name(row["fighter_2"]),
+                "fighter_1_normalized": f1_normalized,
+                "fighter_2_normalized": f2_normalized,
                 "fighter_1_source_id": f1_id,
                 "fighter_2_source_id": f2_id,
                 "winner_name": row.get("winner"),
@@ -371,42 +396,70 @@ def main() -> None:
         "last_seen_run_id", "imported_at",
     ]
     orphan_stats = 0
+    detailed_direct_id_matches = 0
+    detailed_composite_matches = 0
+    detailed_reversed_matches = 0
 
     def stat_output():
-        nonlocal orphan_stats
+        nonlocal orphan_stats, detailed_direct_id_matches, detailed_composite_matches, detailed_reversed_matches
         cursor = connection.execute("SELECT * FROM fights_master_typed ORDER BY event_date, fight_id")
         for row in rows_as_dicts(cursor):
-            source_bout_id = str(row["fight_id"])
-            if source_bout_id not in bout_ids:
+            typed_bout_id = str(row["fight_id"])
+            typed_f1 = normalize_name(row["fighter_1"])
+            typed_f2 = normalize_name(row["fighter_2"])
+
+            if typed_bout_id in bout_ids:
+                source_bout_id = typed_bout_id
+                longitudinal_f1, longitudinal_f2 = bout_identity_by_id[source_bout_id]
+                detailed_direct_id_matches += 1
+            else:
+                match = bout_key_map.get(bout_match_key(row["event_date"], row["fighter_1"], row["fighter_2"]))
+                if match is None:
+                    orphan_stats += 1
+                    continue
+                source_bout_id, longitudinal_f1, longitudinal_f2 = match
+                detailed_composite_matches += 1
+
+            same_order = typed_f1 == longitudinal_f1 and typed_f2 == longitudinal_f2
+            reversed_order = typed_f1 == longitudinal_f2 and typed_f2 == longitudinal_f1
+            if not same_order and not reversed_order:
                 orphan_stats += 1
                 continue
+            if reversed_order:
+                detailed_reversed_matches += 1
+
+            def side(first_field: str, second_field: str):
+                return row.get(second_field if reversed_order else first_field)
+
+            f1_name = side("fighter_1", "fighter_2")
+            f2_name = side("fighter_2", "fighter_1")
             yield {
                 "source_key": SOURCE_KEY,
                 "source_bout_id": source_bout_id,
                 "organization": str(row.get("organization") or "unknown").lower(),
                 "event_date": row["event_date"],
-                "fighter_1_name": row["fighter_1"],
-                "fighter_2_name": row["fighter_2"],
-                "fighter_1_source_id": unique_source_id(row["fighter_1"]),
-                "fighter_2_source_id": unique_source_id(row["fighter_2"]),
-                "fighter_1_reach_cm": row.get("f1_reach_cm"),
-                "fighter_2_reach_cm": row.get("f2_reach_cm"),
-                "fighter_1_stance": row.get("f1_stance"),
-                "fighter_2_stance": row.get("f2_stance"),
-                "fighter_1_dob": row.get("f1_dob"),
-                "fighter_2_dob": row.get("f2_dob"),
-                "fighter_1_kd": as_int(row.get("f1_kd")),
-                "fighter_2_kd": as_int(row.get("f2_kd")),
-                "fighter_1_sig_landed": as_int(row.get("f1_sig_str_landed")),
-                "fighter_1_sig_attempted": as_int(row.get("f1_sig_str_attempted")),
-                "fighter_2_sig_landed": as_int(row.get("f2_sig_str_landed")),
-                "fighter_2_sig_attempted": as_int(row.get("f2_sig_str_attempted")),
-                "fighter_1_td_landed": as_int(row.get("f1_td_landed")),
-                "fighter_1_td_attempted": as_int(row.get("f1_td_attempted")),
-                "fighter_2_td_landed": as_int(row.get("f2_td_landed")),
-                "fighter_2_td_attempted": as_int(row.get("f2_td_attempted")),
-                "fighter_1_ctrl_seconds": as_int(row.get("f1_ctrl_seconds")),
-                "fighter_2_ctrl_seconds": as_int(row.get("f2_ctrl_seconds")),
+                "fighter_1_name": f1_name,
+                "fighter_2_name": f2_name,
+                "fighter_1_source_id": unique_source_id(f1_name),
+                "fighter_2_source_id": unique_source_id(f2_name),
+                "fighter_1_reach_cm": side("f1_reach_cm", "f2_reach_cm"),
+                "fighter_2_reach_cm": side("f2_reach_cm", "f1_reach_cm"),
+                "fighter_1_stance": side("f1_stance", "f2_stance"),
+                "fighter_2_stance": side("f2_stance", "f1_stance"),
+                "fighter_1_dob": side("f1_dob", "f2_dob"),
+                "fighter_2_dob": side("f2_dob", "f1_dob"),
+                "fighter_1_kd": as_int(side("f1_kd", "f2_kd")),
+                "fighter_2_kd": as_int(side("f2_kd", "f1_kd")),
+                "fighter_1_sig_landed": as_int(side("f1_sig_str_landed", "f2_sig_str_landed")),
+                "fighter_1_sig_attempted": as_int(side("f1_sig_str_attempted", "f2_sig_str_attempted")),
+                "fighter_2_sig_landed": as_int(side("f2_sig_str_landed", "f1_sig_str_landed")),
+                "fighter_2_sig_attempted": as_int(side("f2_sig_str_attempted", "f1_sig_str_attempted")),
+                "fighter_1_td_landed": as_int(side("f1_td_landed", "f2_td_landed")),
+                "fighter_1_td_attempted": as_int(side("f1_td_attempted", "f2_td_attempted")),
+                "fighter_2_td_landed": as_int(side("f2_td_landed", "f1_td_landed")),
+                "fighter_2_td_attempted": as_int(side("f2_td_attempted", "f1_td_attempted")),
+                "fighter_1_ctrl_seconds": as_int(side("f1_ctrl_seconds", "f2_ctrl_seconds")),
+                "fighter_2_ctrl_seconds": as_int(side("f2_ctrl_seconds", "f1_ctrl_seconds")),
                 "has_stats": as_bool_int(row.get("has_stats")),
                 "is_no_contest": as_bool_int(row.get("is_no_contest")),
                 "source_version": source_version,
@@ -434,11 +487,15 @@ def main() -> None:
         "bouts": bout_count,
         "detailed_bouts_imported": detailed_count,
         "detailed_bouts_source": counts["fights_master_typed"],
+        "detailed_direct_id_matches": detailed_direct_id_matches,
+        "detailed_composite_matches": detailed_composite_matches,
+        "detailed_reversed_matches": detailed_reversed_matches,
         "orphan_detailed_bouts_skipped": orphan_stats,
         "organizations": organizations,
         "first_event_date": first_date,
         "last_event_date": last_date,
         "duplicate_bout_ids": duplicate_bout_ids,
+        "ambiguous_composite_bout_keys": ambiguous_composite_bout_keys,
         "participant_identity_link_rate": link_rate,
         "participant_instances": participant_instances,
         "participant_source_ids_resolved": participant_links,
