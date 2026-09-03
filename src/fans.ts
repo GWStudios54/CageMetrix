@@ -117,8 +117,8 @@ async function summary(db:D1Database,bout:Row,voterId:string){
       consensus_pick:pick===bout.fighter_a_id?'a':pick===bout.fighter_b_id?'b':null,
       grade:total?predictionGrade(bout,pick):'no_votes',my_pick:myPickId===bout.fighter_a_id?'a':myPickId===bout.fighter_b_id?'b':null},
     scorecards:{open:bout.status==='completed'&&scorableRounds(bout)>0,scorable_rounds:scorableRounds(bout),total:cardTotal,
-      overall:{average_a:cardTotal?Number(overall.avg_total_a):null,average_b:cardTotal?Number(overall.avg_total_b):null,
-        a_pct:cardTotal?Number(overall.a_cards||0)/cardTotal:null,b_pct:cardTotal?Number(overall.b_cards||0)/cardTotal:null,tie_pct:cardTotal?Number(overall.tied_cards||0)/cardTotal:null},
+      overall:{average_a:cardTotal?Number(overall?.avg_total_a):null,average_b:cardTotal?Number(overall?.avg_total_b):null,
+        a_pct:cardTotal?Number(overall?.a_cards||0)/cardTotal:null,b_pct:cardTotal?Number(overall?.b_cards||0)/cardTotal:null,tie_pct:cardTotal?Number(overall?.tied_cards||0)/cardTotal:null},
       rounds,mine}
   };
 }
