@@ -167,11 +167,14 @@ if (process.argv[1]?.endsWith('validate-cmr-v04.mjs')) {
     + 0.10 * r.recentForm
   )));
   const reconstructionMax = Math.max(...reconstructionDeltas, 0);
+  // Use the exact, unrounded reliability values for this invariant. The serialized
+  // effective-attempt counters are rounded for audit readability, so tiny but real
+  // recency-weighted evidence can legitimately display as 0.000.
   const zeroOpportunityViolations = full04.filter(r =>
-    (r.components.td_offense_attempts_effective === 0 && Math.abs(r.wrestlingOffense - 50) > 1e-9)
-    || (r.components.td_defense_attempts_faced_effective === 0 && Math.abs(r.wrestlingDefense - 50) > 1e-9)
-    || (r.components.striking_offense_attempts_effective === 0 && Math.abs(r.strikingOffense - 50) > 1e-9)
-    || (r.components.striking_defense_attempts_faced_effective === 0 && Math.abs(r.strikingDefense - 50) > 1e-9)
+    (r.reliabilities.wrestlingOffense === 0 && Math.abs(r.wrestlingOffense - 50) > 1e-9)
+    || (r.reliabilities.wrestlingDefense === 0 && Math.abs(r.wrestlingDefense - 50) > 1e-9)
+    || (r.reliabilities.strikingOffense === 0 && Math.abs(r.strikingOffense - 50) > 1e-9)
+    || (r.reliabilities.strikingDefense === 0 && Math.abs(r.strikingDefense - 50) > 1e-9)
   );
 
   if (reconstructionMax > 1e-8) throw new Error(`CMR reconstruction invariant failed: ${reconstructionMax}`);
