@@ -40,25 +40,25 @@ Create the production D1 database once:
 npx wrangler d1 create cagemetrix
 ```
 
-Copy the returned database ID into `wrangler.jsonc`, replacing `REPLACE_WITH_D1_DATABASE_ID`, then apply migrations:
+Copy the returned database ID into `wrangler.jsonc`, then apply migrations:
 
 ```bash
 npm run db:migrate:remote
 ```
 
-Deploy:
+Manual deployment remains available with:
 
 ```bash
 npm run deploy
 ```
 
-After the Worker is live, attach `cagemetrix.com` as the custom domain in Cloudflare.
+Production deployment is handled by GitHub Actions. Every push to `main` runs `.github/workflows/deploy.yml`, installs the repository's Wrangler 4 dependency, and deploys the Worker using the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
 
-Production builds are connected to the `main` branch; pushes to `main` should trigger a Cloudflare Workers build automatically.
+The production Worker serves `cagemetrix.com` and `www.cagemetrix.com` through the custom-domain routes defined in `wrangler.jsonc`.
 
 ## Data model
 
-The first migration contains the durable core schema:
+The durable schema includes:
 
 - `fighters`
 - `events`
@@ -69,11 +69,13 @@ The first migration contains the durable core schema:
 - `predictions`
 - `fight_context`
 - `source_observations`
+- `bout_totals`
+- `bootstrap_state`
 
-Raw factual data and CageMetrix-derived metrics are kept separate. Historical ratings and predictions are append-only snapshots so future model versions can be backtested honestly.
+Raw factual data and CageMetrix-derived metrics are kept separate. Historical ratings and predictions are versioned snapshots so future model versions can be backtested honestly.
 
 ## Rating philosophy
 
 A raw stat is never treated as context-free. CageMetrix is designed to compare observed performance against the performance normally allowed or produced by the same opposition, with weight-class/era normalization and uncertainty controls for small samples.
 
-The exact rating model will evolve under explicit `model_versions`; historical outputs are never silently rewritten.
+The exact rating model evolves under explicit `model_versions`; historical outputs are never silently rewritten.
