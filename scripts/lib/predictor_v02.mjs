@@ -1,5 +1,5 @@
 export const PREDICTOR_V02_NAME = 'CageMetrix Matchup Predictor';
-export const PREDICTOR_V02_VERSION = '0.2.0-candidate';
+export const PREDICTOR_V02_VERSION = '0.2.0-style-candidate';
 
 export const FEATURE_NAMES = [
   'elo_diff',
@@ -28,8 +28,27 @@ export const FEATURE_NAMES = [
   'wrestling_evidence_edge',
   'grappling_evidence_edge',
   'technical_evidence_edge',
-  'elo_evidence_edge'
+  'elo_evidence_edge',
+  'sig_attempt_rate_diff',
+  'td_attempt_rate_diff',
+  'control_share_diff',
+  'sub_attempt_rate_diff',
+  'striking_volume_vs_defense',
+  'takedown_pressure_vs_defense',
+  'control_pressure_vs_wrestling_defense',
+  'submission_pressure_vs_wrestling_defense',
+  'striking_pressure_skill_edge',
+  'takedown_pressure_skill_edge',
+  'control_grappling_edge',
+  'submission_grappling_edge'
 ];
+
+export const FEATURE_SETS = Object.freeze({
+  core27: Array.from({ length: 27 }, (_, i) => i),
+  style_direct: Array.from({ length: 31 }, (_, i) => i),
+  style_matchup: Array.from({ length: 35 }, (_, i) => i),
+  style_skill_matchup: Array.from({ length: FEATURE_NAMES.length }, (_, i) => i)
+});
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const finite = value => Number.isFinite(value) ? value : 0;
@@ -77,11 +96,24 @@ function normalizedRating(value) {
   };
 }
 
+function normalizedStyle(value) {
+  return {
+    sigAttemptsPerMin: finite(value?.sigAttemptsPerMin),
+    tdAttemptsPer15: finite(value?.tdAttemptsPer15),
+    controlShare: clamp(finite(value?.controlShare), 0, 1),
+    subAttemptsPer15: finite(value?.subAttemptsPer15),
+    reliability: clamp(finite(value?.reliability), 0, 1),
+    weightedMinutes: finite(value?.weightedMinutes)
+  };
+}
+
 const diff = (a, b, key) => finite(a[key]) - finite(b[key]);
 
-export function featureVector(aInput, bInput) {
+export function featureVector(aInput, bInput, aStyleInput = null, bStyleInput = null) {
   const a = normalizedRating(aInput);
   const b = normalizedRating(bInput);
+  const sa = normalizedStyle(aStyleInput);
+  const sb = normalizedStyle(bStyleInput);
 
   const strikeA = a.strikingOffense * (100 - b.strikingDefense) / 100;
   const strikeB = b.strikingOffense * (100 - a.strikingDefense) / 100;
@@ -121,6 +153,24 @@ export function featureVector(aInput, bInput) {
   const eloEvidenceA = (a.eloRaw - 1500) * rel(a, 'resume');
   const eloEvidenceB = (b.eloRaw - 1500) * rel(b, 'resume');
 
+  const strikeVolumeA = sa.sigAttemptsPerMin * (100 - b.strikingDefense) / 100;
+  const strikeVolumeB = sb.sigAttemptsPerMin * (100 - a.strikingDefense) / 100;
+  const tdPressureA = sa.tdAttemptsPer15 * (100 - b.wrestlingDefense) / 100;
+  const tdPressureB = sb.tdAttemptsPer15 * (100 - a.wrestlingDefense) / 100;
+  const controlPressureA = sa.controlShare * (100 - b.wrestlingDefense);
+  const controlPressureB = sb.controlShare * (100 - a.wrestlingDefense);
+  const subPressureA = sa.subAttemptsPer15 * (100 - b.wrestlingDefense) / 100;
+  const subPressureB = sb.subAttemptsPer15 * (100 - a.wrestlingDefense) / 100;
+
+  const strikePressureSkillA = sa.sigAttemptsPerMin * a.strikingOffense * (100 - b.strikingDefense) / 10000;
+  const strikePressureSkillB = sb.sigAttemptsPerMin * b.strikingOffense * (100 - a.strikingDefense) / 10000;
+  const tdPressureSkillA = sa.tdAttemptsPer15 * a.wrestlingOffense * (100 - b.wrestlingDefense) / 10000;
+  const tdPressureSkillB = sb.tdAttemptsPer15 * b.wrestlingOffense * (100 - a.wrestlingDefense) / 10000;
+  const controlGrappleA = sa.controlShare * a.grappling * (100 - b.wrestlingDefense) / 100;
+  const controlGrappleB = sb.controlShare * b.grappling * (100 - a.wrestlingDefense) / 100;
+  const subGrappleA = sa.subAttemptsPer15 * a.grappling * (100 - b.wrestlingDefense) / 10000;
+  const subGrappleB = sb.subAttemptsPer15 * b.grappling * (100 - a.wrestlingDefense) / 10000;
+
   return [
     diff(a, b, 'eloRaw'),
     diff(a, b, 'cmr'),
@@ -148,7 +198,19 @@ export function featureVector(aInput, bInput) {
     wrestleEvidenceA - wrestleEvidenceB,
     grappleEvidenceA - grappleEvidenceB,
     technicalEvidenceA - technicalEvidenceB,
-    eloEvidenceA - eloEvidenceB
+    eloEvidenceA - eloEvidenceB,
+    sa.sigAttemptsPerMin - sb.sigAttemptsPerMin,
+    sa.tdAttemptsPer15 - sb.tdAttemptsPer15,
+    sa.controlShare - sb.controlShare,
+    sa.subAttemptsPer15 - sb.subAttemptsPer15,
+    strikeVolumeA - strikeVolumeB,
+    tdPressureA - tdPressureB,
+    controlPressureA - controlPressureB,
+    subPressureA - subPressureB,
+    strikePressureSkillA - strikePressureSkillB,
+    tdPressureSkillA - tdPressureSkillB,
+    controlGrappleA - controlGrappleB,
+    subGrappleA - subGrappleB
   ];
 }
 
@@ -221,5 +283,5 @@ export function modelCoefficients(model) {
     standardized_coefficient: model.weights[j],
     scale: model.scales[j],
     raw_coefficient: model.weights[j] / model.scales[j]
-  }));
+  })).sort((a, b) => Math.abs(b.standardized_coefficient) - Math.abs(a.standardized_coefficient));
 }
