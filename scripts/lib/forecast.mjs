@@ -1,5 +1,4 @@
 import {
-  PREDICTOR_NAME,
   PREDICTOR_VERSION,
   PREDICTOR_TRAINING_END,
   FEATURE_NAMES,
@@ -9,7 +8,10 @@ import {
   formatDrivers
 } from './predictor_v01.mjs';
 
-export const FORECAST_NAME = PREDICTOR_NAME;
+// Keep the public forecast model key stable so the existing Worker/API can
+// switch models without touching fight-day result plumbing. The former Elo
+// model is renamed to CageMetrix Elo Baseline during forecast sync.
+export const FORECAST_NAME = 'CageMetrix Win Probability';
 export const FORECAST_VERSION = PREDICTOR_VERSION;
 export const ELO_SLOPE = 0.006085080947128282;
 export const FORECAST_PARAMETERS = Object.freeze({
