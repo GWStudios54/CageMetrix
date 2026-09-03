@@ -1,0 +1,43 @@
+name: Validate CMR 0.4 candidate
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/model_v04.mjs'
+      - 'scripts/lib/predictor_v02.mjs'
+      - 'scripts/validate-cmr-v04.mjs'
+      - 'scripts/validate-predictor-v02.mjs'
+      - 'tests/cmr-v04.test.mjs'
+      - '.github/workflows/cmr-v04-candidate.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Run behavioral invariants
+        run: npm test
+      - name: Build leakage-safe CMR 0.4 history and comparison
+        run: npm run cmr04:validate
+      - name: Train and evaluate Predictor 0.2 candidate
+        run: npm run predictor02:validate
+      - name: Summarize candidate
+        run: |
+          node -e "const r=require('./.cache/cmr-v04-validation.json'); console.log('CMR 0.4', r.results.cmr_v04); console.log('CMR 0.3', r.results.cmr_v03);"
+          node -e "const r=require('./.cache/predictor-v02-validation.json'); console.log('Predictor 0.2', r.results.predictor_v02_candidate); console.log('Promotion gate', r.promotion_gate);"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cmr-v04-candidate-validation
+          path: |
+            .cache/cmr-v04-validation.json
+            .cache/predictor-v02-validation.json
+            .cache/predictor-v02-predictions.json
+          retention-days: 14
