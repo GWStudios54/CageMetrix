@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /fighter.html
+Disallow: /fight.html
+Disallow: /model-validation.json
+Disallow: /predictor-validation.json
+
+Sitemap: https://cagemetrix.com/sitemap.xml
