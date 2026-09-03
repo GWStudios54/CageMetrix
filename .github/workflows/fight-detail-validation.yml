@@ -1,0 +1,30 @@
+name: Validate fight details
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:fights:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fight-detail-validation
+          path: |
+            docs/screenshots/*.png
+            .cache/fight-e2e-*/summary.json
+            .cache/fight-e2e-*/server.log
+          retention-days: 14

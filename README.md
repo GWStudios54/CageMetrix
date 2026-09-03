@@ -1,5 +1,7 @@
 # CageMetrix
 
+Fight-specific pages, immutable pre-fight input snapshots, contributor publishing and validation are documented in [Fight details](docs/FIGHT-DETAILS.md).
+
 **Opponent-adjusted MMA analytics.**
 
 CageMetrix is a browser-first MMA analytics platform focused on answering one question:

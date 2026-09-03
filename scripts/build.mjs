@@ -6,6 +6,7 @@ execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', '
   env: process.env
 });
 
+execFileSync(process.execPath, ['scripts/backfill-prediction-snapshots.mjs','--remote'], {stdio:'inherit'});
 execFileSync(process.execPath, ['scripts/refresh-data.mjs','--remote'], {stdio:'inherit'});
 execFileSync(process.execPath, ['scripts/sync-forecasts.mjs','--remote'], {stdio:'inherit'});
 console.log('CageMetrix ratings and forecasts ready.');
