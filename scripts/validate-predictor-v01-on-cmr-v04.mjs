@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parseDelimited } from './lib/csv.mjs';
-import { buildObservations, buildRatings } from './lib/model_v04.mjs';
+import { buildRatings as buildRatings03 } from './lib/model_v03.mjs';
+import { buildObservations, buildRatings as buildRatings04 } from './lib/model_v04.mjs';
 import { featureVector, predictFrozenVector, RETROSPECTIVE_BENCHMARK } from './lib/predictor_v01.mjs';
 
 function metrics(rows) {
@@ -21,11 +22,14 @@ const dates = [...new Set(pairs.map(pair => pair.red.eventDate))].filter(date =>
 const rows = [];
 for (const [index, date] of dates.entries()) {
   const prior = pairs.filter(pair => pair.red.eventDate < date);
-  const ratings = new Map(buildRatings(prior).ratings.map(rating => [rating.fighterId, rating]));
+  const ratings04 = new Map(buildRatings04(prior).ratings.map(rating => [rating.fighterId, rating]));
+  const ratings03 = new Map(buildRatings03(prior).ratings.map(rating => [rating.fighterId, rating]));
   for (const pair of pairs.filter(pair => pair.red.eventDate === date && !pair.red.noContest && pair.red.won !== 0.5)) {
-    const a = ratings.get(pair.red.fighterId);
-    const b = ratings.get(pair.blue.fighterId);
-    if (!a || !b) continue;
+    const a = ratings04.get(pair.red.fighterId);
+    const b = ratings04.get(pair.blue.fighterId);
+    // Match the original Predictor 0.1 benchmark coverage exactly: both fighters
+    // must also have had a production CMR 0.3 rating before this event.
+    if (!a || !b || !ratings03.has(pair.red.fighterId) || !ratings03.has(pair.blue.fighterId)) continue;
     rows.push({
       date,
       won: pair.red.won,
@@ -40,7 +44,7 @@ const test = rows.filter(row => row.date >= '2023-01-01');
 const established = test.filter(row => row.min_bouts >= 5);
 const hybrid = metrics(test);
 const report = {
-  design: 'Frozen Predictor 0.1 coefficients and feature transforms applied without retraining to leakage-safe CMR 0.4 ratings. This intentionally measures raw compatibility/distribution shift, not a fitted new model.',
+  design: 'Frozen Predictor 0.1 coefficients and feature transforms applied without retraining to leakage-safe CMR 0.4 ratings, on the same benchmark coverage as published Predictor 0.1. This measures raw compatibility/distribution shift, not a fitted new model.',
   evaluation_bouts_2023_plus: test.length,
   frozen_predictor_v01_on_cmr_v04: hybrid,
   established_5_plus: metrics(established),
