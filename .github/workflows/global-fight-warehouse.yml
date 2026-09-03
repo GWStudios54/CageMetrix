@@ -75,14 +75,16 @@ jobs:
           # resolve a source ID when the normalized name is unique; unresolved
           # names stay intentionally NULL rather than forcing a risky merge.
           assert r['participant_identity_link_rate'] >= 0.60, r
-          # The detailed table uses a separate native fight-ID namespace, so
-          # the importer reconciles it by exact event date + fighter pair and
-          # verifies fighter orientation before attaching technical stats.
-          assert r['detailed_bouts_imported'] >= 25000, r
-          assert r['orphan_detailed_bouts_skipped'] <= 3000, r
+          # Preserve every row in the source-native detailed table even when
+          # its native fight_id cannot be safely cross-linked to the global
+          # table. Cross-table matching is metadata, never a prerequisite for
+          # retaining the detailed record.
+          assert r['detailed_bouts_imported'] == r['detailed_bouts_source'], r
+          assert r['detailed_rows_with_stats_source'] >= 8000, r
           assert r['first_event_date'] and r['last_event_date'], r
           print('Warehouse quality gate passed:')
-          print(json.dumps({k:r[k] for k in ['fighters','bouts','detailed_bouts_imported','organizations','first_event_date','last_event_date','participant_identity_link_rate','orphan_detailed_bouts_skipped','sql_bytes']}, indent=2))
+          print(json.dumps({k:r[k] for k in ['fighters','bouts','detailed_bouts_imported','detailed_rows_with_stats_source','organizations','first_event_date','last_event_date','participant_identity_link_rate','duplicate_canonical_signature_groups','sql_bytes']}, indent=2))
+          print('Detailed cross-table links:', json.dumps(r['detailed_match_counts'], indent=2))
           PY
 
       - name: Validate migration and full import locally
