@@ -24,6 +24,7 @@
     "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv",
     "predictor:validate": "node scripts/validate-predictor.mjs --stats .cache/refresh/stats.csv --output .cache/predictor-validation.json",
     "cmr04:validate": "node scripts/validate-cmr-v04.mjs",
+    "predictor011:validate": "node scripts/validate-predictor-v011.mjs --history .cache/cmr-v04-history.json",
     "predictor02:validate": "node scripts/validate-predictor-v02.mjs --history .cache/cmr-v04-history.json"
   },
   "devDependencies": {
