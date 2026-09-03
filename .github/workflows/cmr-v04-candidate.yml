@@ -24,8 +24,10 @@ jobs:
       - run: npm ci
       - name: Run behavioral invariants
         run: npm test
+      - name: Prepare the same merged stats snapshot production uses
+        run: node scripts/refresh-data.mjs --dry-run
       - name: Build leakage-safe CMR 0.4 history and comparison
-        run: npm run cmr04:validate
+        run: npm run cmr04:validate -- --stats .cache/refresh/stats.csv
       - name: Train and evaluate Predictor 0.2 candidate
         run: npm run predictor02:validate
       - name: Summarize candidate
@@ -37,6 +39,7 @@ jobs:
         with:
           name: cmr-v04-candidate-validation
           path: |
+            .cache/refresh/summary.json
             .cache/cmr-v04-validation.json
             .cache/predictor-v02-validation.json
             .cache/predictor-v02-predictions.json
