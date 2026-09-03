@@ -3,14 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="CageMetrix — opponent-adjusted MMA analytics, fighter ratings, rankings and transparent bout predictions." />
+  <meta name="description" content="Explore UFC fighter rankings by division, striking, wrestling and overall CageMetrix Rating. See how the opposition changes every performance." />
   <title>CageMetrix — Opponent-Adjusted MMA Analytics</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+  <meta property="og:title" content="CageMetrix — Opponent-Adjusted MMA Analytics" />
+  <meta property="og:description" content="Explore fighter rankings with the opposition factored in." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cagemetrix.com/" />
+  <meta property="og:image" content="https://cagemetrix.com/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="CageMetrix — Opponent-Adjusted MMA Analytics" />
+  <meta name="twitter:description" content="Explore fighter rankings with the opposition factored in." />
+  <meta name="twitter:image" content="https://cagemetrix.com/og.png" />
   <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/explorer.css" />
 </head>
 <body>
+  <a class="skip-link" href="#rankings">Skip to rankings</a>
   <header class="topbar">
     <a class="brand" href="/" aria-label="CageMetrix home">
-      <span class="brand-mark">CM</span>
+      <img class="brand-mark" src="/logo.svg" alt="" width="44" height="44" />
       <span>CageMetrix</span>
     </a>
     <nav>
@@ -24,46 +36,28 @@
     <section class="hero">
       <div class="eyebrow">OPPONENT-ADJUSTED MMA ANALYTICS</div>
       <h1>Raw stats tell you <em>what</em> happened.<br />CageMetrix asks <em>against whom?</em></h1>
-      <p class="lede">Fighter ratings built around performance relative to the quality and tendencies of the opposition — not just records, volume, or hype.</p>
+      <p class="lede">Explore UFC fighter ratings with the quality and tendencies of the opposition factored in.</p>
       <div class="hero-actions">
         <a class="button primary" href="#rankings">Explore the rankings</a>
         <a class="button secondary" href="#method">How adjustment works</a>
       </div>
     </section>
 
-    <section class="metric-grid">
-      <article class="metric-card feature">
-        <span class="metric-kicker">SIGNATURE METRIC</span>
-        <div class="score">CMR</div>
-        <h2>CageMetrix Rating</h2>
-        <p>A 0–100 score assembled from opponent-adjusted performance, competitive results, schedule strength, recent form and sample confidence.</p>
-      </article>
-      <article class="metric-card">
-        <div class="mini-score">O</div>
-        <h3>Adjusted offense</h3>
-        <p>How much more — or less — a fighter produces than those same opponents normally allow.</p>
-      </article>
-      <article class="metric-card">
-        <div class="mini-score">D</div>
-        <h3>Adjusted defense</h3>
-        <p>How effectively a fighter suppresses offense from opponents relative to their normal production.</p>
-      </article>
-      <article class="metric-card">
-        <div class="mini-score">SoS</div>
-        <h3>Schedule strength</h3>
-        <p>Quality of opposition weighted through the competitive rating each opponent carried into the bout.</p>
-      </article>
-    </section>
-
-    <section class="rankings" id="rankings">
+<section class="rankings" id="rankings">
       <div class="section-heading">
         <div>
-          <div class="eyebrow">LIVE MODEL OUTPUT</div>
+          <div class="eyebrow">EXPLORE THE RATINGS</div>
           <h2>Who is actually performing?</h2>
         </div>
         <p>Switch the metric and see how the order changes when the model stops treating every opponent as equal.</p>
       </div>
       <div class="ranking-controls">
+        <label class="search-control">Find a fighter
+          <span class="search-field">
+            <input id="fighter-search" type="search" placeholder="Search by name…" maxlength="100" autocomplete="off" />
+            <button id="clear-search" type="button" aria-label="Clear fighter search" hidden>Clear</button>
+          </span>
+        </label>
         <label>Metric
           <select id="metric-select">
             <option value="cmr">Overall CMR</option>
@@ -82,9 +76,27 @@
           <select id="division-select"><option value="">All active fighters</option></select>
         </label>
       </div>
-      <div class="ranking-list" id="ranking-list" aria-live="polite">
+      <p class="model-note" id="division-status" hidden>Division options are unavailable. Reload to try again; all-fighter rankings remain available.</p>
+      <div class="ranking-summary">
+        <span id="results-status" role="status" aria-live="polite">Loading rankings…</span>
+        <span id="snapshot-label"></span>
+      </div>
+      <div class="ranking-column-head" aria-hidden="true"><span>Rank</span><span>Fighter</span><span>Sample confidence</span><span>Score</span></div>
+      <div class="ranking-list" id="ranking-list" aria-busy="true">
         <div class="ranking-loading">Loading CageMetrix ratings…</div>
       </div>
+      <button class="button secondary" id="retry-rankings" type="button" hidden>Try again</button>
+      <nav class="pagination" aria-label="Ranking pages">
+        <button class="button secondary" id="previous-page" type="button" disabled>← Previous</button>
+        <span id="page-label"></span>
+        <button class="button secondary" id="next-page" type="button" disabled>Next →</button>
+      </nav>
+      <details class="score-guide">
+        <summary>How to read these scores</summary>
+        <p><strong>CMR</strong> combines opponent-adjusted performance, results, schedule strength and recent form on a 0–100 scale. Category scores are normalized within each fighter’s division. All-division rankings compare those normalized scores.</p>
+        <p><strong>Sample confidence</strong> measures the evidence from bout count and cage time. Higher values mean less uncertainty adjustment. <strong>Provisional</strong> fighters have limited evidence; their profiles show performance CMR alongside the more conservative ranked CMR.</p>
+        <p>Search keeps each fighter’s rank within the selected division and metric. The rating snapshot date identifies when the displayed ratings were calculated; it does not confirm that every recent bout is included. <a href="#method">Read the method →</a></p>
+      </details>
       <p class="model-note">Early CageMetrix ratings are a descriptive model and will change as the methodology, source coverage and active-roster verification improve.</p>
     </section>
 
@@ -184,6 +196,7 @@
     <span>CageMetrix</span>
     <span>Transparent, opponent-adjusted MMA analytics.</span>
   </footer>
+  <script src="/fighter-media.js" defer></script>
   <script src="/app.js" defer></script>
 </body>
 </html>

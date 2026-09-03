@@ -1,0 +1,3291 @@
+{
+  "checked_at": "2026-09-03T01:35:58.056Z",
+  "fighters": 2693,
+  "matched": 2146,
+  "active_fighters": 709,
+  "active_missing": 0,
+  "missing": [
+    {
+      "slug": "aaron-brink",
+      "name": "Aaron Brink",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "adrian-serrano",
+      "name": "Adrian Serrano",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "adriano-santos",
+      "name": "Adriano Santos",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "akihiro-gono",
+      "name": "Akihiro Gono",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alberta-cerra-leon",
+      "name": "Alberta Cerra Leon",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alberto-crane",
+      "name": "Alberto Crane",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alberto-uda",
+      "name": "Alberto Uda",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "aleksandra-albu",
+      "name": "Aleksandra Albu",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alex-andrade",
+      "name": "Alex Andrade",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alex-hunter",
+      "name": "Alex Hunter",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alex-ricci",
+      "name": "Alex Ricci",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alex-schoenauer",
+      "name": "Alex Schoenauer",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alex-stiebling",
+      "name": "Alex Stiebling",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alexandre-barros",
+      "name": "Alexandre Barros",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alexandre-dantas",
+      "name": "Alexandre Dantas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alfonso-alcarez",
+      "name": "Alfonso Alcarez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "allan-goes",
+      "name": "Allan Goes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "allen-berube",
+      "name": "Allen Berube",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alvaro-herrera-mendoza",
+      "name": "Alvaro Herrera Mendoza",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "alvin-robinson",
+      "name": "Alvin Robinson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "amaury-bitetti",
+      "name": "Amaury Bitetti",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "andre-gusmao",
+      "name": "Andre Gusmao",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "andre-pederneiras",
+      "name": "Andre Pederneiras",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "andre-roberts",
+      "name": "Andre Roberts",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "andrei-semenov",
+      "name": "Andrei Semenov",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "andy-anderson",
+      "name": "Andy Anderson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "andy-wang",
+      "name": "Andy Wang",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "anistavio-medeiros",
+      "name": "Anistavio Medeiros",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ansar-chalangov",
+      "name": "Ansar Chalangov",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "anthony-macias",
+      "name": "Anthony Macias",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "anthony-torres",
+      "name": "Anthony Torres",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "antonio-mendes",
+      "name": "Antonio Mendes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "antonio-rodrigo-nogueira",
+      "name": "Antonio Rodrigo Nogueira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "anying-wang",
+      "name": "Anying Wang",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "arjan-bhullar",
+      "name": "Arjan Bhullar",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "asbel-cancio",
+      "name": "Asbel Cancio",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "assuerio-silva",
+      "name": "Assuerio Silva",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "azunna-anyanwu",
+      "name": "Azunna Anyanwu",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "bas-rutten",
+      "name": "Bas Rutten",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ben-alloway",
+      "name": "Ben Alloway",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ben-earwood",
+      "name": "Ben Earwood",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "bill-mahood",
+      "name": "Bill Mahood",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "billy-miles",
+      "name": "Billy Miles",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "bob-cook",
+      "name": "Bob Cook",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "bob-gilstrap",
+      "name": "Bob Gilstrap",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "bobby-hoffman",
+      "name": "Bobby Hoffman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "bobby-southworth",
+      "name": "Bobby Southworth",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brad-blackburn",
+      "name": "Brad Blackburn",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brad-gumm",
+      "name": "Brad Gumm",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brad-imes",
+      "name": "Brad Imes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brad-kohler",
+      "name": "Brad Kohler",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brad-morris",
+      "name": "Brad Morris",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brad-scott",
+      "name": "Brad Scott",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "branden-lee-hinkle",
+      "name": "Branden Lee Hinkle",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brandon-melendez",
+      "name": "Brandon Melendez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brandon-wolff",
+      "name": "Brandon Wolff",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brian-cobb",
+      "name": "Brian Cobb",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brian-gassaway",
+      "name": "Brian Gassaway",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brian-geraghty",
+      "name": "Brian Geraghty",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brian-johnston",
+      "name": "Brian Johnston",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brock-larson",
+      "name": "Brock Larson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "brodie-farber",
+      "name": "Brodie Farber",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "cal-worsham",
+      "name": "Cal Worsham",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "cale-yarbrough",
+      "name": "Cale Yarbrough",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "cameron-dollar",
+      "name": "Cameron Dollar",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "caol-uno",
+      "name": "Caol Uno",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "carlo-pedersoli-jr",
+      "name": "Carlo Pedersoli Jr.",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "carlos-barreto",
+      "name": "Carlos Barreto",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "carlos-newton",
+      "name": "Carlos Newton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "carmelo-marrero",
+      "name": "Carmelo Marrero",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "casey-kenney",
+      "name": "Casey Kenney",
+      "active": 0,
+      "reason": "ambiguous"
+    },
+    {
+      "slug": "chad-reiner",
+      "name": "Chad Reiner",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chael-sonnen",
+      "name": "Chael Sonnen",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "charles-mccarthy",
+      "name": "Charles McCarthy",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chase-gormley",
+      "name": "Chase Gormley",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-brennan",
+      "name": "Chris Brennan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-condo",
+      "name": "Chris Condo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-haseman",
+      "name": "Chris Haseman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-liguori",
+      "name": "Chris Liguori",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-price",
+      "name": "Chris Price",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-sanford",
+      "name": "Chris Sanford",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-saunders",
+      "name": "Chris Saunders",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-tickle",
+      "name": "Chris Tickle",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "chris-wilson",
+      "name": "Chris Wilson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "christian-wellisch",
+      "name": "Christian Wellisch",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "christophe-leninger",
+      "name": "Christophe Leninger",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "cj-fernandes",
+      "name": "Cj Fernandes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "constantinos-philippou",
+      "name": "Constantinos Philippou",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "corey-hill",
+      "name": "Corey Hill",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "cory-walmsley",
+      "name": "Cory Walmsley",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "crafton-wallace",
+      "name": "Crafton Wallace",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "cristiane-justino",
+      "name": "Cristiane Justino",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "curtis-stout",
+      "name": "Curtis Stout",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "daiju-takase",
+      "name": "Daiju Takase",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dale-hartt",
+      "name": "Dale Hartt",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "damacio-page",
+      "name": "Damacio Page",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dan-barrera",
+      "name": "Dan Barrera",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dan-bobish",
+      "name": "Dan Bobish",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dan-christison",
+      "name": "Dan Christison",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dan-cramer",
+      "name": "Dan Cramer",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dan-evensen",
+      "name": "Dan Evensen",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dan-lauzon",
+      "name": "Dan Lauzon",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "daniel-sarafian",
+      "name": "Daniel Sarafian",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "danny-abbadi",
+      "name": "Danny Abbadi",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "danny-downes",
+      "name": "Danny Downes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dante-rivera",
+      "name": "Dante Rivera",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "darrel-gholar",
+      "name": "Darrel Gholar",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "darrill-schoonover",
+      "name": "Darrill Schoonover",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dave-beneteau",
+      "name": "Dave Beneteau",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dave-menne",
+      "name": "Dave Menne",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dave-strasser",
+      "name": "Dave Strasser",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-abbott",
+      "name": "David Abbott",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-baron",
+      "name": "David Baron",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-bielkheden",
+      "name": "David Bielkheden",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-dodd",
+      "name": "David Dodd",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-heath",
+      "name": "David Heath",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-hood",
+      "name": "David Hood",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-kaplan",
+      "name": "David Kaplan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-lee",
+      "name": "David Lee",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-levicki",
+      "name": "David Levicki",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-loiseau",
+      "name": "David Loiseau",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-mitchell",
+      "name": "David Mitchell",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-roberts",
+      "name": "David Roberts",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-terrell",
+      "name": "David Terrell",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "david-velasquez",
+      "name": "David Velasquez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dean-lister",
+      "name": "Dean Lister",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "denis-kang",
+      "name": "Denis Kang",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "denis-stojnic",
+      "name": "Denis Stojnic",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "derek-downey",
+      "name": "Derek Downey",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "derrick-noble",
+      "name": "Derrick Noble",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "diego-saraiva",
+      "name": "Diego Saraiva",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dieusel-berto",
+      "name": "Dieusel Berto",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "din-thomas",
+      "name": "Din Thomas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dmitri-stepanov",
+      "name": "Dmitri Stepanov",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dokonjonosuke-mishima",
+      "name": "Dokonjonosuke Mishima",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "don-frye",
+      "name": "Don Frye",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "donnie-chappell",
+      "name": "Donnie Chappell",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dorian-price",
+      "name": "Dorian Price",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "doug-evans",
+      "name": "Doug Evans",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "drew-fickett",
+      "name": "Drew Fickett",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "dwayne-cason",
+      "name": "Dwayne Cason",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ebenezer-fontes-braga",
+      "name": "Ebenezer Fontes Braga",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "eddie-ruiz",
+      "name": "Eddie Ruiz",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "eddie-sanchez",
+      "name": "Eddie Sanchez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "edilberto-de-oliveira",
+      "name": "Edilberto De Oliveira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "edimilson-souza",
+      "name": "Edimilson Souza",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "eduardo-garagorri",
+      "name": "Eduardo Garagorri",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "edwin-dewees",
+      "name": "Edwin Dewees",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "elvis-sinosic",
+      "name": "Elvis Sinosic",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "emily-kagan",
+      "name": "Emily Kagan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "emmanuel-yarborough",
+      "name": "Emmanuel Yarborough",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "enson-inoue",
+      "name": "Enson Inoue",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ernie-verdicia",
+      "name": "Ernie Verdicia",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "eugene-jackson",
+      "name": "Eugene Jackson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "eugenio-tadeu",
+      "name": "Eugenio Tadeu",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "evan-tanner",
+      "name": "Evan Tanner",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "fabiano-iha",
+      "name": "Fabiano Iha",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "fabiano-scherner",
+      "name": "Fabiano Scherner",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "fabio-gurgel",
+      "name": "Fabio Gurgel",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "falaniko-vitale",
+      "name": "Falaniko Vitale",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "felix-lee-mitchell",
+      "name": "Felix Lee Mitchell",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "feng-xiaocan",
+      "name": "Feng Xiaocan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "fernando-bruno",
+      "name": "Fernando Bruno",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "flavio-luiz-moura",
+      "name": "Flavio Luiz Moura",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "floyd-sword",
+      "name": "Floyd Sword",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "frank-caracci",
+      "name": "Frank Caracci",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "frank-hamaker",
+      "name": "Frank Hamaker",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "frank-lester",
+      "name": "Frank Lester",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "frank-shamrock",
+      "name": "Frank Shamrock",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "frank-trigg",
+      "name": "Frank Trigg",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "fred-ettish",
+      "name": "Fred Ettish",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gan-mcgee",
+      "name": "Gan McGee",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gary-goodridge",
+      "name": "Gary Goodridge",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "genki-sudo",
+      "name": "Genki Sudo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gerald-strebendt",
+      "name": "Gerald Strebendt",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "geraldo-de-freitas",
+      "name": "Geraldo De Freitas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gerry-harris",
+      "name": "Gerry Harris",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "geza-kalman",
+      "name": "Geza Kalman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gideon-ray",
+      "name": "Gideon Ray",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gil-castillo",
+      "name": "Gil Castillo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "gilbert-aldana",
+      "name": "Gilbert Aldana",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "glaico-franca-moreira",
+      "name": "Glaico Franca Moreira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "godofredo-pepey",
+      "name": "Godofredo Pepey",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "goran-reljic",
+      "name": "Goran Reljic",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "greg-stott",
+      "name": "Greg Stott",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "guangyou-ning",
+      "name": "Guangyou Ning",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "guy-mezger",
+      "name": "Guy Mezger",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "harold-howard",
+      "name": "Harold Howard",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "harry-moskowitz",
+      "name": "Harry Moskowitz",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "hayato-sakurai",
+      "name": "Hayato Sakurai",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "heather-clark",
+      "name": "Heather Clark",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "hector-ramirez",
+      "name": "Hector Ramirez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "hermes-franca",
+      "name": "Hermes Franca",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "homer-moore",
+      "name": "Homer Moore",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "houston-alexander",
+      "name": "Houston Alexander",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "houston-dorr",
+      "name": "Houston Dorr",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "hugo-duarte",
+      "name": "Hugo Duarte",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "humberto-brown-morrison",
+      "name": "Humberto Brown Morrison",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ian-freeman",
+      "name": "Ian Freeman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "icho-larenas",
+      "name": "Icho Larenas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "igor-zinoviev",
+      "name": "Igor Zinoviev",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ikuhisa-minowa",
+      "name": "Ikuhisa Minowa",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ivan-menjivar",
+      "name": "Ivan Menjivar",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ivan-salaverry",
+      "name": "Ivan Salaverry",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ivan-serati",
+      "name": "Ivan Serati",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jacare-souza",
+      "name": "Jacare Souza",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jack-nilson",
+      "name": "Jack Nilson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jake-o-brien",
+      "name": "Jake O'Brien",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jake-rosholt",
+      "name": "Jake Rosholt",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "james-giboo",
+      "name": "James Giboo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "james-hammortree",
+      "name": "James Hammortree",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "james-lee",
+      "name": "James Lee",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "james-zikic",
+      "name": "James Zikic",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jamie-yager",
+      "name": "Jamie Yager",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jared-rollins",
+      "name": "Jared Rollins",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-black",
+      "name": "Jason Black",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-day",
+      "name": "Jason Day",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-delucia",
+      "name": "Jason Delucia",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-dent",
+      "name": "Jason Dent",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-fairn",
+      "name": "Jason Fairn",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-gilliam",
+      "name": "Jason Gilliam",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-godsey",
+      "name": "Jason Godsey",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-lambert",
+      "name": "Jason Lambert",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-miller",
+      "name": "Jason Miller",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-tan",
+      "name": "Jason Tan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-thacker",
+      "name": "Jason Thacker",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jason-von-flue",
+      "name": "Jason Von Flue",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jay-silva",
+      "name": "Jay Silva",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jeff-joslin",
+      "name": "Jeff Joslin",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jeff-molina",
+      "name": "Jeff Molina",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jeff-newton",
+      "name": "Jeff Newton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jens-pulver",
+      "name": "Jens Pulver",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jeremy-jackson",
+      "name": "Jeremy Jackson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jermaine-andre",
+      "name": "Jermaine Andre",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jerry-bohlander",
+      "name": "Jerry Bohlander",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jess-liaudin",
+      "name": "Jess Liaudin",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jesse-forbes",
+      "name": "Jesse Forbes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jim-mullen",
+      "name": "Jim Mullen",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jim-wallhead",
+      "name": "Jim Wallhead",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joao-pierini",
+      "name": "Joao Pierini",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joao-roque",
+      "name": "Joao Roque",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joao-zeferino",
+      "name": "Joao Zeferino",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-brammer",
+      "name": "Joe Brammer",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-charles",
+      "name": "Joe Charles",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-jordan",
+      "name": "Joe Jordan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-moreira",
+      "name": "Joe Moreira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-pardo",
+      "name": "Joe Pardo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-slick",
+      "name": "Joe Slick",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-son",
+      "name": "Joe Son",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-vedepo",
+      "name": "Joe Vedepo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joe-veres",
+      "name": "Joe Veres",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joey-gilbert",
+      "name": "Joey Gilbert",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joey-gomez",
+      "name": "Joey Gomez",
+      "active": 0,
+      "reason": "ambiguous"
+    },
+    {
+      "slug": "joey-roberts",
+      "name": "Joey Roberts",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-campetella",
+      "name": "John Campetella",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-dowdy",
+      "name": "John Dowdy",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-halverson",
+      "name": "John Halverson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-kolosci",
+      "name": "John Kolosci",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-lewis",
+      "name": "John Lewis",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-lober",
+      "name": "John Lober",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-marsh",
+      "name": "John Marsh",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-matua",
+      "name": "John Matua",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-polakowski",
+      "name": "John Polakowski",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "john-teixeira",
+      "name": "John Teixeira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "johnny-rees",
+      "name": "Johnny Rees",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "johnny-rhodes",
+      "name": "Johnny Rhodes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jon-hess",
+      "name": "Jon Hess",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jon-olav-einemo",
+      "name": "Jon Olav Einemo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jonathan-brookins",
+      "name": "Jonathan Brookins",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jonathan-goulet",
+      "name": "Jonathan Goulet",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jonathan-wiezorek",
+      "name": "Jonathan Wiezorek",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jordan-radev",
+      "name": "Jordan Radev",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jorge-patino",
+      "name": "Jorge Patino",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "joseph-gigliotti",
+      "name": "Joseph Gigliotti",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-bryant",
+      "name": "Josh Bryant",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-grispi",
+      "name": "Josh Grispi",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-haynes",
+      "name": "Josh Haynes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-hendricks",
+      "name": "Josh Hendricks",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-rafferty",
+      "name": "Josh Rafferty",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-shockman",
+      "name": "Josh Shockman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "josh-stansbury",
+      "name": "Josh Stansbury",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "juan-manuel-puig",
+      "name": "Juan Manuel Puig",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jules-bruchez",
+      "name": "Jules Bruchez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "julian-sanchez",
+      "name": "Julian Sanchez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "julio-paulino",
+      "name": "Julio Paulino",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "junie-browning",
+      "name": "Junie Browning",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "junior-dos-santos",
+      "name": "Junior Dos Santos",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "justin-buchholz",
+      "name": "Justin Buchholz",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "justin-eilers",
+      "name": "Justin Eilers",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "justin-james",
+      "name": "Justin James",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "justin-levens",
+      "name": "Justin Levens",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "justin-mccully",
+      "name": "Justin McCully",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "justin-wren",
+      "name": "Justin Wren",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "jutaro-nakao",
+      "name": "Jutaro Nakao",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kalib-starnes",
+      "name": "Kalib Starnes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "katsuhisa-fujii",
+      "name": "Katsuhisa Fujii",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kazuhiro-nakamura",
+      "name": "Kazuhiro Nakamura",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kazuki-tokudome",
+      "name": "Kazuki Tokudome",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kazushi-sakuraba",
+      "name": "Kazushi Sakuraba",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "keigo-kunihara",
+      "name": "Keigo Kunihara",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "keiichiro-yamamiya",
+      "name": "Keiichiro Yamamiya",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "keith-hackney",
+      "name": "Keith Hackney",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "keith-rockel",
+      "name": "Keith Rockel",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kelly-dullanty",
+      "name": "Kelly Dullanty",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kenichi-yamamoto",
+      "name": "Kenichi Yamamoto",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kerry-schall",
+      "name": "Kerry Schall",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kevin-burns",
+      "name": "Kevin Burns",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kevin-ferguson",
+      "name": "Kevin Ferguson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kevin-jackson",
+      "name": "Kevin Jackson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kevin-jordan",
+      "name": "Kevin Jordan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kevin-randleman",
+      "name": "Kevin Randleman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kimo-leopoldo",
+      "name": "Kimo Leopoldo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kiru-sahota",
+      "name": "Kiru Sahota",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kit-cope",
+      "name": "Kit Cope",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "koji-kitao",
+      "name": "Koji Kitao",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "koji-oishi",
+      "name": "Koji Oishi",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kristian-rothaermel",
+      "name": "Kristian Rothaermel",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kristof-midoux",
+      "name": "Kristof Midoux",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kuniyoshi-hironaka",
+      "name": "Kuniyoshi Hironaka",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "kyle-bradley",
+      "name": "Kyle Bradley",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "lance-gibson",
+      "name": "Lance Gibson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "larry-cureton",
+      "name": "Larry Cureton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "laverne-clark",
+      "name": "Laverne Clark",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "lee-murray",
+      "name": "Lee Murray",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "leigh-remedios",
+      "name": "Leigh Remedios",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "leonardo-guimaraes",
+      "name": "Leonardo Guimaraes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "lodune-sincaid",
+      "name": "Lodune Sincaid",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "logan-clark",
+      "name": "Logan Clark",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "lowell-anderson",
+      "name": "Lowell Anderson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "lucio-linhares",
+      "name": "Lucio Linhares",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "luigi-fioravanti",
+      "name": "Luigi Fioravanti",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "luke-caudillo",
+      "name": "Luke Caudillo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "luke-cummo",
+      "name": "Luke Cummo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "maciej-jewtuszko",
+      "name": "Maciej Jewtuszko",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "manvel-gamburyan",
+      "name": "Manvel Gamburyan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcelo-aguiar",
+      "name": "Marcelo Aguiar",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcelo-mello",
+      "name": "Marcelo Mello",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcio-alexandre-junior",
+      "name": "Marcio Alexandre Junior",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcio-cruz",
+      "name": "Marcio Cruz",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marco-ruas",
+      "name": "Marco Ruas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcos-mariano",
+      "name": "Marcos Mariano",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcus-aurelio",
+      "name": "Marcus Aurelio",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcus-bossett",
+      "name": "Marcus Bossett",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcus-jones",
+      "name": "Marcus Jones",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marcus-silveira",
+      "name": "Marcus Silveira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mario-neto",
+      "name": "Mario Neto",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mark-hall",
+      "name": "Mark Hall",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mark-hughes",
+      "name": "Mark Hughes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mark-kerr",
+      "name": "Mark Kerr",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mark-robinson",
+      "name": "Mark Robinson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mark-schultz",
+      "name": "Mark Schultz",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mark-weir",
+      "name": "Mark Weir",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "marvin-eastman",
+      "name": "Marvin Eastman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "masutatsu-yano",
+      "name": "Masutatsu Yano",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "matt-andersen",
+      "name": "Matt Andersen",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "matt-arroyo",
+      "name": "Matt Arroyo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "matt-horwich",
+      "name": "Matt Horwich",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "matt-veach",
+      "name": "Matt Veach",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "maurice-smith",
+      "name": "Maurice Smith",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "maxim-grishin",
+      "name": "Maxim Grishin",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "melton-bowen",
+      "name": "Melton Bowen",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "michael-patt",
+      "name": "Michael Patt",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "miguel-torres",
+      "name": "Miguel Torres",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mike-van-arsdale",
+      "name": "Mike Van Arsdale",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mike-wessel",
+      "name": "Mike Wessel",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mike-whitehead",
+      "name": "Mike Whitehead",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mikey-burnett",
+      "name": "Mikey Burnett",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "minoki-ichihara",
+      "name": "Minoki Ichihara",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mirko-filipovic",
+      "name": "Mirko Filipovic",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "mostapha-al-turk",
+      "name": "Mostapha Al-Turk",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "moti-horenstein",
+      "name": "Moti Horenstein",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nate-loughran",
+      "name": "Nate Loughran",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nate-mohr",
+      "name": "Nate Mohr",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nate-schroeder",
+      "name": "Nate Schroeder",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "neil-grove",
+      "name": "Neil Grove",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "neil-wain",
+      "name": "Neil Wain",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nicholas-musoke",
+      "name": "Nicholas Musoke",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nick-agallar",
+      "name": "Nick Agallar",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nick-sanzo",
+      "name": "Nick Sanzo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nick-serra",
+      "name": "Nick Serra",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nick-thompson",
+      "name": "Nick Thompson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "nissen-osterneck",
+      "name": "Nissen Osterneck",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "noe-hernandez",
+      "name": "Noe Hernandez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "oleg-taktarov",
+      "name": "Oleg Taktarov",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "orlando-wiet",
+      "name": "Orlando Wiet",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "pat-miletich",
+      "name": "Pat Miletich",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "patrick-smith",
+      "name": "Patrick Smith",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-buentello",
+      "name": "Paul Buentello",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-creighton",
+      "name": "Paul Creighton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-georgieff",
+      "name": "Paul Georgieff",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-herrera",
+      "name": "Paul Herrera",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-jones",
+      "name": "Paul Jones",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-rodriguez",
+      "name": "Paul Rodriguez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "paul-varelans",
+      "name": "Paul Varelans",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "pedro-rizzo",
+      "name": "Pedro Rizzo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "per-eklund",
+      "name": "Per Eklund",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "pete-sell",
+      "name": "Pete Sell",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "pete-williams",
+      "name": "Pete Williams",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "phil-johns",
+      "name": "Phil Johns",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "philip-de-fries",
+      "name": "Philip De Fries",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "phillip-miller",
+      "name": "Phillip Miller",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "quinton-jackson",
+      "name": "Quinton Jackson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rafael-carino",
+      "name": "Rafael Carino",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rainy-martinez",
+      "name": "Rainy Martinez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rameau-thierry-sokoudjou",
+      "name": "Rameau Thierry Sokoudjou",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ramiro-hernandez",
+      "name": "Ramiro Hernandez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "raphael-pessoa",
+      "name": "Raphael Pessoa",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ray-wizard",
+      "name": "Ray Wizard",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "razak-al-hassan",
+      "name": "Razak Al-Hassan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "reese-andy",
+      "name": "Reese Andy",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "remco-pardoel",
+      "name": "Remco Pardoel",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "renato-verissimo",
+      "name": "Renato Verissimo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "renee-forte",
+      "name": "Renee Forte",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rex-holman",
+      "name": "Rex Holman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "reza-nasri",
+      "name": "Reza Nasri",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rich-clementi",
+      "name": "Rich Clementi",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "richard-crunkilton",
+      "name": "Richard Crunkilton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "richard-walsh",
+      "name": "Richard Walsh",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "richie-vaculik",
+      "name": "Richie Vaculik",
+      "active": 0,
+      "reason": "ambiguous"
+    },
+    {
+      "slug": "rob-emerson",
+      "name": "Rob Emerson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rob-macdonald",
+      "name": "Rob Macdonald",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rob-yundt",
+      "name": "Rob Yundt",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "robert-lucarelli",
+      "name": "Robert Lucarelli",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "robert-mcdaniel",
+      "name": "Robert McDaniel",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "robert-peralta",
+      "name": "Robert Peralta",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "robert-sanchez",
+      "name": "Robert Sanchez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "robert-whiteford",
+      "name": "Robert Whiteford",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "roberto-traven",
+      "name": "Roberto Traven",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rodolfo-rubio-perez",
+      "name": "Rodolfo Rubio Perez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rodrigo-ruas",
+      "name": "Rodrigo Ruas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "roger-huerta",
+      "name": "Roger Huerta",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rogerio-nogueira",
+      "name": "Rogerio Nogueira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "roland-payne",
+      "name": "Roland Payne",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rolando-delgado",
+      "name": "Rolando Delgado",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rolles-gracie",
+      "name": "Rolles Gracie",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "roman-mitichyan",
+      "name": "Roman Mitichyan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "romie-aram",
+      "name": "Romie Aram",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ron-faircloth",
+      "name": "Ron Faircloth",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ron-van-clief",
+      "name": "Ron Van Clief",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ron-waterman",
+      "name": "Ron Waterman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ronald-jhun",
+      "name": "Ronald Jhun",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ronys-torres",
+      "name": "Ronys Torres",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rory-markham",
+      "name": "Rory Markham",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rory-singer",
+      "name": "Rory Singer",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ross-pointon",
+      "name": "Ross Pointon",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "royce-alger",
+      "name": "Royce Alger",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "rudyard-moncayo",
+      "name": "Rudyard Moncayo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ryan-madigan",
+      "name": "Ryan Madigan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ryan-mcgillivray",
+      "name": "Ryan McGillivray",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ryan-parker",
+      "name": "Ryan Parker",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ryan-roberts",
+      "name": "Ryan Roberts",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ryan-thomas",
+      "name": "Ryan Thomas",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "ryo-chonan",
+      "name": "Ryo Chonan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "saeed-hosseini",
+      "name": "Saeed Hosseini",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sai-wang",
+      "name": "Sai Wang",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sam-adkins",
+      "name": "Sam Adkins",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sam-fulton",
+      "name": "Sam Fulton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sam-hoger",
+      "name": "Sam Hoger",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sammy-morgan",
+      "name": "Sammy Morgan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "samy-schiavo",
+      "name": "Samy Schiavo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sanae-kikuta",
+      "name": "Sanae Kikuta",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "satoshi-honma",
+      "name": "Satoshi Honma",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-adams",
+      "name": "Scott Adams",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-baker",
+      "name": "Scott Baker",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-bessac",
+      "name": "Scott Bessac",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-ferrozzo",
+      "name": "Scott Ferrozzo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-fiedler",
+      "name": "Scott Fiedler",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-junk",
+      "name": "Scott Junk",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "scott-morris",
+      "name": "Scott Morris",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sean-alvarez",
+      "name": "Sean Alvarez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sean-daugherty",
+      "name": "Sean Daugherty",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sean-gannon",
+      "name": "Sean Gannon",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sean-salmon",
+      "name": "Sean Salmon",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "semmy-schilt",
+      "name": "Semmy Schilt",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "seth-petruzelli",
+      "name": "Seth Petruzelli",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "shane-nelson",
+      "name": "Shane Nelson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "shane-primm",
+      "name": "Shane Primm",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "shannon-gugerty",
+      "name": "Shannon Gugerty",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sherman-pendergarst",
+      "name": "Sherman Pendergarst",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "shonie-carter",
+      "name": "Shonie Carter",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "sione-latu",
+      "name": "Sione Latu",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "solomon-hutcherson",
+      "name": "Solomon Hutcherson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-berger",
+      "name": "Steve Berger",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-bruno",
+      "name": "Steve Bruno",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-byrnes",
+      "name": "Steve Byrnes",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-jennum",
+      "name": "Steve Jennum",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-judson",
+      "name": "Steve Judson",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-kennedy",
+      "name": "Steve Kennedy",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-lopez",
+      "name": "Steve Lopez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-nelmark",
+      "name": "Steve Nelmark",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steve-vigneault",
+      "name": "Steve Vigneault",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "steven-graham",
+      "name": "Steven Graham",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "stevie-lynch",
+      "name": "Stevie Lynch",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tai-bowden",
+      "name": "Tai Bowden",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tedd-williams",
+      "name": "Tedd Williams",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "terry-martin",
+      "name": "Terry Martin",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "thaddeus-luster",
+      "name": "Thaddeus Luster",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "thiago-silva",
+      "name": "Thiago Silva",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "thomas-ramirez",
+      "name": "Thomas Ramirez",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tiago-dos-santos-e-silva",
+      "name": "Tiago Dos Santos E Silva",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tiki-ghosn",
+      "name": "Tiki Ghosn",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tim-hague",
+      "name": "Tim Hague",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tim-lajcik",
+      "name": "Tim Lajcik",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tim-mckenzie",
+      "name": "Tim McKenzie",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tim-sylvia",
+      "name": "Tim Sylvia",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "todd-butler",
+      "name": "Todd Butler",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "todd-medina",
+      "name": "Todd Medina",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tom-egan",
+      "name": "Tom Egan",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tommy-speer",
+      "name": "Tommy Speer",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tony-desouza",
+      "name": "Tony Desouza",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tony-fryklund",
+      "name": "Tony Fryklund",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tony-halme",
+      "name": "Tony Halme",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tony-petarra",
+      "name": "Tony Petarra",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "townsend-saunders",
+      "name": "Townsend Saunders",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tra-telligman",
+      "name": "Tra Telligman",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "travis-fulton",
+      "name": "Travis Fulton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "travis-lutter",
+      "name": "Travis Lutter",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "travis-wiuff",
+      "name": "Travis Wiuff",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "trevor-prangley",
+      "name": "Trevor Prangley",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "troy-mandaloniz",
+      "name": "Troy Mandaloniz",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tsuyoshi-kohsaka",
+      "name": "Tsuyoshi Kohsaka",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tulio-palhares",
+      "name": "Tulio Palhares",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "tyrone-roberts",
+      "name": "Tyrone Roberts",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "valeri-ignatov",
+      "name": "Valeri Ignatov",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "vernon-ramos-ho",
+      "name": "Vernon Ramos Ho",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "vernon-white",
+      "name": "Vernon White",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "victor-valimaki",
+      "name": "Victor Valimaki",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wade-shipp",
+      "name": "Wade Shipp",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wallid-ismail",
+      "name": "Wallid Ismail",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "war-machine",
+      "name": "War Machine",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wendell-oliveira-marques",
+      "name": "Wendell Oliveira Marques",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wes-albritton",
+      "name": "Wes Albritton",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wes-combs",
+      "name": "Wes Combs",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wes-sims",
+      "name": "Wes Sims",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wesley-correira",
+      "name": "Wesley Correira",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "wilson-gouveia",
+      "name": "Wilson Gouveia",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "xavier-foupa-pokam",
+      "name": "Xavier Foupa-Pokam",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yoji-anjo",
+      "name": "Yoji Anjo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yoshiki-takahashi",
+      "name": "Yoshiki Takahashi",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yoshiyuki-yoshida",
+      "name": "Yoshiyuki Yoshida",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yuki-kondo",
+      "name": "Yuki Kondo",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yuki-sasaki",
+      "name": "Yuki Sasaki",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yuri-vaulin",
+      "name": "Yuri Vaulin",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "yuta-sasaki",
+      "name": "Yuta Sasaki",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "zach-light",
+      "name": "Zach Light",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "zelim-imadaev",
+      "name": "Zelim Imadaev",
+      "active": 0,
+      "reason": "no source photo"
+    },
+    {
+      "slug": "zhang-tiequan",
+      "name": "Zhang Tiequan",
+      "active": 0,
+      "reason": "no source photo"
+    }
+  ]
+}

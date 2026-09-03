@@ -13,6 +13,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -48,7 +49,10 @@ nav { display: flex; gap: 24px; color: var(--muted); font-size: 14px; }
 nav a:hover { color: var(--text); }
 
 main { width: min(calc(100% - 32px), var(--max)); margin: 0 auto; }
-.hero { padding: 112px 0 84px; max-width: 960px; }
+.hero { padding: 38px 0 30px; max-width: 960px; }
+.hero h1 { font-size: clamp(30px, 4vw, 48px); line-height: 1.08; margin: 12px 0; }
+.hero .lede { font-size: 16px; margin: 14px 0 0; }
+.hero .hero-actions { margin-top: 20px; }
 .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: 0.16em; }
 h1 {
   margin: 16px 0 22px;
@@ -84,7 +88,9 @@ h2 { font-size: clamp(28px, 4vw, 48px); }
 h3 { font-size: 22px; }
 .metric-card p { color: var(--muted); line-height: 1.55; margin-bottom: 0; }
 
-.rankings { margin: 96px 0 40px; }
+.rankings { margin: 12px 0 40px; scroll-margin-top: 16px; }
+.rankings h2 { font-size: clamp(25px, 3vw, 34px); margin-top: 8px; }
+.rankings .section-heading { margin-bottom: 18px; }
 .section-heading {
   display: grid;
   grid-template-columns: 1.25fr 0.75fr;
@@ -117,7 +123,7 @@ select {
 .ranking-list { border: 1px solid var(--line); border-top: 0; background: var(--panel); }
 .ranking-row {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) 100px 88px;
+  grid-template-columns: 54px 52px minmax(0, 1fr) 130px 88px;
   gap: 14px;
   align-items: center;
   min-height: 76px;
@@ -126,15 +132,16 @@ select {
 }
 .ranking-row:last-child { border-bottom: 0; }
 .ranking-row:hover { background: var(--panel-2); }
-.rank-number { color: #5f6872; font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.rank-number { color: var(--muted); font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .rank-fighter { min-width: 0; display: grid; gap: 4px; }
 .rank-fighter strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 17px; }
 .rank-fighter small, .rank-confidence, .rank-score small { color: var(--muted); font-size: 12px; }
-.rank-confidence { text-align: right; }
+.rank-confidence { text-align: right; display: grid; gap: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+.rank-confidence small { color: var(--muted); font-size: 11px; }
 .rank-score { display: grid; justify-items: end; gap: 1px; }
 .rank-score strong { color: var(--accent); font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
 .ranking-loading { padding: 28px 18px; color: var(--muted); }
-.model-note { color: #727b84; font-size: 12px; line-height: 1.5; max-width: 780px; }
+.model-note { color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 780px; }
 
 .method {
   margin: 96px 0 88px;
@@ -298,12 +305,12 @@ footer {
 @media (max-width: 760px) {
   .topbar { height: 64px; }
   nav { gap: 14px; font-size: 12px; }
-  .hero { padding: 74px 0 58px; }
+  .hero { padding: 30px 0 24px; }
   .metric-grid { grid-template-columns: 1fr; }
   .metric-card.feature { grid-column: span 1; }
   .section-heading { grid-template-columns: 1fr; gap: 12px; }
   .ranking-controls { flex-direction: column; }
-  .ranking-row { grid-template-columns: 38px minmax(0, 1fr) 70px; gap: 10px; padding: 10px 12px; }
+  .ranking-row { grid-template-columns: 28px 40px minmax(0, 1fr) 62px; gap: 8px; padding: 10px; }
   .rank-confidence { display: none; }
   .rank-fighter strong { font-size: 15px; }
   .rank-fighter small { font-size: 10px; }

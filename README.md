@@ -30,6 +30,14 @@ npm run dev
 
 The local site will be served by Wrangler. API routes live under `/api/*`.
 
+Use Node 24 or later. `npm test` checks ranking pagination/search, stale-response handling, deep links, retry behavior and the fighter loading state. `npm run typecheck` checks Worker types, and `npm run build` creates a deployment dry run without changing the remote database.
+
+Database maintenance runs explicitly through `npm run deploy`, before deployment. Starting `npm run dev` or running the dry build does not run production migrations or recalibration.
+
+The rankings support `q`, `metric`, `weight_class`, and `page` in the page URL. The rankings API supports `q`, `offset`, and `limit`, and returns `meta.total` and each fighter's rank within the selected field. Search preserves that rank. One-bout samples are included with the model's provisional label.
+
+For fighter photography, coverage, refresh instructions and the known Bruno Silva source-identity issue, see [PHOTO-SOURCES.md](docs/PHOTO-SOURCES.md).
+
 ## Cloudflare setup
 
 Cloudflare recommends `wrangler.jsonc` for new Workers projects. CageMetrix uses Workers Static Assets instead of the deprecated Workers Sites setup.

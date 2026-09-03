@@ -26,7 +26,13 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Validate changes
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
 
       - name: Deploy to Cloudflare Workers
         run: npm run deploy

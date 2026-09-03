@@ -24,11 +24,13 @@ function esc(value) {
 }
 
 function number(value, digits = 1) {
+  if (value === null || value === undefined || value === '') return '—';
   const n = Number(value);
   return Number.isFinite(n) ? n.toFixed(digits) : '—';
 }
 
 function pct(value, digits = 0) {
+  if (value === null || value === undefined || value === '') return '—';
   const n = Number(value);
   return Number.isFinite(n) ? `${n.toFixed(digits)}%` : '—';
 }
@@ -68,11 +70,11 @@ function renderMetricCards(rating, ranks) {
   root.innerHTML = metricConfig.map(([key, label]) => {
     const value = rating?.[key];
     const rank = ranks?.[key];
-    const rankText = Number.isFinite(Number(rank)) ? `#${Number(rank)}` : '—';
+    const rankText = rank != null && Number.isFinite(Number(rank)) ? `#${Number(rank)}` : 'Unranked';
     return `<article class="fighter-metric-card">
       <span>${esc(label)}</span>
       <strong>${number(value)}</strong>
-      <small>${rankText} in active division</small>
+      <small>${rankText}${rank != null ? ' in active division' : ''}</small>
     </article>`;
   }).join('');
 }
@@ -133,11 +135,21 @@ async function load() {
   if (!slug || slug.includes('/')) throw new Error('Invalid fighter path');
   const response = await fetch(`/api/fighters/${encodeURIComponent(slug)}`, { headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const payload = await response.json();
+  const [payload] = await Promise.all([response.json(), fighterMedia.ready]);
   const { fighter, rating, ranks, raw, recent_bouts: recentBouts } = payload;
   if (!fighter || !rating) throw new Error('Rating not available');
 
   document.title = `${fighter.name} — CageMetrix`;
+  document.querySelector('#back-to-rankings').href = `/${location.search}#rankings`;
+  document.querySelector('#fighter-portrait').innerHTML = fighterMedia.portrait(fighter, true);
+  const photo = fighterMedia.photo(fighter.slug);
+  if (photo) {
+    const credit = document.createElement('a');
+    credit.className = 'photo-credit';
+    credit.href = photo.source_url;
+    credit.textContent = `Photo: ${photo.source}`;
+    document.querySelector('#fighter-portrait').appendChild(credit);
+  }
   document.querySelector('#fighter-name').textContent = fighter.name;
   document.querySelector('#fighter-division').textContent = fighter.current_weight_class || 'CAGEMETRIX FIGHTER PROFILE';
   document.querySelector('#fighter-cmr').textContent = number(rating.cmr);
@@ -157,6 +169,7 @@ async function load() {
   if (fighter.last_fight_date) meta.push(`last UFC bout ${fighter.last_fight_date}`);
   if (rating.provisional && Number.isFinite(Number(rating.performance_cmr))) meta.push(`performance CMR ${number(rating.performance_cmr)}`);
   document.querySelector('#fighter-meta').textContent = meta.join(' · ');
+  document.querySelector('#fighter-snapshot').textContent = `Rating snapshot: ${rating.as_of_date || 'unavailable'} · Model v${rating.model_version || '?'}`;
 
   renderMetricCards(rating, ranks);
   renderExplanations(rating.components || {});
@@ -175,7 +188,8 @@ async function load() {
     ? `${currentDivisionBouts} current-division UFC bouts + ${transferredBouts} ${esc(previousDivision || 'previous-division')} bouts from the two-year transfer window · ${number(rating.sample_minutes, 1)} minutes in the rated sample.`
     : `${Number(rating.sample_bouts || 0)} current-division UFC bouts · ${number(rating.sample_minutes, 1)} minutes in the rated sample.`;
   sample.innerHTML = `<div class="confidence-number">${Math.round(Number(rating.confidence || 0))}%</div>
-    <strong>Model confidence</strong>
+    <strong>Sample confidence</strong>
+    <p>Evidence from bout count and cage time. Higher confidence means less uncertainty adjustment.</p>
     <p>${sampleCopy}</p>
     ${provisionalCopy}
     <div class="confidence-track"><span style="width:${Math.max(0, Math.min(100, Number(rating.confidence || 0)))}%"></span></div>`;
