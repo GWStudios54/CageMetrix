@@ -1,0 +1,42 @@
+name: Refresh UFC data and grade predictions
+on:
+  schedule:
+    - cron: '30 8 * * *'
+  workflow_dispatch:
+concurrency:
+  group: cagemetrix-production
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Verify recent UFC results and statistics
+        run: npm run data:sync-recent
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Refresh ratings and lock or grade forecasts
+        run: |
+          npm run data:refresh
+          npm run forecasts:sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: refresh-audit
+          path: |
+            .cache/refresh/summary.json
+            .cache/refresh/before-refresh.sql
+            .cache/forecasts/summary.json
+            scripts/data/recent-bouts.json
+          retention-days: 7

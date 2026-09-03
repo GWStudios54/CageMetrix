@@ -120,7 +120,7 @@ function renderRecent(rows) {
     return;
   }
   root.innerHTML = rows.map(row => {
-    const result = Number(row.won) === 1 ? 'W' : Number(row.won) === 0 ? 'L' : 'D';
+    const result = row.result || (Number(row.won) === 1 ? 'W' : Number(row.won) === 0 ? 'L' : 'D');
     const resultClass = result === 'W' ? 'win' : result === 'L' ? 'loss' : 'draw';
     return `<a class="fight-row" href="/fighters/${encodeURIComponent(row.opponent_slug)}">
       <span class="fight-result ${resultClass}">${result}</span>
@@ -136,20 +136,13 @@ async function load() {
   const response = await fetch(`/api/fighters/${encodeURIComponent(slug)}`, { headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const [payload] = await Promise.all([response.json(), fighterMedia.ready]);
-  const { fighter, rating, ranks, raw, recent_bouts: recentBouts } = payload;
-  if (!fighter || !rating) throw new Error('Rating not available');
+  const { fighter, rating: storedRating, ranks, raw, recent_bouts: recentBouts } = payload;
+  if (!fighter) throw new Error('Fighter not available');
+  const rating = storedRating || { cmr:null, confidence:0, sample_bouts:0, sample_minutes:0, provisional:true, model_version:'0.3.0', components:{} };
 
   document.title = `${fighter.name} — CageMetrix`;
   document.querySelector('#back-to-rankings').href = `/${location.search}#rankings`;
   document.querySelector('#fighter-portrait').innerHTML = fighterMedia.portrait(fighter, true);
-  const photo = fighterMedia.photo(fighter.slug);
-  if (photo) {
-    const credit = document.createElement('a');
-    credit.className = 'photo-credit';
-    credit.href = photo.source_url;
-    credit.textContent = `Photo: ${photo.source}`;
-    document.querySelector('#fighter-portrait').appendChild(credit);
-  }
   document.querySelector('#fighter-name').textContent = fighter.name;
   document.querySelector('#fighter-division').textContent = fighter.current_weight_class || 'CAGEMETRIX FIGHTER PROFILE';
   document.querySelector('#fighter-cmr').textContent = number(rating.cmr);
@@ -160,6 +153,7 @@ async function load() {
   } else {
     document.querySelector('#fighter-rank').textContent = `${status} · not included in active rankings`;
   }
+  if (!storedRating) document.querySelector('#fighter-rank').textContent = 'No rated UFC bouts yet';
 
   const meta = [];
   meta.push(status);
@@ -187,9 +181,9 @@ async function load() {
   const sampleCopy = transferredBouts > 0
     ? `${currentDivisionBouts} current-division UFC bouts + ${transferredBouts} ${esc(previousDivision || 'previous-division')} bouts from the two-year transfer window · ${number(rating.sample_minutes, 1)} minutes in the rated sample.`
     : `${Number(rating.sample_bouts || 0)} current-division UFC bouts · ${number(rating.sample_minutes, 1)} minutes in the rated sample.`;
-  sample.innerHTML = `<div class="confidence-number">${Math.round(Number(rating.confidence || 0))}%</div>
-    <strong>Sample confidence</strong>
-    <p>Evidence from bout count and cage time. Higher confidence means less uncertainty adjustment.</p>
+  sample.innerHTML = `<div class="confidence-number">${Math.round(Number(rating.confidence || 0))}/100</div>
+    <strong>Sample strength</strong>
+    <p>Bout-count and cage-time exposure index. This is not an accuracy probability or statistical confidence interval.</p>
     <p>${sampleCopy}</p>
     ${provisionalCopy}
     <div class="confidence-track"><span style="width:${Math.max(0, Math.min(100, Number(rating.confidence || 0)))}%"></span></div>`;

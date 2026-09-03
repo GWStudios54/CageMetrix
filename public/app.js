@@ -84,8 +84,8 @@ function renderRankings(rows, metric, returnQuery) {
     return `<a class="ranking-row" href="/fighters/${encodeURIComponent(fighter.slug)}${esc(returnQuery)}">
       <span class="rank-number">${Number(fighter.rank)}</span>
       ${fighterMedia.portrait(fighter)}
-      <span class="rank-fighter"><strong>${esc(fighter.name)}</strong><small>${esc(fighter.current_weight_class || 'Unknown')} · ${Number(fighter.sample_bouts || 0)} rated bouts<span class="mobile-confidence"> · ${confidence}% confidence${fighter.provisional ? ' · Provisional' : ''}</span></small></span>
-      <span class="rank-confidence">${confidence}%<small>${fighter.provisional ? 'Provisional' : 'Established'}</small></span>
+      <span class="rank-fighter"><strong>${esc(fighter.name)}</strong><small>${esc(fighter.current_weight_class || 'Unknown')} · ${Number(fighter.sample_bouts || 0)} rated bouts<span class="mobile-confidence"> · Sample ${confidence}/100${fighter.provisional ? ' · Provisional' : ''}</span></small></span>
+      <span class="rank-confidence">${confidence}/100<small>${fighter.provisional ? 'Provisional' : 'Established'}</small></span>
       <span class="rank-score"><small>${metricLabels[metric]}</small><strong>${score}</strong></span>
     </a>`;
   }).join('');
@@ -131,7 +131,7 @@ async function loadRankings() {
     nextButton.disabled = page * PAGE_SIZE >= total;
     const dates = rows.map(row => row.as_of_date?.slice(0, 10)).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)).sort();
     const snapshot = dates.length ? (dates[0] === dates.at(-1) ? dates[0] : `${dates[0]} to ${dates.at(-1)}`) : 'unavailable';
-    snapshotLabel.textContent = `Rating snapshot: ${snapshot} · Model v${payload.meta?.model_version || '?'}`;
+    snapshotLabel.textContent = `Data through ${payload.meta?.data?.source_max_date || snapshot} · Model v${payload.meta?.model_version || '?'}${payload.meta?.data?.stale ? ' · Newer events may be missing' : ''}`;
   } catch (error) {
     if (id !== requestId || error.name === 'AbortError') return;
     rankingList.innerHTML = '<div class="ranking-loading">We couldn’t load the rankings. Your filters are saved. Try again.</div>';

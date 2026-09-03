@@ -59,3 +59,28 @@ test('unsupported metrics fail with a useful response', async () => {
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error, 'invalid_metric');
 });
+
+test('multiple snapshots never duplicate a fighter or rank stale scores',async()=>{
+  db.exec("INSERT INTO ratings_history (fighter_id,model_version_id,as_of_date,cmr,striking_offense,confidence,sample_bouts,snapshot_key) VALUES (40,99,'2026-08-29',99,99,95,2,'new-source')");
+  const result=await(await request({weight_class:'Lightweight',limit:200})).json();
+  assert.equal(result.meta.total,60);
+  assert.equal(result.data.filter(r=>r.id===40).length,1);
+  assert.equal(result.data[0].id,40);
+});
+
+test('accuracy grades only locked, pre-event, decisive predictions and retains misses',async()=>{
+  db.exec("INSERT INTO model_versions (id,name,version) VALUES (100,'CageMetrix Win Probability','0.1.0')");
+  db.exec("INSERT INTO events (id,slug,name,event_date,starts_at) VALUES (1,'test-event','Test','2026-08-29','2026-08-29T20:00:00.000Z')");
+  const bout=db.prepare('INSERT INTO bouts (id,event_id,fighter_a_id,fighter_b_id,weight_class,status,winner_id) VALUES (?,1,1,2,\'Lightweight\',?,?)');
+  const prediction=db.prepare('INSERT INTO predictions (bout_id,model_version_id,created_at,locked_at,fighter_a_probability,fighter_b_probability,picked_fighter_id) VALUES (?,100,?,?,.7,.3,?)');
+  for(const [id,status,winner,pick,time] of [[1,'completed',1,1,'2026-08-28T12:00:00.000Z'],[2,'completed',2,1,'2026-08-28T12:00:00.000Z'],[3,'completed',null,1,'2026-08-28T12:00:00.000Z'],[4,'cancelled',null,1,'2026-08-28T12:00:00.000Z'],[5,'completed',1,1,'2026-08-30T12:00:00.000Z'],[6,'scheduled',null,1,'2026-08-28T12:00:00.000Z'],[7,'completed',1,null,'2026-08-28T12:00:00.000Z']]) {bout.run(id,status,winner);prediction.run(id,time,time,pick);}
+  assert.throws(()=>db.exec('UPDATE predictions SET fighter_a_probability=.99 WHERE bout_id=1'),/immutable/);
+  const response=await worker.fetch(new Request('https://cagemetrix.com/api/forecasts'),env,{waitUntil(){}});
+  const result=await response.json();
+  assert.equal(result.summary.graded,2);
+  assert.equal(result.summary.correct,1);
+  assert.equal(result.summary.incorrect,1);
+  assert.equal(result.summary.accuracy,.5);
+  assert.equal(result.summary.pending,1);
+  assert.equal(result.data.length,7);
+});

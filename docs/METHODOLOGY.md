@@ -1,86 +1,43 @@
-# CageMetrix Methodology — v0.1 Design
+# CageMetrix methodology — CMR 0.3.0 / forecasts 0.1.0
 
-This document describes the intended first rating model. It is a design target, not a claim that the model is already validated.
+CMR is a descriptive rating. Win probabilities use a separate, result-based Elo model. The retrospective benchmark and live prediction counter are separate; neither model has an established prospective record yet.
 
-## Core principle
+## Sources and identities
 
-For every measurable skill, CageMetrix asks:
+Historical statistics come from [UFC DataLab](https://github.com/komaksym/UFC-DataLab), currently through June 27, 2026. The supplemental archive adds 102 bouts across eight main UFC cards through August 29. Every supplemental matchup, winner, method, round, time and division comes from its linked official UFC event card; detailed box scores come from UFCalendar's UFCStats mirror. Every row retains both URLs. Upcoming cards come from UFC.com.
 
-> How did the fighter perform relative to what the same opponents normally produce or allow?
+DataLab does not publish athlete IDs. CageMetrix assigns persistent internal keys used throughout opponent adjustment, aggregates, Elo and database joins. Bruno “Bulldog” and “Blindado” Silva have separate identities, resolved by nickname or a reviewed official profile slug. Missing discriminators and name/slug collisions fail ingestion. The sole DataLab Bruno biometric row belongs to Blindado. Bulldog's height/reach use his official UFC profile; his DOB is unavailable. Internal keys are not presented as official UFC IDs. Other source identity errors remain possible.
 
-A raw rate is therefore an input, not the final rating.
+## CMR
 
-## 1. Pre-fight snapshots only
+Men's and women's divisions are separate, including featherweight. Striking and takedown offense/defense compare each bout with the opponent's other bouts in that division, stabilized with a 45-minute division prior and a 0.25 smoothing constant. This is a single-pass retrospective adjustment, not the recursive latent-skill model proposed in the original design.
 
-Any rating used to evaluate or predict a bout must be calculated from information available before that bout. Historical snapshots are immutable. This prevents future information from leaking into backtests.
+Weights combine recency (3.5-year exponential time constant), duration and pre-bout opponent Elo. Short-fight exposures use a 30-second floor. Current-division bouts are retained plus the immediately previous division's bouts in the two years before the current stint. No-contests remain in raw history but are excluded from ratings, samples and Elo. DQs receive no finishing-skill bonus. Draws supply skill evidence but do not update Elo.
 
-## 2. Opponent baselines
+Components are standardized within the current division's available historical population: 50 + 15 standard deviations, clipped to 5–99. There is no explicit era, age or layoff model. Grappling, pace and finishing are direct measures, not fully opponent-adjusted skill estimates.
 
-For each fighter/opponent pair, compute expected performance from the opponent's other relevant bouts. Examples:
+Technical performance: striking offense 30%, striking defense 22%, wrestling offense 16%, wrestling defense 16%, grappling 8%, pace 4%, finishing 4%. Performance CMR: technical 56%, normalized career Elo (“résumé”) 24%, strength of schedule 10%, last five retained results 10%, with deviations from 50 expanded by 1.45. These weights are hand-set. Displayed component scores are separately exposure-shrunk, so their weighted sum does not exactly reproduce performance CMR.
 
-- expected significant strikes landed per minute
-- expected significant strikes absorbed per minute
-- expected striking accuracy allowed
-- expected takedown success allowed
-- expected takedown rate produced
-- expected control share
-- expected submission-attempt rate
+Sample strength is a 0–100 exposure index: 42% × (1 − exp(−minutes/45)) + 58% × (1 − exp(−bouts/5)), bounded to 0.08–0.99 before multiplying by 100. It is not an accuracy probability, confidence interval or measure of source quality. Ranked CMR shrinks performance toward 50 and subtracts sample penalties, including three points per missing bout below five. Samples below five bouts or 55 strength points are provisional.
 
-Observed performance is compared with that baseline. A fighter who holds an elite wrestler far below the wrestler's normal takedown output should receive more defensive credit than a fighter posting the same raw takedown-defense percentage against weak wrestlers.
+## Forecasts and the live counter
 
-## 3. Recursive opponent adjustment
+Elo begins at 1500. Decisive results update with K=28, multiplied by 1.15 for KO/TKO/submission finishes. Probability A = logistic(0.006085080947128282 × (Elo A − Elo B)). The conversion slope was fitted on 2018–2022 only. Debutants use neutral Elo and carry a limited-history label; their accuracy is not established by the matched-fighter benchmark.
 
-Opponent quality is itself opponent-adjusted. Initial estimates can begin with population/weight-class baselines and then iterate until ratings stabilize.
+Predictions are saved before the earliest published card start, with their timestamp, model version, explicit pick and input snapshot hash. A database trigger prevents overwrites. This version uses the first saved forecast for each matchup. Replacements get a new matchup; cancelled originals remain auditable.
 
-The implementation should be versioned so changes to weighting, convergence rules, shrinkage, or normalization create a new model version instead of rewriting old results.
+The public counter grades only saved pre-start predictions on completed decisive bouts. It reports correct, incorrect, pending, excluded, accuracy and Brier score. Draws, no-contests, cancellations, missing winners and 50/50 no-picks are excluded. Backtests never create live wins. Grading waits for a verified result import, so this is not an in-fight feed.
 
-## 4. Division and era normalization
+## Validation
 
-Pace and style differ by weight class and era. Raw heavyweight pace should not be interpreted identically to flyweight pace. Component scores are normalized within an appropriate competitive population before being translated to the public 0–100 scale.
+`npm run model:validate` rebuilds the entire model before each event date using strictly earlier bouts, including opponent/population baselines, division assignment and Elo. Probability slopes are fitted on 2018–2022 and frozen for evaluation from 2023 onward. Both fighters must have a prior rated bout. Coverage, an established-fighter subgroup and yearly results are reported.
 
-## 5. Small-sample control
+`public/model-validation.json` contains 1,516 matched evaluation bouts through August 29, 2026: CMR 52.6% accuracy / 0.2479 Brier; calibrated Elo 54.7% / 0.2459. The paired event-bootstrap 95% interval for CMR minus Elo Brier spans zero. This does not establish a CMR forecasting advantage. The test uses today's corrected source, not archived as-published feeds, and is not a prospective accuracy claim.
 
-New fighters are shrunk toward the relevant population mean until sufficient evidence accumulates. Public ratings always carry a confidence score based on bout count, minutes observed, opponent diversity and recency.
+## Refresh and limitations
 
-## 6. Separate skill from résumé
+Daily GitHub Actions runs at 08:30 UTC verify complete recent cards, persist the supplemental event archive in D1, rebuild changed-source ratings and lock/grade forecasts. The existing Worker and D1 are sufficient; Workers AI is not used. Failed or regressing/incomplete feeds do not replace the last successful dataset.
 
-The model should preserve distinct concepts:
+New source hashes append immutable snapshots, including same-date corrections. APIs select one latest row per fighter/model. Legacy snapshots remain stored for audit. Fighter UPSERTs preserve IDs. A D1 export precedes changed-source imports; bounded SQL statements are submitted in one file import with publication metadata last. Workflow audit artifacts retain summaries and pre-refresh exports for seven days. An unchanged source refresh updates activity/check timestamps without rewriting ratings or predictions.
 
-- **Technical rating:** opponent-adjusted measured performance
-- **Competitive rating:** result-based rating such as Elo/Glicko-style strength
-- **Résumé rating:** quality and depth of proven wins/opposition
-- **Strength of schedule:** quality of opposition faced
-- **Recent form:** recency-weighted performance trend
-
-The public CageMetrix Rating (CMR) combines these only after each component has been independently validated.
-
-## 7. Initial public components
-
-Target public 0–100 components:
-
-- Striking Offense
-- Striking Defense
-- Wrestling Offense
-- Wrestling Defense
-- Grappling
-- Durability
-- Pace/Cardio
-- Finishing Threat
-- Strength of Schedule
-- Recent Form
-- Sample Confidence
-- CageMetrix Rating (CMR)
-
-## 8. Prediction model
-
-Bout predictions are a later layer. Inputs may include pre-fight CMR/component differences, style interactions, age, reach, layoff, weight-class movement, five-round experience and other validated variables.
-
-The site should publish probability calibration and Brier score in addition to simple pick accuracy.
-
-## 9. Fight context
-
-News/context flags — injury, illness, short notice, camp change, weight issues, travel/visa problems, long layoffs and similar incidents — remain separate from the statistical model at first. A context variable should not change the prediction until historical evidence shows that it improves out-of-sample prediction.
-
-## 10. Transparency
-
-Every published rating must identify its model version and as-of date. Every published prediction is locked before the bout begins. Model upgrades never retroactively alter the prediction record of an older model.
+“Active” means a UFC bout within 18 months of refresh time plus explicit retirement overrides, not a fully verified contracted roster. The latest included date is visible. Forecasts omit injuries, short notice, camps, betting markets and other news factors.

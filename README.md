@@ -36,7 +36,7 @@ Database maintenance runs explicitly through `npm run deploy`, before deployment
 
 The rankings support `q`, `metric`, `weight_class`, and `page` in the page URL. The rankings API supports `q`, `offset`, and `limit`, and returns `meta.total` and each fighter's rank within the selected field. Search preserves that rank. One-bout samples are included with the model's provisional label.
 
-For fighter photography, coverage, refresh instructions and the known Bruno Silva source-identity issue, see [PHOTO-SOURCES.md](docs/PHOTO-SOURCES.md).
+Fighters use initials throughout the site. Photography is disabled until suitable licensed assets are supplied; see [PHOTO-SOURCES.md](docs/PHOTO-SOURCES.md).
 
 ## Cloudflare setup
 

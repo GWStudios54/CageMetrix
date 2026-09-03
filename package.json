@@ -1,6 +1,6 @@
 {
   "name": "cagemetrix",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "description": "Opponent-adjusted MMA analytics",
   "scripts": {
@@ -8,14 +8,17 @@
     "build": "wrangler deploy --dry-run --outdir .wrangler/build",
     "deploy": "node scripts/build.mjs && wrangler deploy",
     "test": "node --test tests/*.test.mjs",
-    "photos:sync": "node scripts/sync-headshots.mjs",
     "cf-typegen": "wrangler types",
     "typecheck": "wrangler types && tsc --noEmit",
     "db:create": "wrangler d1 create cagemetrix",
     "db:migrate:local": "wrangler d1 migrations apply cagemetrix --local",
     "db:migrate:remote": "wrangler d1 migrations apply cagemetrix --remote",
-    "data:bootstrap": "node scripts/bootstrap.mjs",
-    "ratings:recalibrate": "node scripts/recalibrate_v022.mjs"
+    "data:bootstrap": "node scripts/refresh-data.mjs --remote",
+    "ratings:recalibrate": "node scripts/refresh-data.mjs --remote",
+    "data:refresh": "node scripts/refresh-data.mjs --remote",
+    "data:sync-recent": "node scripts/sync-recent.mjs --fresh --remote",
+    "forecasts:sync": "node scripts/sync-forecasts.mjs --remote",
+    "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
