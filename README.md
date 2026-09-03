@@ -2,6 +2,8 @@
 
 Fight-specific pages, immutable pre-fight input snapshots, contributor publishing and validation are documented in [Fight details](docs/FIGHT-DETAILS.md).
 
+Predictor 0.2 is a separate [offline research candidate](docs/PREDICTOR-0.2.md). Predictor 0.1 remains live; the candidate includes age, layoff, reach and stance experiments with a pinned chronological evaluation and no automatic promotion.
+
 **Opponent-adjusted MMA analytics.**
 
 CageMetrix is a browser-first MMA analytics platform focused on answering one question:

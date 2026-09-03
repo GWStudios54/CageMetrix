@@ -1,0 +1,208 @@
+{
+  "status": "offline_research_only",
+  "version": "0.2.0-candidate.1",
+  "training_end": "2022-12-31",
+  "selection_period": "2022",
+  "source": {
+    "stats_sha256": "6d29abc32a10d7ec3c92093dfb8358ba6ab2150a347b3700e6b0248bb0047385",
+    "details_sha256": "6532dcb2eb7743d716be46ad472382132dbb241b575917e0ac75de493a3fbaed",
+    "profiles_observed_on": "2026-09-03",
+    "evaluation_end": "2026-08-29",
+    "stats_url": "https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/stats/stats_raw.csv",
+    "details_url": "https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/external_data/raw_fighter_details.csv",
+    "supplement": "scripts/data/recent-bouts.json",
+    "code_sha256": "f56b179bcff44652c736deb8a0ca77afa21d77727671505e0b0afc06bac7a88e",
+    "protocol_sha256": "de0e7066fe13c81ed8a6962d89fb40711ffeb3932973af9b605e55159ee3583d"
+  },
+  "model": {
+    "version": "0.2.0-candidate.1",
+    "experiment": "age",
+    "feature_names": [
+      "elo_diff",
+      "cmr_diff",
+      "technical_diff",
+      "resume_diff",
+      "striking_offense_diff",
+      "striking_defense_diff",
+      "wrestling_offense_diff",
+      "wrestling_defense_diff",
+      "grappling_diff",
+      "pace_diff",
+      "finishing_diff",
+      "strength_of_schedule_diff",
+      "recent_form_diff",
+      "confidence_diff",
+      "log_bouts_diff",
+      "log_minutes_diff",
+      "striking_matchup_edge",
+      "wrestling_matchup_edge",
+      "grappling_matchup_edge",
+      "finishing_matchup_edge",
+      "pace_pressure_edge",
+      "recent_schedule_edge",
+      "technical_evidence_edge",
+      "elo_evidence_edge",
+      "age_years_diff",
+      "age_centered_square_diff",
+      "age_heavy_division_diff",
+      "age_womens_division_diff",
+      "age_missing_diff",
+      "log_ufc_layoff_diff",
+      "log_ufc_layoff_over_year_diff",
+      "ufc_layoff_missing_diff",
+      "reach_cm_diff",
+      "reach_missing_diff",
+      "southpaw_vs_orthodox",
+      "switch_stance_diff",
+      "stance_missing_diff"
+    ],
+    "lambda": 0.01,
+    "coefficients": [
+      {
+        "feature": "elo_diff",
+        "index": 0,
+        "raw_coefficient": 0.00726753493385708
+      },
+      {
+        "feature": "cmr_diff",
+        "index": 1,
+        "raw_coefficient": 0.0015204274810905573
+      },
+      {
+        "feature": "technical_diff",
+        "index": 2,
+        "raw_coefficient": 0.016725900902248285
+      },
+      {
+        "feature": "resume_diff",
+        "index": 3,
+        "raw_coefficient": -0.0039898148784293305
+      },
+      {
+        "feature": "striking_offense_diff",
+        "index": 4,
+        "raw_coefficient": 0.006524343790236605
+      },
+      {
+        "feature": "striking_defense_diff",
+        "index": 5,
+        "raw_coefficient": -0.0016558750383546671
+      },
+      {
+        "feature": "wrestling_offense_diff",
+        "index": 6,
+        "raw_coefficient": 0.005903618802595159
+      },
+      {
+        "feature": "wrestling_defense_diff",
+        "index": 7,
+        "raw_coefficient": 0.0019588534549328084
+      },
+      {
+        "feature": "grappling_diff",
+        "index": 8,
+        "raw_coefficient": 0.006021548035203046
+      },
+      {
+        "feature": "pace_diff",
+        "index": 9,
+        "raw_coefficient": -0.004284184676188396
+      },
+      {
+        "feature": "finishing_diff",
+        "index": 10,
+        "raw_coefficient": 0.000877333586767319
+      },
+      {
+        "feature": "strength_of_schedule_diff",
+        "index": 11,
+        "raw_coefficient": 0.0032024825453101473
+      },
+      {
+        "feature": "recent_form_diff",
+        "index": 12,
+        "raw_coefficient": -0.002960614422225597
+      },
+      {
+        "feature": "confidence_diff",
+        "index": 13,
+        "raw_coefficient": 0.0001280114878626716
+      },
+      {
+        "feature": "log_bouts_diff",
+        "index": 14,
+        "raw_coefficient": -0.2061545073577289
+      },
+      {
+        "feature": "log_minutes_diff",
+        "index": 15,
+        "raw_coefficient": 0.16838086107944977
+      },
+      {
+        "feature": "striking_matchup_edge",
+        "index": 16,
+        "raw_coefficient": 0.04442054218483378
+      },
+      {
+        "feature": "wrestling_matchup_edge",
+        "index": 17,
+        "raw_coefficient": 0.005420744326415335
+      },
+      {
+        "feature": "grappling_matchup_edge",
+        "index": 18,
+        "raw_coefficient": 0.00029970453882563106
+      },
+      {
+        "feature": "finishing_matchup_edge",
+        "index": 19,
+        "raw_coefficient": -0.000417080679150475
+      },
+      {
+        "feature": "pace_pressure_edge",
+        "index": 20,
+        "raw_coefficient": 0.0185502204975479
+      },
+      {
+        "feature": "recent_schedule_edge",
+        "index": 21,
+        "raw_coefficient": 0.014895180632928315
+      },
+      {
+        "feature": "technical_evidence_edge",
+        "index": 22,
+        "raw_coefficient": -0.004821716753022871
+      },
+      {
+        "feature": "elo_evidence_edge",
+        "index": 23,
+        "raw_coefficient": -0.004777624748860501
+      },
+      {
+        "feature": "age_years_diff",
+        "index": 24,
+        "raw_coefficient": -0.06568962240596672
+      },
+      {
+        "feature": "age_centered_square_diff",
+        "index": 25,
+        "raw_coefficient": -0.0036951070598774663
+      },
+      {
+        "feature": "age_heavy_division_diff",
+        "index": 26,
+        "raw_coefficient": 0.05721950576977001
+      },
+      {
+        "feature": "age_womens_division_diff",
+        "index": 27,
+        "raw_coefficient": 0.028151354253106085
+      },
+      {
+        "feature": "age_missing_diff",
+        "index": 28,
+        "raw_coefficient": 0.0826955418626197
+      }
+    ]
+  }
+}

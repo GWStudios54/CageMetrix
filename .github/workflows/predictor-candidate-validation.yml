@@ -1,0 +1,62 @@
+name: Validate Predictor 0.2 research
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/predictor_v02.mjs'
+      - 'scripts/lib/predictor-context.mjs'
+      - 'scripts/lib/predictor-history.mjs'
+      - 'scripts/lib/predictor-evaluation.mjs'
+      - 'scripts/*predictor-v02.mjs'
+      - 'scripts/data/predictor-v02-candidate.json'
+      - 'docs/PREDICTOR-0.2*'
+      - 'docs/research/predictor-v02/**'
+      - 'tests/*predictor-v02*'
+      - '.github/workflows/predictor-candidate-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Reconstruct exact pinned research inputs without D1
+        run: node scripts/prepare-predictor-v02.mjs
+      - name: Reproduce chronological selection, fit and evaluation
+        run: node scripts/validate-predictor-v02.mjs --stats .cache/predictor-v02-inputs/stats.csv --details .cache/predictor-v02-inputs/details.csv --profiles-observed-on 2026-09-03 --expected-sources docs/research/predictor-v02/sources.json --output .cache/predictor-v02-ci
+      - name: Verify the published candidate matches the reproduced fit
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const actual=JSON.parse(fs.readFileSync('.cache/predictor-v02-ci/candidate.json','utf8'));
+          const expected=JSON.parse(fs.readFileSync('scripts/data/predictor-v02-candidate.json','utf8'));
+          assert.deepEqual(actual.source,expected.source);
+          assert.equal(actual.model.experiment,expected.model.experiment);
+          assert.equal(actual.model.lambda,expected.model.lambda);
+          assert.equal(actual.model.coefficients.length,expected.model.coefficients.length);
+          for(const [i,c] of actual.model.coefficients.entries()){
+            assert.equal(c.feature,expected.model.coefficients[i].feature);
+            assert.ok(Math.abs(c.raw_coefficient-expected.model.coefficients[i].raw_coefficient)<1e-10);
+          }
+          const report=JSON.parse(fs.readFileSync('.cache/predictor-v02-ci/report.json','utf8'));
+          assert.equal(report.promotion.production_eligible,false);
+          assert.equal(report.samples.evaluation_rated,1516);
+          assert.equal(report.samples.evaluation_all,1891);
+          console.log('Pinned Predictor 0.2 candidate reproduced; no production promotion.');
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: predictor-v02-research-audit
+          path: |
+            .cache/predictor-v02-ci/report.json
+            .cache/predictor-v02-ci/selection.json
+            .cache/predictor-v02-ci/sources.json
+            .cache/predictor-v02-ci/candidate.json
+            .cache/predictor-v02-ci/predictions.jsonl
+          retention-days: 30

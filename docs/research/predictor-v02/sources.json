@@ -1,0 +1,11 @@
+{
+  "stats_sha256": "6d29abc32a10d7ec3c92093dfb8358ba6ab2150a347b3700e6b0248bb0047385",
+  "details_sha256": "6532dcb2eb7743d716be46ad472382132dbb241b575917e0ac75de493a3fbaed",
+  "profiles_observed_on": "2026-09-03",
+  "evaluation_end": "2026-08-29",
+  "stats_url": "https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/stats/stats_raw.csv",
+  "details_url": "https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/external_data/raw_fighter_details.csv",
+  "supplement": "scripts/data/recent-bouts.json",
+  "code_sha256": "f56b179bcff44652c736deb8a0ca77afa21d77727671505e0b0afc06bac7a88e",
+  "protocol_sha256": "de0e7066fe13c81ed8a6962d89fb40711ffeb3932973af9b605e55159ee3583d"
+}
