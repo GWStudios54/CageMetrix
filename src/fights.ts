@@ -4,6 +4,7 @@ export const fightJson=(data:unknown,status=200)=>new Response(JSON.stringify(da
 const parse=(value:any,fallback:any=null)=>{try{return JSON.parse(value)||fallback;}catch{return fallback;}};
 const idValid=(id:string)=>/^[1-9]\d{0,14}$/.test(id)&&Number.isSafeInteger(Number(id));
 const escape=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+const PUBLIC_RATING_FIELDS=['cmr','technical','resume','strikingOffense','strikingDefense','wrestlingOffense','wrestlingDefense','grappling','pace','finishing','strengthOfSchedule','recentForm','confidence','eloRaw','bouts','minutes'];
 
 export function predictionGrade(p:Row,bout:Row) {
   if(bout.status==='cancelled')return 'cancelled';
@@ -14,6 +15,34 @@ export function predictionGrade(p:Row,bout:Row) {
 export function totalCard(rounds:Row[]) {
   const scored=rounds.filter(r=>r.score_a!==null&&r.score_b!==null);
   return {a:scored.reduce((sum,r)=>sum+r.score_a,0),b:scored.reduce((sum,r)=>sum+r.score_b,0),scored_rounds:scored.length};
+}
+function publicRating(rating:any){
+  if(!rating||typeof rating!=='object')return null;
+  const clean:Row={};
+  for(const key of PUBLIC_RATING_FIELDS)if(rating[key]!==undefined)clean[key]=rating[key];
+  return clean;
+}
+function publicDriver(driver:any){
+  if(!driver||!['a','b'].includes(driver.side)||!driver.label)return null;
+  return {label:String(driver.label),side:driver.side};
+}
+export function publicPredictionSnapshot(snapshot:any){
+  if(!snapshot||typeof snapshot!=='object')return snapshot;
+  if(!snapshot.available)return {available:false,reason:snapshot.reason||'The original pre-fight snapshot is unavailable.'};
+  const a=snapshot.fighters?.a,b=snapshot.fighters?.b;
+  if(!a||!b)return {available:false,reason:'The original pre-fight snapshot is unavailable.'};
+  return {
+    available:true,
+    provenance:snapshot.provenance,
+    source_max_date:snapshot.source_max_date,
+    cmr_version:snapshot.cmr_version,
+    model_used:snapshot.model_used,
+    fighters:{
+      a:{name:a.name,slug:a.slug,rating:publicRating(a.rating)},
+      b:{name:b.name,slug:b.slug,rating:publicRating(b.rating)}
+    },
+    drivers:Array.isArray(snapshot.drivers)?snapshot.drivers.map(publicDriver).filter(Boolean):[]
+  };
 }
 async function commentary(db:D1Database,id:number){
   const rows=await db.prepare(`SELECT fc.contributor_id,c.slug,c.display_name,c.bio,fc.rounds_json,fc.final_thoughts,fc.revision
@@ -32,7 +61,7 @@ export async function getFight(id:string,env:Env,selected?:string|null):Promise<
     FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id LEFT JOIN prediction_snapshots s ON s.prediction_id=p.id
     WHERE p.bout_id=? ORDER BY CASE WHEN mv.name='CageMetrix Win Probability' AND mv.version='0.1.0' THEN 0 ELSE 1 END,p.id DESC`).bind(Number(id)).all<Row>();
   if(!rows.results.length)return null;
-  const predictions:Row[]=rows.results.map(({snapshot_json,input_snapshot_json,top_factors_json,...p})=>({...p,snapshot:parse(snapshot_json),saved_drivers:parse(top_factors_json,[]),grade:predictionGrade(p,bout)}));
+  const predictions:Row[]=rows.results.map(({snapshot_json,input_snapshot_json,top_factors_json,input_snapshot_key,...p})=>({...p,snapshot:publicPredictionSnapshot(parse(snapshot_json)),saved_drivers:parse(top_factors_json,[]).map(publicDriver).filter(Boolean),grade:predictionGrade(p,bout)}));
   const prediction=selected?predictions.find(p=>p.id===Number(selected)):predictions[0];
   if(!prediction)return null;
   const related:Row[]=[];
@@ -46,17 +75,13 @@ export async function getFight(id:string,env:Env,selected?:string|null):Promise<
   const observation=await env.DB.prepare('SELECT source_url,observed_at FROM bout_result_observations WHERE bout_id=? ORDER BY id DESC LIMIT 1').bind(bout.id).first();
   const now=Date.now(),start=Date.parse(bout.starts_at);
   return {bout:{...bout,event_live:now>=start-1800000&&now<=start+43200000},prediction,
-    predictions:predictions.map(({snapshot,saved_drivers,...p})=>p),related,commentary:await commentary(env.DB,bout.id),
+    predictions:predictions.map(({snapshot,saved_drivers,notes,...p})=>p),related,commentary:await commentary(env.DB,bout.id),
     official_observation:observation,page_refresh_seconds:30,canonical:`https://cagemetrix.com/fights/${bout.id}`};
 }
 export async function fightApi(request:Request,env:Env,id:string,download=false){
+  if(download)return fightJson({error:'not_found'},404);
   const payload=await getFight(id,env,new URL(request.url).searchParams.get('prediction'));
   if(!payload)return fightJson({error:'fight_not_found'},404);
-  if(download){
-    const response=fightJson({prediction:payload.prediction,snapshot:payload.prediction.snapshot});
-    response.headers.set('content-disposition',`attachment; filename="cagemetrix-fight-${id}-prediction-${payload.prediction.id}.json"`);
-    return response;
-  }
   return fightJson(payload);
 }
 export async function fightPage(request:Request,env:Env,id:string){

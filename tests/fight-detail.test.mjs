@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import worker from '../src/index.ts';
-import {validateCard,totalCard} from '../src/fights.ts';
+import {validateCard,totalCard,publicPredictionSnapshot} from '../src/fights.ts';
 import {confirmedResult,liveFeedBouts,resultCheckDue} from '../src/live-results.ts';
 import {recoverSnapshot,snapshotInsertSql,predictionSnapshot} from '../scripts/lib/prediction-snapshot.mjs';
 import {forecast} from '../scripts/lib/forecast.mjs';
@@ -23,15 +23,19 @@ test('upgrading a pre-feature database preserves historical prediction bytes and
   assert.throws(()=>db.exec("UPDATE predictions SET notes='Rewritten'"),/immutable/);assert.equal(db.prepare('PRAGMA foreign_key_check').all().length,0);db.close();
 });
 
-test('fight routes retain exact snapshots through rating refreshes, name changes, completion and corrections',async()=>{
+test('fight routes retain public pre-fight snapshots without exposing model internals',async()=>{
   const {db,request,fixture}=setup();
   const before=await(await request('/api/fights/1')).json();
-  assert.deepEqual(before.prediction.snapshot,fixture.snapshot);
+  assert.deepEqual(before.prediction.snapshot,publicPredictionSnapshot(fixture.snapshot));
+  assert.equal(before.prediction.input_snapshot_key,undefined);
+  assert.equal(before.prediction.snapshot.features,undefined);
+  assert.ok(!JSON.stringify(before).includes('coefficient'));
+  assert.deepEqual(JSON.parse(db.prepare('SELECT input_snapshot_json FROM predictions WHERE id=1').get().input_snapshot_json),fixture.snapshot);
   db.exec("UPDATE fighters SET name='Changed display name' WHERE id=1; INSERT INTO ratings_history(fighter_id,model_version_id,as_of_date,cmr,snapshot_key) VALUES(1,1,'2027-01-01',99,'later'); UPDATE bouts SET status='completed',winner_id=1,result_method='KO/TKO',result_round=2,result_time_seconds=108 WHERE id=1");
   const after=await(await request('/api/fights/1')).json();
   assert.deepEqual(after.prediction.snapshot,before.prediction.snapshot);assert.equal(after.prediction.fighter_a_probability,before.prediction.fighter_a_probability);assert.equal(after.prediction.grade,'incorrect');
   db.exec("UPDATE bouts SET winner_id=NULL,result_method='No Contest' WHERE id=1");assert.equal((await(await request('/api/fights/1')).json()).prediction.grade,'void');
-  const response=await request('/api/fights/1/snapshot');assert.match(response.headers.get('content-disposition'),/attachment/);assert.deepEqual((await response.json()).snapshot,fixture.snapshot);
+  assert.equal((await request('/api/fights/1/snapshot')).status,404);
   assert.equal((await request('/api/fights/999')).status,404);assert.equal((await request('/api/fights/1?prediction=5')).status,404);
   assert.equal((await request('/api/fights/1',{method:'DELETE'})).status,405);db.close();
 });

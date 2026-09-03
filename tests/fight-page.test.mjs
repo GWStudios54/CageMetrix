@@ -36,3 +36,14 @@ test('commentary renders literal text without timestamps and shows every round p
   data.commentary=[{contributor_id:1,display_name:'<script>name</script>',bio:'',revision:1,rounds:[{round:1,text:'<img src=x onerror=alert(1)>',score_a:10,score_b:9}],final_thoughts:'Final text',totals:{a:10,b:9,scored_rounds:1},updated_at:'2026-09-03T01:23:45Z'}];
   await t.refresh();const card=w.document.querySelector('#contributor-card');assert.equal(card.querySelectorAll('img,script,time').length,0);assert.ok(!card.textContent.includes('01:23'));assert.equal(card.querySelectorAll('h3').length,6);assert.match(card.textContent,/Not contested/);assert.match(card.textContent,/10 – 9/);t.close();
 });
+test('fight page keeps reasoning qualitative and does not expose downloadable model inputs',async()=>{
+  const t=await setup(),{w,data}=t;
+  const html=w.document.documentElement.outerHTML;
+  assert.equal(w.document.querySelector('#snapshot-download'),null);
+  assert.equal(w.document.querySelector('.feature-audit'),null);
+  assert.equal(data.prediction.snapshot.features,undefined);
+  assert.ok(!html.includes('Coefficient'));
+  assert.ok(!html.includes('log-odds contribution'));
+  assert.match(w.document.querySelector('#fight-drivers').textContent,/edge/);
+  t.close();
+});
