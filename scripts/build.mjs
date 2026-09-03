@@ -10,9 +10,11 @@ execFileSync(command, ['wrangler', 'd1', 'migrations', 'apply', 'cagemetrix', '-
   env: process.env
 });
 
-// v0.2.1 is a small, idempotent ratings-only recalibration (~one row per rated
-// fighter). Once its state marker exists, this performs only the marker check.
-console.log('Checking CageMetrix v0.2.1 rating calibration…');
-await import('./recalibrate_v021.mjs');
+// v0.2.2 is a small, idempotent ratings-only recalibration (~one row per rated
+// fighter). It adds the two-year prior-division carryover rule without reseeding
+// the full bout dataset. Once its state marker exists, this performs only the
+// marker check on later deploys.
+console.log('Checking CageMetrix v0.2.2 rating calibration…');
+await import('./recalibrate_v022.mjs');
 
 console.log('CageMetrix application build complete. Full dataset refresh skipped by design.');
