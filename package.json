@@ -22,7 +22,10 @@
     "data:sync-recent": "node scripts/sync-recent.mjs --fresh --remote",
     "forecasts:sync": "node scripts/sync-forecasts.mjs --remote",
     "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv",
-    "predictor:validate": "node scripts/validate-predictor.mjs --stats .cache/refresh/stats.csv --output .cache/predictor-validation.json"
+    "predictor:validate": "node scripts/validate-predictor.mjs --stats .cache/refresh/stats.csv --output .cache/predictor-validation.json",
+    "cmr04:validate": "node scripts/validate-cmr-v04.mjs",
+    "predictor011:validate": "node scripts/validate-predictor-v011.mjs --history .cache/cmr-v04-history.json",
+    "predictor02:validate": "node scripts/validate-predictor-v02-style.mjs --stats .cache/refresh/stats.csv"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
