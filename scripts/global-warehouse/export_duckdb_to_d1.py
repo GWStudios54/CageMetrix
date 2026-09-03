@@ -3,6 +3,7 @@
 
 The warehouse is intentionally research-only. It never creates CageMetrix
 historical predictions or mutates the production ratings/prediction tables.
+Source-native identities are preserved even when cross-table links are unclear.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ UPSTREAM = [
     "statleaders.ufc.com",
 ]
 MAX_STATEMENT_BYTES = 90_000
+SUFFIX_TOKENS = {"jr", "junior", "sr", "senior", "ii", "iii", "iv"}
 
 
 def normalize_name(value: object) -> str:
@@ -38,15 +40,46 @@ def normalize_name(value: object) -> str:
     return " ".join(text.split())
 
 
+def surname_token(value: object) -> str:
+    tokens = normalize_name(value).split()
+    while tokens and tokens[-1] in SUFFIX_TOKENS:
+        tokens.pop()
+    return tokens[-1] if tokens else ""
+
+
 def date_string(value: object) -> str:
     if isinstance(value, (dt.date, dt.datetime)):
         return value.isoformat()[:10]
     return str(value or "")[:10]
 
 
-def bout_match_key(event_date: object, fighter_1: object, fighter_2: object) -> tuple[str, str, str]:
-    names = sorted((normalize_name(fighter_1), normalize_name(fighter_2)))
-    return (date_string(event_date), names[0], names[1])
+def date_value(value: object) -> dt.date | None:
+    if isinstance(value, dt.datetime):
+        return value.date()
+    if isinstance(value, dt.date):
+        return value
+    try:
+        return dt.date.fromisoformat(date_string(value))
+    except ValueError:
+        return None
+
+
+def unordered_pair(a: str, b: str) -> tuple[str, str]:
+    return tuple(sorted((a, b)))
+
+
+def exact_pair_key(event_date: object, fighter_1: object, fighter_2: object) -> tuple[str, str, str]:
+    first, second = unordered_pair(normalize_name(fighter_1), normalize_name(fighter_2))
+    return (date_string(event_date), first, second)
+
+
+def surname_pair_key(fighter_1: object, fighter_2: object) -> tuple[str, str]:
+    return unordered_pair(surname_token(fighter_1), surname_token(fighter_2))
+
+
+def canonical_source_signature(organization: object, event_date: object, fighter_1: object, fighter_2: object) -> tuple[str, str, str, str]:
+    first, second = unordered_pair(normalize_name(fighter_1), normalize_name(fighter_2))
+    return (str(organization or "unknown").lower(), date_string(event_date), first, second)
 
 
 def sql_literal(value: object) -> str:
@@ -162,7 +195,7 @@ def require_schema(connection: duckdb.DuckDBPyConnection) -> None:
             "winner", "winner_side", "method", "method_normalized", "round_num", "time_finish_seconds",
         },
         "fights_master_typed": {
-            "fight_id", "organization", "event_date", "fighter_1", "fighter_2", "has_stats",
+            "fight_id", "organization", "event_name", "event_date", "fighter_1", "fighter_2", "has_stats",
             "f1_sig_str_landed", "f1_sig_str_attempted", "f1_td_landed", "f1_td_attempted",
             "f2_sig_str_landed", "f2_sig_str_attempted", "f2_td_landed", "f2_td_attempted",
         },
@@ -226,6 +259,9 @@ def main() -> None:
         table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         for table in ("fighters_master", "fights_career_longitudinal", "fights_master_typed")
     }
+    detailed_with_stats_source = connection.execute(
+        "SELECT COUNT(*) FROM fights_master_typed WHERE has_stats"
+    ).fetchone()[0]
     duplicate_bout_ids = connection.execute(
         "SELECT COUNT(*) FROM (SELECT fight_id FROM fights_career_longitudinal GROUP BY fight_id HAVING COUNT(*) > 1)"
     ).fetchone()[0]
@@ -313,26 +349,31 @@ def main() -> None:
     participant_links = 0
     ambiguous_names: set[str] = set()
     bout_ids: set[str] = set()
-    bout_identity_by_id: dict[str, tuple[str, str]] = {}
-    bout_key_map: dict[tuple[str, str, str], tuple[str, str, str] | None] = {}
-    ambiguous_composite_bout_keys = 0
+    exact_ufc_matches: dict[tuple[str, str, str], str | None] = {}
+    surname_ufc_matches: dict[tuple[str, str], list[tuple[dt.date, str]]] = defaultdict(list)
+    source_signatures: dict[tuple[str, str, str, str], int] = defaultdict(int)
 
     def bout_output():
-        nonlocal participant_instances, participant_links, ambiguous_composite_bout_keys
+        nonlocal participant_instances, participant_links
         cursor = connection.execute("SELECT * FROM fights_career_longitudinal ORDER BY event_date, fight_id")
         for row in rows_as_dicts(cursor):
             source_bout_id = str(row["fight_id"])
+            organization = str(row.get("organization") or "unknown").lower()
             f1_normalized = normalize_name(row["fighter_1"])
             f2_normalized = normalize_name(row["fighter_2"])
             bout_ids.add(source_bout_id)
-            bout_identity_by_id[source_bout_id] = (f1_normalized, f2_normalized)
-            match_key = bout_match_key(row["event_date"], row["fighter_1"], row["fighter_2"])
-            if match_key in bout_key_map:
-                if bout_key_map[match_key] is not None:
-                    ambiguous_composite_bout_keys += 1
-                bout_key_map[match_key] = None
-            else:
-                bout_key_map[match_key] = (source_bout_id, f1_normalized, f2_normalized)
+            source_signatures[canonical_source_signature(organization, row["event_date"], row["fighter_1"], row["fighter_2"])] += 1
+
+            if organization == "ufc":
+                exact_key = exact_pair_key(row["event_date"], row["fighter_1"], row["fighter_2"])
+                if exact_key in exact_ufc_matches:
+                    exact_ufc_matches[exact_key] = None
+                else:
+                    exact_ufc_matches[exact_key] = source_bout_id
+                bout_date = date_value(row["event_date"])
+                surname_key = surname_pair_key(row["fighter_1"], row["fighter_2"])
+                if bout_date and all(surname_key):
+                    surname_ufc_matches[surname_key].append((bout_date, source_bout_id))
 
             f1_id = unique_source_id(row["fighter_1"])
             f2_id = unique_source_id(row["fighter_2"])
@@ -345,7 +386,7 @@ def main() -> None:
             yield {
                 "source_key": SOURCE_KEY,
                 "source_bout_id": source_bout_id,
-                "organization": str(row.get("organization") or "unknown").lower(),
+                "organization": organization,
                 "event_name": row["event_name"],
                 "event_date": row["event_date"],
                 "event_year": as_int(row.get("event_year")),
@@ -386,80 +427,78 @@ def main() -> None:
         [column for column in bout_columns if column not in {"source_key", "source_bout_id"}],
     )
 
+    duplicate_signature_groups = sum(1 for count in source_signatures.values() if count > 1)
+    duplicate_signature_rows = sum(count for count in source_signatures.values() if count > 1)
+
     stat_columns = [
-        "source_key", "source_bout_id", "organization", "event_date", "fighter_1_name", "fighter_2_name",
-        "fighter_1_source_id", "fighter_2_source_id", "fighter_1_reach_cm", "fighter_2_reach_cm", "fighter_1_stance",
-        "fighter_2_stance", "fighter_1_dob", "fighter_2_dob", "fighter_1_kd", "fighter_2_kd",
-        "fighter_1_sig_landed", "fighter_1_sig_attempted", "fighter_2_sig_landed", "fighter_2_sig_attempted",
-        "fighter_1_td_landed", "fighter_1_td_attempted", "fighter_2_td_landed", "fighter_2_td_attempted",
-        "fighter_1_ctrl_seconds", "fighter_2_ctrl_seconds", "has_stats", "is_no_contest", "source_version",
-        "last_seen_run_id", "imported_at",
+        "source_key", "source_detail_bout_id", "matched_global_bout_id", "match_method", "match_confidence",
+        "organization", "event_name", "event_date", "fighter_1_name", "fighter_2_name", "fighter_1_source_id",
+        "fighter_2_source_id", "fighter_1_reach_cm", "fighter_2_reach_cm", "fighter_1_stance", "fighter_2_stance",
+        "fighter_1_dob", "fighter_2_dob", "fighter_1_kd", "fighter_2_kd", "fighter_1_sig_landed",
+        "fighter_1_sig_attempted", "fighter_2_sig_landed", "fighter_2_sig_attempted", "fighter_1_td_landed",
+        "fighter_1_td_attempted", "fighter_2_td_landed", "fighter_2_td_attempted", "fighter_1_ctrl_seconds",
+        "fighter_2_ctrl_seconds", "has_stats", "is_no_contest", "source_version", "last_seen_run_id", "imported_at",
     ]
-    orphan_stats = 0
-    detailed_direct_id_matches = 0
-    detailed_composite_matches = 0
-    detailed_reversed_matches = 0
+    detail_match_counts = defaultdict(int)
+
+    def match_detail(row: dict) -> tuple[str | None, str, float]:
+        typed_bout_id = str(row["fight_id"])
+        if typed_bout_id in bout_ids:
+            return typed_bout_id, "source_id", 1.0
+
+        exact = exact_ufc_matches.get(exact_pair_key(row["event_date"], row["fighter_1"], row["fighter_2"]))
+        if exact:
+            return exact, "exact_date_pair", 0.99
+
+        detailed_date = date_value(row["event_date"])
+        surname_key = surname_pair_key(row["fighter_1"], row["fighter_2"])
+        if detailed_date and all(surname_key):
+            candidates = {
+                bout_id
+                for candidate_date, bout_id in surname_ufc_matches.get(surname_key, [])
+                if abs((candidate_date - detailed_date).days) <= 2
+            }
+            if len(candidates) == 1:
+                return next(iter(candidates)), "date_window_surnames", 0.90
+
+        return None, "unresolved", 0.0
 
     def stat_output():
-        nonlocal orphan_stats, detailed_direct_id_matches, detailed_composite_matches, detailed_reversed_matches
         cursor = connection.execute("SELECT * FROM fights_master_typed ORDER BY event_date, fight_id")
         for row in rows_as_dicts(cursor):
-            typed_bout_id = str(row["fight_id"])
-            typed_f1 = normalize_name(row["fighter_1"])
-            typed_f2 = normalize_name(row["fighter_2"])
-
-            if typed_bout_id in bout_ids:
-                source_bout_id = typed_bout_id
-                longitudinal_f1, longitudinal_f2 = bout_identity_by_id[source_bout_id]
-                detailed_direct_id_matches += 1
-            else:
-                match = bout_key_map.get(bout_match_key(row["event_date"], row["fighter_1"], row["fighter_2"]))
-                if match is None:
-                    orphan_stats += 1
-                    continue
-                source_bout_id, longitudinal_f1, longitudinal_f2 = match
-                detailed_composite_matches += 1
-
-            same_order = typed_f1 == longitudinal_f1 and typed_f2 == longitudinal_f2
-            reversed_order = typed_f1 == longitudinal_f2 and typed_f2 == longitudinal_f1
-            if not same_order and not reversed_order:
-                orphan_stats += 1
-                continue
-            if reversed_order:
-                detailed_reversed_matches += 1
-
-            def side(first_field: str, second_field: str):
-                return row.get(second_field if reversed_order else first_field)
-
-            f1_name = side("fighter_1", "fighter_2")
-            f2_name = side("fighter_2", "fighter_1")
+            matched_bout_id, match_method, match_confidence = match_detail(row)
+            detail_match_counts[match_method] += 1
             yield {
                 "source_key": SOURCE_KEY,
-                "source_bout_id": source_bout_id,
+                "source_detail_bout_id": str(row["fight_id"]),
+                "matched_global_bout_id": matched_bout_id,
+                "match_method": match_method,
+                "match_confidence": match_confidence,
                 "organization": str(row.get("organization") or "unknown").lower(),
+                "event_name": row.get("event_name"),
                 "event_date": row["event_date"],
-                "fighter_1_name": f1_name,
-                "fighter_2_name": f2_name,
-                "fighter_1_source_id": unique_source_id(f1_name),
-                "fighter_2_source_id": unique_source_id(f2_name),
-                "fighter_1_reach_cm": side("f1_reach_cm", "f2_reach_cm"),
-                "fighter_2_reach_cm": side("f2_reach_cm", "f1_reach_cm"),
-                "fighter_1_stance": side("f1_stance", "f2_stance"),
-                "fighter_2_stance": side("f2_stance", "f1_stance"),
-                "fighter_1_dob": side("f1_dob", "f2_dob"),
-                "fighter_2_dob": side("f2_dob", "f1_dob"),
-                "fighter_1_kd": as_int(side("f1_kd", "f2_kd")),
-                "fighter_2_kd": as_int(side("f2_kd", "f1_kd")),
-                "fighter_1_sig_landed": as_int(side("f1_sig_str_landed", "f2_sig_str_landed")),
-                "fighter_1_sig_attempted": as_int(side("f1_sig_str_attempted", "f2_sig_str_attempted")),
-                "fighter_2_sig_landed": as_int(side("f2_sig_str_landed", "f1_sig_str_landed")),
-                "fighter_2_sig_attempted": as_int(side("f2_sig_str_attempted", "f1_sig_str_attempted")),
-                "fighter_1_td_landed": as_int(side("f1_td_landed", "f2_td_landed")),
-                "fighter_1_td_attempted": as_int(side("f1_td_attempted", "f2_td_attempted")),
-                "fighter_2_td_landed": as_int(side("f2_td_landed", "f1_td_landed")),
-                "fighter_2_td_attempted": as_int(side("f2_td_attempted", "f1_td_attempted")),
-                "fighter_1_ctrl_seconds": as_int(side("f1_ctrl_seconds", "f2_ctrl_seconds")),
-                "fighter_2_ctrl_seconds": as_int(side("f2_ctrl_seconds", "f1_ctrl_seconds")),
+                "fighter_1_name": row["fighter_1"],
+                "fighter_2_name": row["fighter_2"],
+                "fighter_1_source_id": unique_source_id(row["fighter_1"]),
+                "fighter_2_source_id": unique_source_id(row["fighter_2"]),
+                "fighter_1_reach_cm": row.get("f1_reach_cm"),
+                "fighter_2_reach_cm": row.get("f2_reach_cm"),
+                "fighter_1_stance": row.get("f1_stance"),
+                "fighter_2_stance": row.get("f2_stance"),
+                "fighter_1_dob": row.get("f1_dob"),
+                "fighter_2_dob": row.get("f2_dob"),
+                "fighter_1_kd": as_int(row.get("f1_kd")),
+                "fighter_2_kd": as_int(row.get("f2_kd")),
+                "fighter_1_sig_landed": as_int(row.get("f1_sig_str_landed")),
+                "fighter_1_sig_attempted": as_int(row.get("f1_sig_str_attempted")),
+                "fighter_2_sig_landed": as_int(row.get("f2_sig_str_landed")),
+                "fighter_2_sig_attempted": as_int(row.get("f2_sig_str_attempted")),
+                "fighter_1_td_landed": as_int(row.get("f1_td_landed")),
+                "fighter_1_td_attempted": as_int(row.get("f1_td_attempted")),
+                "fighter_2_td_landed": as_int(row.get("f2_td_landed")),
+                "fighter_2_td_attempted": as_int(row.get("f2_td_attempted")),
+                "fighter_1_ctrl_seconds": as_int(row.get("f1_ctrl_seconds")),
+                "fighter_2_ctrl_seconds": as_int(row.get("f2_ctrl_seconds")),
                 "has_stats": as_bool_int(row.get("has_stats")),
                 "is_no_contest": as_bool_int(row.get("is_no_contest")),
                 "source_version": source_version,
@@ -468,8 +507,8 @@ def main() -> None:
             }
 
     detailed_count = writer.insert_rows(
-        "warehouse_bout_stats", stat_columns, stat_output(), ["source_key", "source_bout_id"],
-        [column for column in stat_columns if column not in {"source_key", "source_bout_id"}],
+        "warehouse_bout_stats", stat_columns, stat_output(), ["source_key", "source_detail_bout_id"],
+        [column for column in stat_columns if column not in {"source_key", "source_detail_bout_id"}],
     )
 
     unknown_outcomes = connection.execute(
@@ -487,15 +526,14 @@ def main() -> None:
         "bouts": bout_count,
         "detailed_bouts_imported": detailed_count,
         "detailed_bouts_source": counts["fights_master_typed"],
-        "detailed_direct_id_matches": detailed_direct_id_matches,
-        "detailed_composite_matches": detailed_composite_matches,
-        "detailed_reversed_matches": detailed_reversed_matches,
-        "orphan_detailed_bouts_skipped": orphan_stats,
+        "detailed_rows_with_stats_source": detailed_with_stats_source,
+        "detailed_match_counts": dict(detail_match_counts),
         "organizations": organizations,
         "first_event_date": first_date,
         "last_event_date": last_date,
         "duplicate_bout_ids": duplicate_bout_ids,
-        "ambiguous_composite_bout_keys": ambiguous_composite_bout_keys,
+        "duplicate_canonical_signature_groups": duplicate_signature_groups,
+        "duplicate_canonical_signature_rows": duplicate_signature_rows,
         "participant_identity_link_rate": link_rate,
         "participant_instances": participant_instances,
         "participant_source_ids_resolved": participant_links,
