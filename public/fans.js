@@ -2,6 +2,7 @@
   const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const pct=v=>typeof v==='number'&&Number.isFinite(v)?`${(v*100).toFixed(1)}%`:'—';
   const num=(v,d=1)=>typeof v==='number'&&Number.isFinite(v)?v.toFixed(d):'—';
+  const date=v=>v?new Date(v).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}):'Unavailable';
   const id=location.pathname.match(/^\/fights\/([1-9]\d*)\/?$/)?.[1];
   if(!id)return;
   let data=null,saving=false,scoreDirty=false;
@@ -28,12 +29,15 @@
       summary=`<div class="fan-score-summary"><article class="fan-card-overall"><p class="eyebrow">FAN CARD CONSENSUS</p><strong>${pct(o.a_pct)} / ${pct(o.b_pct)}</strong><p>${esc(b.fighter_a_name)} / ${esc(b.fighter_b_name)}</p><p class="fan-average">${pct(o.tie_pct)} tied cards · average total ${num(o.average_a)}–${num(o.average_b)} · ${s.total.toLocaleString()} submitted card${s.total===1?'':'s'}</p></article><div><table class="fan-round-table"><thead><tr><th>Round</th><th>${esc(b.fighter_a_name)}</th><th>${esc(b.fighter_b_name)}</th><th>Tie</th><th>Avg.</th></tr></thead><tbody>${s.rounds.map(r=>`<tr><td>R${r.round}</td><td>${pct(r.a_pct)}</td><td>${pct(r.b_pct)}</td><td>${pct(r.tie_pct)}</td><td>${num(r.average_a)}–${num(r.average_b)}</td></tr>`).join('')}</tbody></table></div></div>`;
     }else summary='<p class="fan-empty">No fan scorecards have been submitted for this fight yet.</p>';
     if(!s.open){
-      const note=b.status==='completed'&&s.scorable_rounds===0?'This fight ended before a completed round could be scored.':'Fan scorecards open only after the official result is confirmed.';
+      let note='Fan scorecards open only after the official result is confirmed.';
+      if(b.status==='completed'&&s.scorable_rounds===0)note='This fight ended before a completed round could be scored.';
+      else if(s.closed)note=`Fan scorecard submissions closed ${s.closes_at?date(s.closes_at):'48 hours after the card finished'}. Existing fan cards stay on the permanent record.`;
       root.innerHTML=`${summary}<p class="fans-meta">${esc(note)}</p>`;return;
     }
     const mine=new Map((s.mine?.rounds||[]).map(r=>[r.round,`${r.score_a}-${r.score_b}`]));
     const rows=Array.from({length:s.scorable_rounds},(_,i)=>i+1).map(round=>`<div class="fan-score-row"><label for="fan-round-${round}">Round ${round}</label><select id="fan-round-${round}" data-round="${round}" required>${scoreOptions(mine.get(round)||'',b.fighter_a_name,b.fighter_b_name)}</select></div>`).join('');
-    root.innerHTML=`${summary}<form id="fan-score-form" class="fan-score-form"><p class="fans-meta">Submit one complete card per browser. You can update it later; the public aggregate changes with the latest submitted card.</p>${rows}<button class="button primary" type="submit">${s.mine?'Update my fan scorecard':'Submit fan scorecard'}</button><p id="fan-score-feedback" class="fan-feedback" role="status"></p></form>`;
+    const deadline=s.closes_at?`Submissions close ${date(s.closes_at)} — 48 hours after the card finished.`:'This fight can be scored now. The 48-hour submission clock begins when the full card finishes.';
+    root.innerHTML=`${summary}<form id="fan-score-form" class="fan-score-form"><p class="fans-meta">Submit one complete card per browser. ${esc(deadline)} If the fight ended by finish, only previously completed rounds are scored.</p>${rows}<button class="button primary" type="submit">${s.mine?'Update my fan scorecard':'Submit fan scorecard'}</button><p id="fan-score-feedback" class="fan-feedback" role="status"></p></form>`;
   }
   function render(){renderPrediction();if(!scoreDirty)renderScorecards();}
   async function load(){
