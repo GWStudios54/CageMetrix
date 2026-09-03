@@ -1,0 +1,98 @@
+{
+  "predictor_version": "0.1.0",
+  "rating_model_version": "0.3.0",
+  "source_sha256": "6d29abc32a10d7ec3c92093dfb8358ba6ab2150a347b3700e6b0248bb0047385",
+  "generated_at": "2026-09-03T05:26:27.016Z",
+  "source_max_date": "2026-08-29",
+  "evaluation_start": "2023-01-01",
+  "training_end": "2022-12-31",
+  "design": "Every feature is calculated from ratings built strictly before the event date. Matchups are mirrored during fitting to remove corner bias. Hyperparameter selection uses 2022 only; the final frozen model is fit on 2018-2022 and evaluated from 2023 onward.",
+  "limitations": [
+    "This is retrospective validation on the current corrected source, not the prospective live record.",
+    "Predictor 0.1 uses existing CMR, Elo and skill components only; age, reach, stance, injury and other context are excluded.",
+    "Historical evaluation requires both fighters to have a prior rated UFC bout. Unrated UFC debutants use a separate neutral-start Elo fallback in production.",
+    "No betting-market inputs are used."
+  ],
+  "feature_count": 24,
+  "features": [
+    "elo_diff",
+    "cmr_diff",
+    "technical_diff",
+    "resume_diff",
+    "striking_offense_diff",
+    "striking_defense_diff",
+    "wrestling_offense_diff",
+    "wrestling_defense_diff",
+    "grappling_diff",
+    "pace_diff",
+    "finishing_diff",
+    "strength_of_schedule_diff",
+    "recent_form_diff",
+    "confidence_diff",
+    "log_bouts_diff",
+    "log_minutes_diff",
+    "striking_matchup_edge",
+    "wrestling_matchup_edge",
+    "grappling_matchup_edge",
+    "finishing_matchup_edge",
+    "pace_pressure_edge",
+    "recent_schedule_edge",
+    "technical_evidence_edge",
+    "elo_evidence_edge"
+  ],
+  "matched_bouts_since_2018": 3439,
+  "final_train_bouts_2018_2022": 1923,
+  "evaluation_bouts_2023_plus": 1516,
+  "results": {
+    "predictor_v01": {
+      "bouts": 1516,
+      "accuracy": 0.6319261213720316,
+      "brier": 0.2282271114132056,
+      "log_loss": 0.6485401144929406
+    },
+    "calibrated_elo": {
+      "bouts": 1516,
+      "accuracy": 0.5471635883905013,
+      "brier": 0.2458832503865032,
+      "log_loss": 0.6848227599490331
+    },
+    "calibrated_cmr": {
+      "bouts": 1516,
+      "accuracy": 0.5257255936675461,
+      "brier": 0.24789737514657842,
+      "log_loss": 0.688905070990721
+    }
+  },
+  "established": {
+    "definition": "Both fighters have at least five prior rated bouts",
+    "predictor_v01": {
+      "bouts": 683,
+      "accuracy": 0.623718887262079,
+      "brier": 0.2324628706428902,
+      "log_loss": 0.6578693418470184
+    },
+    "calibrated_elo": {
+      "bouts": 683,
+      "accuracy": 0.5256222547584187,
+      "brier": 0.24681025003393445,
+      "log_loss": 0.6866300428026598
+    }
+  },
+  "predictor_minus_elo_brier_95_interval": [-0.022992873934559618, -0.01263948696125462],
+  "calibration": [
+    {"range":"10-20%","bouts":10,"mean_predicted":0.1721961034939871,"observed_win_rate":0.4},
+    {"range":"20-30%","bouts":64,"mean_predicted":0.2624163281083326,"observed_win_rate":0.359375},
+    {"range":"30-40%","bouts":215,"mean_predicted":0.35901301506558025,"observed_win_rate":0.28837209302325584},
+    {"range":"40-50%","bouts":392,"mean_predicted":0.45236522180822614,"observed_win_rate":0.49489795918367346},
+    {"range":"50-60%","bouts":475,"mean_predicted":0.5467421228472674,"observed_win_rate":0.6189473684210526},
+    {"range":"60-70%","bouts":270,"mean_predicted":0.6429867626800946,"observed_win_rate":0.7111111111111111},
+    {"range":"70-80%","bouts":76,"mean_predicted":0.73759655890122,"observed_win_rate":0.8421052631578947},
+    {"range":"80-90%","bouts":14,"mean_predicted":0.8331041765385316,"observed_win_rate":0.7142857142857143}
+  ],
+  "per_year": {
+    "2023": {"predictor_v01":{"bouts":389,"accuracy":0.6118251928020566,"brier":0.23639019885906054,"log_loss":0.665927790832392},"calibrated_elo":{"bouts":389,"accuracy":0.5282776349614395,"brier":0.24843773845015743,"log_loss":0.6900006183148415}},
+    "2024": {"predictor_v01":{"bouts":428,"accuracy":0.6378504672897196,"brier":0.22324206401830946,"log_loss":0.6375595635646967},"calibrated_elo":{"bouts":428,"accuracy":0.544392523364486,"brier":0.2454275645373625,"log_loss":0.6837962538096417}},
+    "2025": {"predictor_v01":{"bouts":425,"accuracy":0.6258823529411764,"brier":0.22476056349276013,"log_loss":0.6404266098863628},"calibrated_elo":{"bouts":425,"accuracy":0.5623529411764706,"brier":0.24503574114999652,"log_loss":0.6831351833123555}},
+    "2026": {"predictor_v01":{"bouts":274,"accuracy":0.6605839416058394,"brier":0.22980171774446928,"log_loss":0.6535916077741016},"calibrated_elo":{"bouts":274,"accuracy":0.5547445255474452,"brier":0.2442829916718511,"log_loss":0.6816927518977516}}
+  }
+}
