@@ -3,8 +3,10 @@ on:
   pull_request:
     paths:
       - 'scripts/lib/model_v04.mjs'
+      - 'scripts/lib/predictor_v011.mjs'
       - 'scripts/lib/predictor_v02.mjs'
       - 'scripts/validate-cmr-v04.mjs'
+      - 'scripts/validate-predictor-v011.mjs'
       - 'scripts/validate-predictor-v02.mjs'
       - 'scripts/validate-predictor-v01-on-cmr-v04.mjs'
       - 'tests/cmr-v04.test.mjs'
@@ -31,11 +33,14 @@ jobs:
         run: npm run cmr04:validate -- --stats .cache/refresh/stats.csv
       - name: Test frozen Predictor 0.1 on CMR 0.4 inputs
         run: node scripts/validate-predictor-v01-on-cmr-v04.mjs --stats .cache/refresh/stats.csv
+      - name: Train and evaluate Predictor 0.1.1 candidate
+        run: npm run predictor011:validate
       - name: Train and evaluate Predictor 0.2 candidate
         run: npm run predictor02:validate
       - name: Summarize candidate
         run: |
           node -e "const r=require('./.cache/cmr-v04-validation.json'); console.log('CMR 0.4', r.results.cmr_v04); console.log('CMR 0.3', r.results.cmr_v03);"
+          node -e "const r=require('./.cache/predictor-v011-validation.json'); console.log('Predictor 0.1.1', r.results.predictor_v011_candidate); console.log('vs 0.1', r.comparison_to_published_predictor_v01); console.log('Promotion gate', r.promotion_gate);"
           node -e "const r=require('./.cache/predictor-v02-validation.json'); console.log('Predictor 0.2', r.results.predictor_v02_candidate); console.log('Promotion gate', r.promotion_gate);"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -44,6 +49,8 @@ jobs:
           path: |
             .cache/refresh/summary.json
             .cache/cmr-v04-validation.json
+            .cache/predictor-v011-validation.json
+            .cache/predictor-v011-predictions.json
             .cache/predictor-v02-validation.json
             .cache/predictor-v02-predictions.json
           retention-days: 14
