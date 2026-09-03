@@ -1,8 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {confirmedResult,resultCheckDue} from '../src/live-results.ts';
+import {confirmedResult,resultCheckDue,liveFeedBouts} from '../src/live-results.ts';
 const stored={id:1,source_key:'ufc:12947:umar-nurmagomedov:song-yadong',fighter_a_id:10,fighter_b_id:20,fighter_a_name:'Umar Nurmagomedov',fighter_b_name:'Song Yadong',fighter_a_slug:'umar-nurmagomedov',fighter_b_slug:'song-yadong'};
 const official={officialId:'12947',red:'Umar Nurmagomedov',blue:'Song Yadong',redSlug:'umar-nurmagomedov',blueSlug:'song-yadong',redOutcome:'loss',blueOutcome:'win',methods:['KO/TKO','KO/TKO'],rounds:['2','2'],times:['1:48','1:48'],sourceStatus:''};
+test('UFC live feed grades only Final fights, never Live or Over with an unofficial winner',()=>{
+ const fight={FightId:12947,Status:'Final',Fighters:[{Corner:'Red',Name:{FirstName:'Umar',LastName:'Nurmagomedov'},UFCLink:'http://www.ufc.com/athlete/Umar-Nurmagomedov',Outcome:{Outcome:'Loss'}},{Corner:'Blue',Name:{FirstName:'Song',LastName:'Yadong'},UFCLink:'http://www.ufc.com/athlete/Song-Yadong',Outcome:{Outcome:'Win'}}],Result:{Method:'KO/TKO',EndingRound:2,EndingTime:'1:48'}};
+ const payload={LiveEventDetail:{EventId:1326,FightCard:[fight]}};
+ assert.equal(confirmedResult(liveFeedBouts(payload,'1326')[0],stored).winner_id,20);
+ for(const Status of ['Live','Over','Upcoming'])assert.equal(confirmedResult(liveFeedBouts({LiveEventDetail:{EventId:1326,FightCard:[{...fight,Status}]}},'1326')[0],stored),null);
+ assert.throws(()=>liveFeedBouts(payload,'1327'),/mismatch/);
+});
 test('live results require a complete final outcome and survive reversed corners',()=>{
  assert.equal(confirmedResult(official,stored).winner_id,20);
  assert.equal(confirmedResult({...official,red:official.blue,blue:official.red,redSlug:official.blueSlug,blueSlug:official.redSlug,redOutcome:'win',blueOutcome:'loss'},stored).winner_id,20);

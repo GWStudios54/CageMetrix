@@ -376,7 +376,7 @@ async function forecasts(env: Env): Promise<Response> {
     policy: 'Only predictions saved before the event starts are graded. Draws, no-contests, cancellations and 50/50 no-picks are excluded. Historical backtests are separate.'
   }, meta: { model_version:'0.1.0', data:await dataStatus(env), live_results: {
     poll_seconds:RESULT_POLL_SECONDS,page_refresh_seconds:PAGE_POLL_SECONDS,
-    scheduler:parseJson(pollerRow?.value),source:'UFC official event cards'
+    scheduler:parseJson(pollerRow?.value),source:'UFC official live results feed'
   } } }, {}, 15);
 }
 
