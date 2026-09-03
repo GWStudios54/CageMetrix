@@ -6,13 +6,15 @@
   <meta name="description" content="CageMetrix fighter profile with opponent-adjusted MMA ratings, raw statistics and divisional ranks." />
   <meta name="robots" content="index,follow" />
   <title>Fighter — CageMetrix</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/fighter.css" />
+  <link rel="stylesheet" href="/explorer.css" />
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="CageMetrix home">
-      <span class="brand-mark">CM</span>
+      <img class="brand-mark" src="/logo.svg" alt="" width="44" height="44" />
       <span>CageMetrix</span>
     </a>
     <nav>
@@ -23,15 +25,17 @@
   </header>
 
   <main class="fighter-page" id="fighter-page">
-    <div class="fighter-loading" id="fighter-loading">Loading fighter profile…</div>
+    <div class="fighter-loading" id="fighter-loading" role="status">Loading fighter profile…</div>
 
     <section class="fighter-hero" id="fighter-content" hidden>
-      <a class="back-link" href="/#rankings">← Back to rankings</a>
+      <a class="back-link" id="back-to-rankings" href="/#rankings">← Back to rankings</a>
       <div class="fighter-hero-grid">
+        <div id="fighter-portrait"></div>
         <div>
           <div class="eyebrow" id="fighter-division">CAGEMETRIX FIGHTER PROFILE</div>
           <h1 class="fighter-name" id="fighter-name">Fighter</h1>
           <p class="fighter-meta" id="fighter-meta"></p>
+          <p class="fighter-meta" id="fighter-snapshot"></p>
         </div>
         <div class="cmr-lockup">
           <span>RANKED CMR</span>
@@ -100,6 +104,7 @@
     <span>CageMetrix</span>
     <span>Transparent, opponent-adjusted MMA analytics.</span>
   </footer>
+  <script src="/fighter-media.js" defer></script>
   <script src="/fighter.js" defer></script>
 </body>
 </html>

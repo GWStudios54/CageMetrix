@@ -30,7 +30,7 @@ function json(data: unknown, init: ResponseInit = {}, cacheSeconds = 0): Respons
 }
 
 async function edgeCached(request: Request, context: ExecutionContext, producer: () => Promise<Response>): Promise<Response> {
-  const cache = caches.default;
+  const cache = (caches as CacheStorage & { default: Cache }).default;
   const cached = await cache.match(request);
   if (cached) return cached;
 
@@ -223,6 +223,8 @@ async function rankings(request: Request, env: Env): Promise<Response> {
   const weightClass = (url.searchParams.get("weight_class") || "").trim();
   const activeOnly = url.searchParams.get("active") !== "false";
   const limit = intParam(url.searchParams.get("limit"), 50, 1, 200);
+  const offset = intParam(url.searchParams.get("offset"), 0, 0, 1_000_000);
+  const query = (url.searchParams.get("q") || "").trim().slice(0, 100);
   // One current-division bout is enough to appear, but small samples remain PROVISIONAL.
   const minBouts = intParam(url.searchParams.get("min_bouts"), 1, 0, 100);
   const metric = (url.searchParams.get("metric") || "cmr").trim();
@@ -240,9 +242,17 @@ async function rankings(request: Request, env: Env): Promise<Response> {
   }
 
   if (activeOnly) clauses.push("f.active = 1");
-  bindings.push(limit);
+
+  // Rank the whole selected field before searching, so finding a fighter does
+  // not turn their divisional rank into #1. Treat LIKE wildcards literally.
+  const searchClause = query
+    ? `WHERE name LIKE ?${bindings.length + 1} ESCAPE '\\' OR slug LIKE ?${bindings.length + 1} ESCAPE '\\'`
+    : "";
+  if (query) bindings.push(`%${query.replace(/[\\%_]/g, "\\$&")}%`);
+  bindings.push(limit, offset);
 
   const result = await env.DB.prepare(`
+    WITH ranked AS (
     SELECT
       f.id,
       f.slug,
@@ -257,19 +267,24 @@ async function rankings(request: Request, env: Env): Promise<Response> {
       rh.sample_minutes,
       rh.components_json,
       rh.as_of_date,
-      ${sortColumn} AS metric_value
+      ${sortColumn} AS metric_value,
+      ROW_NUMBER() OVER (ORDER BY ${sortColumn} DESC, rh.confidence DESC, f.name COLLATE NOCASE, f.id) AS rank
     FROM fighters f
     JOIN ratings_history rh
       ON rh.fighter_id = f.id
      AND rh.model_version_id = ${currentModelIdSql()}
     WHERE ${clauses.join(" AND ")}
-    ORDER BY metric_value DESC, rh.confidence DESC, f.name COLLATE NOCASE
-    LIMIT ?${bindings.length}
+    )
+    SELECT *, COUNT(*) OVER () AS total
+    FROM ranked
+    ${searchClause}
+    ORDER BY rank
+    LIMIT ?${bindings.length - 1} OFFSET ?${bindings.length}
   `).bind(...bindings).all();
 
   const rows = result.results.map((row: any) => {
     const components = parseJson(row.components_json);
-    const { components_json, ...clean } = row;
+    const { components_json, total, ...clean } = row;
     return {
       ...clean,
       performance_cmr: components?.performance_cmr ?? row.cmr,
@@ -280,7 +295,12 @@ async function rankings(request: Request, env: Env): Promise<Response> {
 
   return json({
     data: rows,
-    meta: { metric, weight_class: weightClass || null, active_only: activeOnly, min_bouts: minBouts, limit, model_version: env.MODEL_VERSION }
+    meta: {
+      metric, weight_class: weightClass || null, active_only: activeOnly,
+      min_bouts: minBouts, limit, offset, query,
+      total: Number(result.results[0]?.total || 0),
+      model_version: env.MODEL_VERSION
+    }
   }, {}, 600);
 }
 
@@ -295,14 +315,34 @@ async function divisions(env: Env): Promise<Response> {
   return json({ data: result.results }, {}, 1800);
 }
 
-async function fighterAsset(request: Request, env: Env): Promise<Response> {
+async function fighterAsset(request: Request, env: Env, slug: string): Promise<Response> {
   const assetUrl = new URL(request.url);
   assetUrl.pathname = "/fighter.html";
   assetUrl.search = "";
-  return env.ASSETS.fetch(new Request(assetUrl.toString(), {
+  const response = await env.ASSETS.fetch(new Request(assetUrl.toString(), {
     method: "GET",
     headers: request.headers
   }));
+  const fighter = await env.DB.prepare("SELECT slug, name, current_weight_class FROM fighters WHERE slug = ?1 LIMIT 1").bind(slug).first();
+  if (!fighter) return new Response(response.body, { status: 404, headers: response.headers });
+  const title = `${fighter.name} — CageMetrix`;
+  const description = `${fighter.name}'s opponent-adjusted ${fighter.current_weight_class || "UFC"} ratings, performance breakdown and sample confidence.`;
+  const canonical = `https://cagemetrix.com/fighters/${encodeURIComponent(slug)}`;
+  const escape = (value: string) => value.replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
+  let image = "";
+  try {
+    const photoUrl = new URL("/headshots.json", request.url);
+    const photos = await env.ASSETS.fetch(new Request(photoUrl)).then(r => r.json()) as Record<string, { url: string }>;
+    const candidate = photos[slug]?.url;
+    if (candidate && /^https:\/\/(?:www\.)?ufc\.com\/images\//.test(candidate)) image = candidate;
+  } catch { /* A missing photo must not prevent the fighter profile loading. */ }
+  return new HTMLRewriter()
+    .on("title", { element(el) { el.setInnerContent(title); } })
+    .on('meta[name="description"]', { element(el) { el.setAttribute("content", description); } })
+    .on("head", { element(el) {
+      el.append(`<link rel="canonical" href="${canonical}"><meta property="og:type" content="profile"><meta property="og:url" content="${canonical}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:description" content="${escape(description)}">${image ? `<meta property="og:image" content="${escape(image)}"><meta name="twitter:image" content="${escape(image)}">` : ""}`, { html: true });
+    } })
+    .transform(response);
 }
 
 export default {
@@ -330,7 +370,7 @@ export default {
       if (request.method === "GET" && url.pathname.startsWith("/fighters/")) {
         const slug = decodeURIComponent(url.pathname.slice("/fighters/".length).replace(/\/$/, ""));
         if (!slug || slug.includes("/")) return Response.redirect(new URL("/#rankings", request.url), 302);
-        return fighterAsset(request, env);
+        return fighterAsset(request, env, slug);
       }
 
       return json({ error: "not_found" }, { status: 404 });
