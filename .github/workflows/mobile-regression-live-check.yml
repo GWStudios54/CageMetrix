@@ -28,7 +28,7 @@ jobs:
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
-          await page.goto(`${base}/?v=${Date.now()}`,{waitUntil:'networkidle'});
+          await page.goto(`${base}/?v=${Date.now()}`,{waitUntil:'domcontentloaded'});
           const spotlight=page.locator('.event-spotlight');
           await spotlight.waitFor();
           const box=await spotlight.boundingBox();
@@ -39,8 +39,8 @@ jobs:
           assert.equal(color,'rgb(255, 255, 255)',`CTA text is not white: ${color}`);
           await page.screenshot({path:'diagnostics/home-mobile.png',fullPage:true});
 
-          await page.goto(`${base}/fights/1?v=${Date.now()}`,{waitUntil:'networkidle'});
-          await page.locator('#fan-prediction .fans-side h3').first().waitFor();
+          await page.goto(`${base}/fights/1?v=${Date.now()}`,{waitUntil:'domcontentloaded'});
+          await page.locator('#fan-prediction .fans-side h3').first().waitFor({timeout:15000});
           const [fight,fans]=await page.evaluate(async()=>Promise.all([
             fetch('/api/fights/1',{cache:'no-store'}).then(r=>r.json()),
             fetch('/api/fights/1/fans',{cache:'no-store'}).then(r=>r.json())
