@@ -8,7 +8,7 @@ permissions:
 jobs:
   sweep:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -19,11 +19,14 @@ jobs:
       - name: Find licensed Wikimedia fighter photos
         shell: bash
         run: |
+          rm -rf diagnostics/photo-sweep
           mkdir -p diagnostics/photo-sweep/images
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
+          import path from 'node:path';
           const headshots=JSON.parse(fs.readFileSync('public/headshots.json','utf8'));
           const slugify=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+          const clean=v=>String(v||'').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/\s+/g,' ').trim();
           const forecasts=await fetch('https://cagemetrix.aarin54.workers.dev/api/forecasts',{headers:{accept:'application/json'}}).then(r=>r.json());
           const fighters=new Map();
           for(const row of forecasts.data||[]){
@@ -33,45 +36,85 @@ jobs:
               if(name&&slug&&!headshots[slug]) fighters.set(slug,name);
             }
           }
-          async function wikiCandidate(name,lang){
-            const params=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'pageimages',piprop:'name|original|thumbnail',pithumbsize:'800',redirects:'1',titles:name});
+
+          async function wikiPagesByTitles(titles,lang){
+            if(!titles.length)return [];
+            const params=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'pageimages',piprop:'name|original|thumbnail',pithumbsize:'800',redirects:'1',titles:titles.join('|')});
             const data=await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`).then(r=>r.json()).catch(()=>null);
-            const page=Object.values(data?.query?.pages||{})[0];
-            if(!page||page.missing!==undefined||!page.pageimage)return null;
-            return {lang,title:page.title,file:page.pageimage,thumb:page.thumbnail?.source||page.original?.source};
+            return Object.values(data?.query?.pages||{}).filter(p=>p&&p.missing===undefined&&p.pageimage).map(p=>({lang,title:p.title,file:p.pageimage,thumb:p.thumbnail?.source||p.original?.source,via:'wikipedia'}));
+          }
+          async function wikiSearch(name,lang){
+            const params=new URLSearchParams({action:'query',format:'json',origin:'*',list:'search',srlimit:'5',srsearch:`\"${name}\" mixed martial arts`});
+            const data=await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`).then(r=>r.json()).catch(()=>null);
+            return (data?.query?.search||[]).map(x=>x.title);
           }
           async function commonsInfo(file){
-            const params=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'imageinfo',iiprop:'url|size|extmetadata',iiurlwidth:'800',titles:`File:${file}`});
+            const params=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'imageinfo',iiprop:'url|size|extmetadata',iiurlwidth:'800',titles:file.startsWith('File:')?file:`File:${file}`});
             const data=await fetch(`https://commons.wikimedia.org/w/api.php?${params}`).then(r=>r.json()).catch(()=>null);
             const page=Object.values(data?.query?.pages||{})[0];
             const ii=page?.imageinfo?.[0];
             if(!ii)return null;
             const m=ii.extmetadata||{};
-            const license=(m.LicenseShortName?.value||m.License?.value||'').replace(/<[^>]+>/g,'').trim();
-            const author=(m.Artist?.value||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-            const source=(m.Credit?.value||m.Source?.value||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+            const license=clean(m.LicenseShortName?.value||m.License?.value||'');
+            const author=clean(m.Artist?.value||'');
+            const source=clean(m.Credit?.value||m.Source?.value||'');
+            const description=clean(m.ImageDescription?.value||m.ObjectName?.value||'');
             const allowed=/CC BY|CC0|Public domain|PD-/i.test(license);
-            return {url:ii.thumburl||ii.url,source_url:ii.descriptionurl,license,author,source,width:ii.width,height:ii.height,allowed};
+            return {url:ii.thumburl||ii.url,source_url:ii.descriptionurl,license,author,source,description,width:ii.width,height:ii.height,allowed};
           }
+          async function commonsSearch(name){
+            const params=new URLSearchParams({action:'query',format:'json',origin:'*',generator:'search',gsrnamespace:'6',gsrlimit:'8',gsrsearch:`\"${name}\"`,prop:'imageinfo',iiprop:'url|size|extmetadata',iiurlwidth:'800'});
+            const data=await fetch(`https://commons.wikimedia.org/w/api.php?${params}`).then(r=>r.json()).catch(()=>null);
+            const pages=Object.values(data?.query?.pages||{});
+            return pages.map(page=>{
+              const ii=page?.imageinfo?.[0]; if(!ii)return null;
+              const m=ii.extmetadata||{};
+              const license=clean(m.LicenseShortName?.value||m.License?.value||'');
+              return {lang:'commons',title:page.title,file:page.title.replace(/^File:/,''),thumb:ii.thumburl||ii.url,via:'commons-search',url:ii.thumburl||ii.url,source_url:ii.descriptionurl,license,author:clean(m.Artist?.value||''),source:clean(m.Credit?.value||m.Source?.value||''),description:clean(m.ImageDescription?.value||m.ObjectName?.value||''),width:ii.width,height:ii.height,allowed:/CC BY|CC0|Public domain|PD-/i.test(license)};
+            }).filter(Boolean);
+          }
+
+          async function discover(name){
+            const candidates=[];
+            const seen=new Set();
+            const add=async c=>{
+              if(!c)return;
+              let row=c;
+              if(!row.url){const info=await commonsInfo(row.file); if(!info)return; row={...row,...info};}
+              if(!row.allowed||!row.url||!row.source_url||seen.has(row.source_url))return;
+              if(Number(row.width||0)<240||Number(row.height||0)<240)return;
+              seen.add(row.source_url); candidates.push(row);
+            };
+            for(const lang of ['en','fr','de','es','pt','ru']){
+              const exact=await wikiPagesByTitles([name],lang); for(const c of exact)await add(c);
+              if(candidates.length>=3)break;
+              const titles=await wikiSearch(name,lang); const pages=await wikiPagesByTitles(titles,lang); for(const c of pages)await add(c);
+              if(candidates.length>=3)break;
+            }
+            if(candidates.length<3){for(const c of await commonsSearch(name))await add(c);}
+            return candidates.slice(0,3);
+          }
+
           const out=[];
           for(const [slug,name] of fighters){
-            let hit=null;
-            for(const lang of ['en','fr','de','es','pt','ru']){
-              const c=await wikiCandidate(name,lang);
-              if(c){ const info=await commonsInfo(c.file); if(info?.allowed){hit={slug,name,...c,...info}; break;} }
-            }
-            if(hit){
-              out.push(hit);
+            const candidates=await discover(name);
+            for(let i=0;i<candidates.length;i++){
+              const c=candidates[i];
               try{
-                const res=await fetch(hit.url); if(res.ok){ const buf=Buffer.from(await res.arrayBuffer()); fs.writeFileSync(`diagnostics/photo-sweep/images/${slug}.jpg`,buf); }
+                const res=await fetch(c.url); if(res.ok){
+                  const type=res.headers.get('content-type')||''; const ext=type.includes('png')?'png':type.includes('webp')?'webp':'jpg';
+                  const filename=`${slug}-${i+1}.${ext}`; fs.writeFileSync(path.join('diagnostics/photo-sweep/images',filename),Buffer.from(await res.arrayBuffer())); c.local=filename;
+                }
               }catch{}
-            } else out.push({slug,name,missing:true});
+            }
+            out.push({slug,name,candidates});
           }
           fs.writeFileSync('diagnostics/photo-sweep/candidates.json',JSON.stringify(out,null,2));
-          let html='<!doctype html><meta charset="utf-8"><style>body{font-family:system-ui;background:#111;color:#eee}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}.c{border:1px solid #444;padding:10px}.c img{width:100%;height:260px;object-fit:cover;background:#222}.m{color:#aaa;font-size:12px}</style><div class="g">';
-          for(const x of out){html+=`<div class="c"><strong>${x.name}</strong>${x.missing?'<p class="m">No licensed Wikipedia/Commons lead</p>':`<img src="images/${x.slug}.jpg"><div class="m">${x.file}<br>${x.license}<br>${x.width}×${x.height}</div>`}</div>`;} html+='</div>';
+          let html='<!doctype html><meta charset="utf-8"><style>body{font-family:system-ui;background:#111;color:#eee;margin:20px}.fighter{margin:0 0 38px}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}.c{border:1px solid #444;padding:10px;background:#181818}.c img{width:100%;height:280px;object-fit:cover;background:#222}.m{color:#aaa;font-size:12px;overflow-wrap:anywhere}.none{color:#777}</style>';
+          for(const x of out){html+=`<section class="fighter"><h2>${x.name}</h2>`; if(!x.candidates.length){html+='<p class="none">No licensed candidate found.</p></section>';continue;} html+='<div class="g">'; for(const c of x.candidates){html+=`<div class="c">${c.local?`<img src="images/${c.local}">`:''}<div class="m">${c.file}<br>${c.license}<br>${c.width}×${c.height}<br>${c.description||''}</div></div>`;} html+='</div></section>';}
           fs.writeFileSync('diagnostics/photo-sweep/index.html',html);
-          console.log(JSON.stringify({missingPool:fighters.size,candidates:out.filter(x=>!x.missing).length,missing:out.filter(x=>x.missing).map(x=>x.name)},null,2));
+          const found=out.filter(x=>x.candidates.length);
+          console.log(JSON.stringify({missingPool:fighters.size,fightersWithCandidates:found.length,totalCandidates:found.reduce((n,x)=>n+x.candidates.length,0),names:found.map(x=>x.name)},null,2));
           NODE
       - uses: actions/upload-artifact@v4
         with:
