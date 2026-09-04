@@ -13,8 +13,8 @@ if spec is None or spec.loader is None:
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
-# Cloudflare D1 rejects the 500-row multi-value statements produced by the
-# base loader as SQLITE_TOOBIG. Keep each statement intentionally small; the
-# existing file chunker will still group multiple statements per upload.
+# Cloudflare D1 rejects the original 500-row multi-value statements as
+# SQLITE_TOOBIG. Twenty-five rows keeps each SQL statement comfortably below
+# the remote statement limit while preserving the base loader's file chunking.
 module.ROWS_PER_INSERT = 25
 module.main()
