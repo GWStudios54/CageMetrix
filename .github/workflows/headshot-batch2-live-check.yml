@@ -1,0 +1,66 @@
+name: Verify headshot batch 2 live
+on:
+  push:
+    branches:
+      - diagnostic/headshot-batch2-live
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify live catalogs, portraits, and credits
+        shell: bash
+        run: |
+          mkdir -p diagnostics/headshot-batch2-live
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { chromium } from 'playwright';
+          const base='https://cagemetrix.aarin54.workers.dev';
+          const fetchJson=async path=>{
+            const r=await fetch(`${base}${path}?live_check=${Date.now()}`,{headers:{accept:'application/json'},cache:'no-store'});
+            assert.equal(r.status,200,`${path} status ${r.status}`);
+            return r.json();
+          };
+          const first=await fetchJson('/headshots.json');
+          const second=await fetchJson('/headshots-batch2.json');
+          assert.equal(Object.keys(first).length,17,'legacy catalog should have 17 entries');
+          assert.equal(Object.keys(second).length,8,'batch 2 catalog should have 8 entries');
+          const expected=['islam-makhachev','ilia-topuria','valentina-shevchenko','brandon-moreno','charles-oliveira','nassourdine-imavov','justin-gaethje','jiri-prochazka'];
+          for(const slug of expected) assert.ok(second[slug],`batch 2 missing ${slug}`);
+
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          const results=[];
+          for(const slug of ['islam-makhachev','ilia-topuria','brandon-moreno','charles-oliveira','jiri-prochazka']){
+            await page.goto(`${base}/fighters/${slug}?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+            const img=page.locator('img.portrait-photo').first();
+            await img.waitFor({state:'visible',timeout:15000});
+            await page.waitForFunction(()=>{const el=document.querySelector('img.portrait-photo');return el&&el.complete&&el.naturalWidth>0&&el.naturalHeight>0;},null,{timeout:15000});
+            const data=await img.evaluate(el=>({src:el.currentSrc,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,rect:el.getBoundingClientRect().toJSON()}));
+            assert.ok(data.naturalWidth>=450&&data.naturalHeight>=500,`${slug} source too small/broken: ${JSON.stringify(data)}`);
+            assert.ok(data.rect.width>=100&&data.rect.height>=100,`${slug} portrait not visibly rendered`);
+            results.push({slug,...data});
+            await page.screenshot({path:`diagnostics/headshot-batch2-live/${slug}.png`,fullPage:false});
+          }
+          await page.goto(`${base}/photo-credits.html?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+          await page.getByText('25 licensed fighter photos currently in the CageMetrix catalog.').waitFor({state:'visible',timeout:15000});
+          assert.equal(await page.locator('.credit').count(),25,'credits page should render all 25 photos');
+          await page.screenshot({path:'diagnostics/headshot-batch2-live/photo-credits.png',fullPage:false});
+          console.log(JSON.stringify({catalogs:{first:Object.keys(first).length,second:Object.keys(second).length,total:Object.keys(first).length+Object.keys(second).length},results,credits:25},null,2));
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: headshot-batch2-live
+          path: diagnostics/headshot-batch2-live/
+          retention-days: 7
