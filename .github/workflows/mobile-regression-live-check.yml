@@ -29,6 +29,23 @@ jobs:
           const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
           await page.goto(`${base}/?v=${Date.now()}`,{waitUntil:'domcontentloaded'});
+
+          const topbar=page.locator('.topbar');
+          const brand=topbar.locator('.brand');
+          const nav=topbar.locator('nav');
+          await topbar.waitFor();
+          const [topbarBox,brandBox,navBox,navMetrics]=await Promise.all([
+            topbar.boundingBox(),brand.boundingBox(),nav.boundingBox(),
+            nav.evaluate(el=>({scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight}))
+          ]);
+          assert.ok(topbarBox&&topbarBox.x>=0&&topbarBox.x+topbarBox.width<=413,`header overflowed mobile viewport: ${JSON.stringify(topbarBox)}`);
+          assert.ok(brandBox&&navBox&&navBox.y>=brandBox.y+brandBox.height,`navigation did not move below the brand row: brand=${JSON.stringify(brandBox)} nav=${JSON.stringify(navBox)}`);
+          assert.ok(navMetrics.scrollWidth<=navMetrics.clientWidth+1,`navigation still requires horizontal scrolling: ${JSON.stringify(navMetrics)}`);
+          assert.ok(navMetrics.scrollHeight<=navMetrics.clientHeight+1,`navigation links wrapped vertically: ${JSON.stringify(navMetrics)}`);
+          const navLinks=await nav.locator('a').evaluateAll(links=>links.map(el=>({text:el.textContent?.trim(),whiteSpace:getComputedStyle(el).whiteSpace,rect:el.getBoundingClientRect().toJSON()})));
+          assert.ok(navLinks.length>=3,'expected primary navigation links');
+          assert.ok(navLinks.every(link=>link.whiteSpace==='nowrap'),`mobile nav link wrapping is enabled: ${JSON.stringify(navLinks)}`);
+
           const spotlight=page.locator('.event-spotlight');
           await spotlight.waitFor();
           const box=await spotlight.boundingBox();
@@ -57,7 +74,7 @@ jobs:
           assert.ok(driverText.includes('UFC sample & uncertainty adjustment'),'UFC sample/uncertainty label was not applied');
           assert.ok(driverText.includes('not a claim that the favored fighter has more UFC experience'),'experience disclaimer is missing');
           await page.screenshot({path:'diagnostics/fight-mobile.png',fullPage:true});
-          console.log(JSON.stringify({version,a:fight.prediction.fighter_a_probability,b:fight.prediction.fighter_b_probability,ctaColor:color,edgeLabels},null,2));
+          console.log(JSON.stringify({version,a:fight.prediction.fighter_a_probability,b:fight.prediction.fighter_b_probability,ctaColor:color,topbarBox,brandBox,navBox,navMetrics,navLinks,edgeLabels},null,2));
           await browser.close();
           NODE
       - uses: actions/upload-artifact@v4
