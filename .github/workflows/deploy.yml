@@ -14,13 +14,21 @@ on:
       - 'scripts/refresh-ufc-history.py'
       - 'scripts/refresh-ufc-history-small.py'
       - 'scripts/refresh-ufc-history.mjs'
+      - 'scripts/refresh-data.mjs'
+      - 'scripts/sync-forecasts.mjs'
+      - 'scripts/lib/dataset.mjs'
+      - 'scripts/lib/forecast.mjs'
       - 'scripts/lib/warehouse-history.mjs'
       - 'scripts/lib/warehouse-prior.mjs'
       - 'scripts/lib/predictor_v02.mjs'
       - 'scripts/benchmark-warehouse-models.mjs'
+      - 'scripts/validate-predictor-v02-common.mjs'
       - 'tests/warehouse-history.test.mjs'
+      - 'wrangler.jsonc'
       - '.github/workflows/mma-master-sync.yml'
       - '.github/workflows/warehouse-model-benchmark.yml'
+      - '.github/workflows/predictor-v02-common-validation.yml'
+      - '.github/workflows/model-promotion.yml'
   workflow_dispatch:
 
 concurrency:
