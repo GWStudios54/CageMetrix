@@ -7,6 +7,8 @@ import { nameKey } from './lib/recent-source.mjs';
 import { fighterIdentity } from './lib/identity.mjs';
 import { FORECAST_NAME, FORECAST_VERSION, FORECAST_PARAMETERS, forecast } from './lib/forecast.mjs';
 import { predictionSnapshot } from './lib/prediction-snapshot.mjs';
+import { applyWarehousePrior, normalizeFighterName } from './lib/warehouse-prior.mjs';
+import { PREDICTOR_V02_PRIOR_OPTIONS } from './lib/predictor_v02.mjs';
 
 const args = process.argv.slice(2), remote = args.includes('--remote'), dry = args.includes('--dry-run');
 if (!remote && !dry && !args.includes('--local')) throw new Error('Choose --dry-run, --local or --remote');
@@ -14,14 +16,57 @@ const now = new Date().toISOString();
 const dataset = prepareDataset(readFileSync('.cache/refresh/stats.csv','utf8'),readFileSync('.cache/refresh/details.csv','utf8'),now);
 const byName = new Map(dataset.fighters.map(f => [nameKey(f.name), f]));
 const bySlug = new Map(dataset.fighters.map(f => [f.slug, f]));
-const ratings = new Map(dataset.ratings.map(r => [r.fighterId,r]));
+const baseRatings = new Map(dataset.ratings.map(r => [r.fighterId,r]));
 const modelId = `(SELECT id FROM model_versions WHERE name=${q(FORECAST_NAME)} AND version=${q(FORECAST_VERSION)})`;
 const fighterId = slug => `(SELECT id FROM fighters WHERE slug=${q(slug)})`;
+const location = remote ? '--remote' : '--local';
+
+function wrangler(params, capture = false) {
+  return execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js',...params],{
+    encoding:'utf8',stdio:capture?['ignore','pipe','pipe']:'inherit',maxBuffer:20*1024*1024,env:process.env
+  }) || '';
+}
+function d1Rows(statement) {
+  const parsed=JSON.parse(wrangler(['d1','execute','cagemetrix',location,'--command',statement,'--json'],true));
+  const parts=Array.isArray(parsed)?parsed:[parsed];
+  return parts.flatMap(part=>part.results||[]);
+}
+function loadWarehouseSummaries(required=false) {
+  try {
+    const rows=d1Rows(`SELECT f.name AS fighter_name,h.* FROM ufc_fighter_history_summary h JOIN fighters f ON f.id=h.fighter_id WHERE h.pre_ufc_bouts>0 ORDER BY h.fighter_id`);
+    if(required&&rows.length<1000)throw new Error(`Warehouse history coverage is unexpectedly small: ${rows.length}`);
+    const map=new Map();
+    for(const row of rows){const key=normalizeFighterName(row.fighter_name);if(key&&!map.has(key))map.set(key,row);}
+    return map;
+  } catch(error) {
+    if(required)throw error;
+    console.warn('Warehouse history unavailable for dry-run forecast preparation; verified production forecasts require remote history.');
+    return new Map();
+  }
+}
+const warehouseSummaries=loadWarehouseSummaries(remote);
+function ratingFor(fighter) {
+  if(!fighter)return null;
+  const base=baseRatings.get(fighter.id)||null;
+  const summary=warehouseSummaries.get(normalizeFighterName(fighter.name))||null;
+  const rating=applyWarehousePrior(base,summary,PREDICTOR_V02_PRIOR_OPTIONS);
+  if(!rating)return null;
+  return {
+    ...rating,
+    name:fighter.name,
+    warehouseSummary:summary,
+    components:{
+      ...(rating.components||{}),
+      ...(summary?{warehouse_prior:{pre_ufc_bouts:Number(summary.pre_ufc_bouts||0),pre_ufc_wins:Number(summary.pre_ufc_wins||0),pre_ufc_losses:Number(summary.pre_ufc_losses||0),pre_ufc_finishes:Number(summary.pre_ufc_finishes||0),pre_ufc_major_org_bouts:Number(summary.pre_ufc_major_org_bouts||0),prior_score:rating.warehousePrior?.score??null,reliability:rating.warehousePrior?.reliability??null,applied_weight:rating.warehousePriorWeight??0,scope:'completed pre-UFC history only'}}:{})
+    }
+  };
+}
+
 const sql = [
-  // Preserve every Elo forecast under a separate model identity before reusing
-  // the public v0.1 key for Predictor 0.1. This is idempotent on later syncs.
+  // Preserve every historical forecast model. Predictor 0.2 gets a new model
+  // version, so all previously locked Predictor 0.1 predictions remain immutable.
   `UPDATE model_versions SET name='CageMetrix Elo Baseline' WHERE name='CageMetrix Win Probability' AND version='0.1.0' AND description LIKE 'Chronological Elo probabilities%';`,
-  `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(FORECAST_NAME)},${q(FORECAST_VERSION)},'prediction','production','Frozen Predictor 0.1 skill-interaction probabilities using CMR components plus Elo; no betting-market inputs. Unrated UFC debutants use the documented neutral-start Elo fallback.',${q(JSON.stringify(FORECAST_PARAMETERS))},${q(FORECAST_PARAMETERS.trained_through)}) ON CONFLICT(name,version) DO NOTHING;`
+  `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(FORECAST_NAME)},${q(FORECAST_VERSION)},'prediction','production','Frozen Predictor 0.2 probabilities using UFC CMR/technical evidence plus verified completed pre-UFC résumé context for fighters who reached the UFC; no betting-market inputs.',${q(JSON.stringify(FORECAST_PARAMETERS))},${q(FORECAST_PARAMETERS.trained_through)}) ON CONFLICT(name,version) DO UPDATE SET status='production',description=excluded.description,parameters_json=excluded.parameters_json,training_window_end=excluded.training_window_end;`
 ];
 async function html(url) {
   const response = await fetch(url,{signal:AbortSignal.timeout(45000)});
@@ -38,7 +83,6 @@ for (const url of urls) {
   const dom = new JSDOM(pageHtml), doc = dom.window.document;
   const mainTimestamp = Number(doc.querySelector('[data-timestamp]')?.getAttribute('data-timestamp'));
   if (!Number.isFinite(mainTimestamp) || !mainTimestamp) { dom.window.close(); continue; }
-  const mainTime = new Date(mainTimestamp * 1000).toISOString();
   // Include prelims on the same card, not press conferences/weigh-ins elsewhere on the page.
   const timestamps = [...doc.querySelectorAll('[data-timestamp]')].map(e=>Number(e.getAttribute('data-timestamp'))).filter(t=>t >= mainTimestamp-12*3600 && t<=mainTimestamp);
   const startsAt = new Date(Math.min(...timestamps)*1000).toISOString();
@@ -62,8 +106,9 @@ for (const url of urls) {
     for (const f of [a,b]) sql.push(`INSERT INTO fighters (slug,name,current_weight_class,active,roster_status,status_source) VALUES (${q(f.slug)},${q(f.name)},${q(division)},1,'active','Official upcoming UFC card') ON CONFLICT(slug) DO NOTHING;`);
     const sourceKey = `ufc:${card.dataset.fmid}:${[a.slug,b.slug].sort().join(':')}`;
     const boutId = `(SELECT id FROM bouts WHERE source_key=${q(sourceKey)})`;
-    const probabilities = forecast(ratings.get(a.id),ratings.get(b.id),{a:a.name,b:b.name});
-    const snapshot = predictionSnapshot({a,b,ratingA:ratings.get(a.id),ratingB:ratings.get(b.id),probabilities,snapshotKey:dataset.snapshotKey,sourceMaxDate:dataset.sourceMaxDate,lockedAt:now});
+    const ratingA=ratingFor(a),ratingB=ratingFor(b);
+    const probabilities = forecast(ratingA,ratingB,{a:a.name,b:b.name});
+    const snapshot = predictionSnapshot({a,b,ratingA,ratingB,probabilities,snapshotKey:dataset.snapshotKey,sourceMaxDate:dataset.sourceMaxDate,lockedAt:now});
     sql.push(`INSERT INTO bouts (event_id,bout_order,fighter_a_id,fighter_b_id,weight_class,scheduled_rounds,status,source_key) VALUES (${eventId},${index},${fighterId(a.slug)},${fighterId(b.slug)},${q(division)},${index===0||/Title/.test(division)?5:3},'scheduled',${q(sourceKey)}) ON CONFLICT(source_key) WHERE source_key IS NOT NULL DO NOTHING;`);
     sql.push(`INSERT INTO predictions (bout_id,model_version_id,created_at,locked_at,fighter_a_probability,fighter_b_probability,confidence,sample_strength,picked_fighter_id,input_snapshot_key,top_factors_json,notes,input_snapshot_json) VALUES (${boutId},${modelId},${q(now)},${q(now)},${probabilities.probabilityA},${probabilities.probabilityB},NULL,${probabilities.sampleStrength},${probabilities.pick ? fighterId(probabilities.pick==='a'?a.slug:b.slug) : 'NULL'},${q(dataset.snapshotKey)},${q(JSON.stringify(probabilities.drivers || []))},${q(probabilities.notes)},${q(JSON.stringify(snapshot))}) ON CONFLICT(bout_id,model_version_id,context_adjusted) DO NOTHING;`);
     bouts.push({sourceKey,a:a.name,b:b.name,...probabilities});
@@ -94,7 +139,7 @@ mkdirSync('.cache/forecasts',{recursive:true});
 writeFileSync('.cache/forecasts/forecasts.sql',sql.join('\n'));
 writeFileSync('.cache/forecasts/summary.json',JSON.stringify(cards,null,2));
 if (!dry) {
-  const output=execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','cagemetrix',remote?'--remote':'--local','--file','.cache/forecasts/forecasts.sql'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:20*1024*1024});
+  const output=wrangler(['d1','execute','cagemetrix',location,'--file','.cache/forecasts/forecasts.sql'],true);
   writeFileSync('.cache/forecasts/wrangler-output.log',output);
 }
-console.log(`Saved ${cards.length} upcoming cards with ${cards.reduce((n,c)=>n+c.bouts.length,0)} Predictor 0.1 forecasts; existing predictions remain locked.`);
+console.log(`Saved ${cards.length} upcoming cards with ${cards.reduce((n,c)=>n+c.bouts.length,0)} Predictor 0.2 forecasts; existing predictions remain locked.`);
