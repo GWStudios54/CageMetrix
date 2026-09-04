@@ -4,14 +4,20 @@ on:
   pull_request:
     paths:
       - 'migrations/0012_mma_master_database.sql'
+      - 'migrations/0013_ufc_history_scope.sql'
       - 'scripts/import-mma-master.py'
+      - 'scripts/refresh-ufc-history.mjs'
+      - 'scripts/lib/warehouse-history.mjs'
       - '.github/workflows/mma-master-sync.yml'
   push:
     branches:
       - main
     paths:
       - 'migrations/0012_mma_master_database.sql'
+      - 'migrations/0013_ufc_history_scope.sql'
       - 'scripts/import-mma-master.py'
+      - 'scripts/refresh-ufc-history.mjs'
+      - 'scripts/lib/warehouse-history.mjs'
       - '.github/workflows/mma-master-sync.yml'
   workflow_dispatch:
 
@@ -22,7 +28,7 @@ concurrency:
 jobs:
   prepare-and-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       contents: read
     steps:
@@ -87,29 +93,28 @@ jobs:
           STATUS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT status FROM mma_source_snapshots WHERE source_key='${SOURCE_KEY}' AND snapshot_id='${SNAPSHOT_ID}' LIMIT 1" --json | jq -r '.[0].results[0].status // ""')"
           if [ "$STATUS" = "complete" ]; then
             echo "Snapshot ${SNAPSHOT_ID} is already complete; nothing to write."
-            exit 0
+          else
+            # Wrangler's remote D1 file execution manages transaction boundaries itself
+            # and rejects explicit SQL BEGIN/COMMIT statements. Keep the source chunks
+            # unchanged for auditing, but create transaction-free copies for D1.
+            D1_SQL_DIR=".cache/mma-master/d1-sql"
+            rm -rf "$D1_SQL_DIR"
+            mkdir -p "$D1_SQL_DIR"
+            for file in .cache/mma-master/sql/*.sql; do
+              output="$D1_SQL_DIR/$(basename "$file")"
+              sed -E '/^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT)[[:space:]]*;[[:space:]]*$/Id' "$file" > "$output"
+            done
+
+            if grep -RniE '^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT|SAVEPOINT|RELEASE([[:space:]]+SAVEPOINT)?|ROLLBACK)[[:space:]]' "$D1_SQL_DIR"; then
+              echo "D1-incompatible transaction control remained in generated SQL." >&2
+              exit 1
+            fi
+
+            for file in "$D1_SQL_DIR"/*.sql; do
+              echo "Applying $(basename "$file")"
+              npx wrangler d1 execute cagemetrix --remote --file "$file"
+            done
           fi
-
-          # Wrangler's remote D1 file execution manages transaction boundaries itself
-          # and rejects explicit SQL BEGIN/COMMIT statements. Keep the source chunks
-          # unchanged for auditing, but create transaction-free copies for D1.
-          D1_SQL_DIR=".cache/mma-master/d1-sql"
-          rm -rf "$D1_SQL_DIR"
-          mkdir -p "$D1_SQL_DIR"
-          for file in .cache/mma-master/sql/*.sql; do
-            output="$D1_SQL_DIR/$(basename "$file")"
-            sed -E '/^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT)[[:space:]]*;[[:space:]]*$/Id' "$file" > "$output"
-          done
-
-          if grep -RniE '^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT|SAVEPOINT|RELEASE([[:space:]]+SAVEPOINT)?|ROLLBACK)[[:space:]]' "$D1_SQL_DIR"; then
-            echo "D1-incompatible transaction control remained in generated SQL." >&2
-            exit 1
-          fi
-
-          for file in "$D1_SQL_DIR"/*.sql; do
-            echo "Applying $(basename "$file")"
-            npx wrangler d1 execute cagemetrix --remote --file "$file"
-          done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -130,6 +135,13 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Refresh UFC-linked warehouse history
+        if: github.event_name != 'pull_request'
+        run: node scripts/refresh-ufc-history.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Upload import audit
         if: always()
         uses: actions/upload-artifact@v4
@@ -138,5 +150,6 @@ jobs:
           path: |
             .cache/mma-master/summary.json
             .cache/mma-master/remote-verification.json
+            .cache/mma-master/ufc-history-summary.json
           if-no-files-found: ignore
           retention-days: 14
