@@ -4,6 +4,7 @@ import {contributor,forgetContributor,rememberContributor,updateContributorProfi
 import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
 import {predictorForecasts} from './forecasts.ts';
 import {augmentFighterProfileWithPreUfcHistory} from './fighter-history.ts';
+import {enhanceFightPage,enhanceFighterPage,eventPage,sitemap} from './seo.ts';
 
 interface Env {
   DB:D1Database;
@@ -51,6 +52,12 @@ export default {
   },
   async fetch(request:Request,env:Env,context:ExecutionContext):Promise<Response>{
     const url=new URL(request.url);
+    if(request.method==='GET'&&url.pathname==='/sitemap.xml')return sitemap(env);
+    const eventMatch=url.pathname.match(/^\/events\/([a-z0-9-]{1,180})\/?$/);
+    if(request.method==='GET'&&eventMatch){
+      if(url.pathname.endsWith('/'))return Response.redirect(new URL(`/events/${eventMatch[1]}${url.search}`,request.url),308);
+      return eventPage(request,env,eventMatch[1]);
+    }
     if(request.method==='GET'&&url.pathname==='/api/fans/record')return fanRecord(request,env);
     const notes=url.pathname.match(/^\/api\/fights\/([1-9]\d*)\/notes$/);
     if(notes){
@@ -76,7 +83,7 @@ export default {
     if(url.pathname==='/api/contributors/device'){
       if(request.method==='POST')return rememberContributor(request,env.DB);
       if(request.method==='DELETE')return forgetContributor();
-      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+      return new Response(JSON.stringify({error:'method_not_allowed'},null,2),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
     }
     if(request.method==='GET'&&url.pathname==='/api/forecasts')return forecastsWithFans(request,env);
     const authenticated=withContributorCookie(request);
@@ -84,6 +91,17 @@ export default {
     if(request.method==='GET'&&/^\/api\/fighters\/[^/]+$/.test(url.pathname)){
       const response=await base.fetch(routed,env,context);
       return augmentFighterProfileWithPreUfcHistory(response,env);
+    }
+    const fighterPath=url.pathname.match(/^\/fighters\/([^/]+)\/?$/);
+    if(request.method==='GET'&&fighterPath){
+      const slug=decodeURIComponent(fighterPath[1]);
+      const response=await base.fetch(routed,env,context);
+      return enhanceFighterPage(response,env,slug);
+    }
+    const fightPath=url.pathname.match(/^\/fights\/([1-9]\d*)\/?$/);
+    if(request.method==='GET'&&fightPath){
+      const response=await base.fetch(routed,env,context);
+      return enhanceFightPage(response,env,fightPath[1]);
     }
     return base.fetch(routed,env,context);
   }
