@@ -4,7 +4,8 @@ import {contributor,forgetContributor,rememberContributor,updateContributorProfi
 import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
 import {predictorForecasts} from './forecasts.ts';
 import {augmentFighterProfileWithPreUfcHistory} from './fighter-history.ts';
-import {enhanceFightPage,enhanceFighterPage,eventPage,sitemap} from './seo.ts';
+import {enhanceFightPage,enhanceFighterPage,sitemap} from './seo.ts';
+import {eventPage} from './event-page.ts';
 import {homePage,predictionsPage} from './static-seo.ts';
 
 interface Env {
