@@ -26,7 +26,7 @@ test('fight page does not mislabel model contributions as literal experience edg
   const html=read('public/fight.html');
   const presentation=read('public/fight-presentation.js');
   assert.doesNotMatch(html,/graded against Predictor 0\.1/);
-  assert.match(html,/current public CageMetrix Predictor/);
+  assert.match(html,/current public CageMetrix™ Predictor/);
   assert.match(presentation,/UFC sample & uncertainty adjustment/);
   assert.match(presentation,/Model contribution favors/);
   assert.match(presentation,/not a claim that the favored fighter has more UFC experience/);
