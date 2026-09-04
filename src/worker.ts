@@ -2,6 +2,7 @@ import base from './index.ts';
 import {fanRecord,getFanSummary,saveFanPrediction,saveFanScorecard} from './fans.ts';
 import {contributor,forgetContributor,rememberContributor,updateContributorProfile} from './contributors.ts';
 import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
+import {predictorForecasts} from './forecasts.ts';
 
 interface Env {
   DB:D1Database;
@@ -21,8 +22,13 @@ function withContributorCookie(request:Request){
   const headers=new Headers(request.headers);headers.set('authorization',`Bearer ${token}`);
   return new Request(request,{headers});
 }
-async function forecastsWithFans(request:Request,env:Env,context:ExecutionContext){
-  const response=await base.fetch(request,env,context);if(!response.ok)return response;
+function withModelCacheKey(request:Request,modelVersion:string){
+  if(request.method!=='GET'||!new URL(request.url).pathname.startsWith('/api/'))return request;
+  const url=new URL(request.url);url.searchParams.set('_model_version',modelVersion);
+  return new Request(url,request);
+}
+async function forecastsWithFans(request:Request,env:Env){
+  const response=await predictorForecasts(env);if(!response.ok)return response;
   const payload:any=await response.json();
   const rows=await env.DB.prepare(`SELECT fp.bout_id,COUNT(*) total,
     SUM(CASE WHEN fp.picked_fighter_id=b.fighter_a_id THEN 1 ELSE 0 END) a_votes,
@@ -56,7 +62,7 @@ export default {
       if(match[2]==='fans'&&request.method==='GET')return getFanSummary(request,env,match[1]);
       if(match[2]==='fan-prediction'&&request.method==='PUT')return saveFanPrediction(request,env,match[1]);
       if(match[2]==='fan-scorecard'&&request.method==='PUT')return saveFanScorecard(request,env,match[1]);
-      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+      return new Response(JSON.stringify({error:'method_not_allowed'},null,2),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
     }
     if(url.pathname==='/api/contributors/me'){
       if(request.method==='GET'){
@@ -71,7 +77,8 @@ export default {
       if(request.method==='DELETE')return forgetContributor();
       return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
     }
-    if(request.method==='GET'&&url.pathname==='/api/forecasts')return forecastsWithFans(request,env,context);
-    return base.fetch(withContributorCookie(request),env,context);
+    if(request.method==='GET'&&url.pathname==='/api/forecasts')return forecastsWithFans(request,env);
+    const authenticated=withContributorCookie(request);
+    return base.fetch(withModelCacheKey(authenticated,env.MODEL_VERSION),env,context);
   }
 } satisfies ExportedHandler<Env>;
