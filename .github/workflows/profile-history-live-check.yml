@@ -1,0 +1,39 @@
+name: Verify live provisional fighter history
+on:
+  push:
+    branches:
+      - diagnostic/profile-history-live
+    paths:
+      - '.github/workflows/profile-history-live-check.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check debutant and established profile behavior
+        run: |
+          set -euo pipefail
+          base='https://cagemetrix.aarin54.workers.dev'
+          search=$(curl --fail --silent --show-error "$base/api/fighters?q=Parnasse")
+          echo "$search" > parnasse-search.json
+          slug=$(node -e "const p=JSON.parse(process.argv[1]);const r=(p.data||[]).find(x=>String(x.name||'').toLowerCase().includes('parnasse'));if(!r?.slug)process.exit(2);process.stdout.write(r.slug)" "$search")
+          echo "Parnasse slug: $slug"
+          curl --fail --silent --show-error "$base/api/fighters/$slug" > parnasse-profile.json
+          curl --fail --silent --show-error "$base/api/fighters/arman-tsarukyan" > established-profile.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('parnasse-profile.json','utf8'));
+          const e=JSON.parse(fs.readFileSync('established-profile.json','utf8'));
+          const pre=p.pre_ufc_bouts||[];
+          const orgs=[...new Set(pre.map(x=>x.organization).filter(Boolean))];
+          console.log(JSON.stringify({
+            parnasse:{name:p.fighter?.name,slug:p.fighter?.slug,ufc_bouts:p.fighter?.ufc_bouts,provisional:p.rating?.provisional,show_pre_ufc_history:p.show_pre_ufc_history,history_scope:p.history_scope,pre_ufc_bouts:pre.length,organizations:orgs.slice(0,10),sample:pre.slice(0,3).map(x=>({date:x.event_date,org:x.organization,result:x.result,opponent:x.opponent_name,method:x.method_normalized||x.method_raw}))},
+            established:{name:e.fighter?.name,ufc_bouts:e.fighter?.ufc_bouts,provisional:e.rating?.provisional,show_pre_ufc_history:e.show_pre_ufc_history,history_scope:e.history_scope,pre_ufc_bouts:(e.pre_ufc_bouts||[]).length}
+          },null,2));
+          if(p.fighter?.name!=='Salahdine Parnasse') throw new Error('Unexpected Parnasse identity: '+p.fighter?.name);
+          if(!p.show_pre_ufc_history||p.history_scope!=='combined'||pre.length<1) throw new Error('Parnasse pre-UFC history is not live');
+          if(!orgs.some(x=>String(x).toUpperCase().includes('KSW'))) throw new Error('Parnasse live history does not contain KSW');
+          if(e.show_pre_ufc_history||e.history_scope!=='ufc'||(e.pre_ufc_bouts||[]).length!==0) throw new Error('Established fighter did not return to UFC-focused history');
+          NODE
