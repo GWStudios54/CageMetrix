@@ -1,0 +1,80 @@
+name: Licensed fighter photo sweep
+on:
+  push:
+    branches:
+      - diagnostic/photo-sweep
+permissions:
+  contents: read
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Find licensed Wikimedia fighter photos
+        shell: bash
+        run: |
+          mkdir -p diagnostics/photo-sweep/images
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const headshots=JSON.parse(fs.readFileSync('public/headshots.json','utf8'));
+          const slugify=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+          const forecasts=await fetch('https://cagemetrix.aarin54.workers.dev/api/forecasts',{headers:{accept:'application/json'}}).then(r=>r.json());
+          const fighters=new Map();
+          for(const row of forecasts.data||[]){
+            for(const side of ['a','b']){
+              const name=row[`fighter_${side}_name`];
+              const slug=row[`fighter_${side}_slug`]||slugify(name);
+              if(name&&slug&&!headshots[slug]) fighters.set(slug,name);
+            }
+          }
+          async function wikiCandidate(name,lang){
+            const params=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'pageimages',piprop:'name|original|thumbnail',pithumbsize:'800',redirects:'1',titles:name});
+            const data=await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`).then(r=>r.json()).catch(()=>null);
+            const page=Object.values(data?.query?.pages||{})[0];
+            if(!page||page.missing!==undefined||!page.pageimage)return null;
+            return {lang,title:page.title,file:page.pageimage,thumb:page.thumbnail?.source||page.original?.source};
+          }
+          async function commonsInfo(file){
+            const params=new URLSearchParams({action:'query',format:'json',origin:'*',prop:'imageinfo',iiprop:'url|size|extmetadata',iiurlwidth:'800',titles:`File:${file}`});
+            const data=await fetch(`https://commons.wikimedia.org/w/api.php?${params}`).then(r=>r.json()).catch(()=>null);
+            const page=Object.values(data?.query?.pages||{})[0];
+            const ii=page?.imageinfo?.[0];
+            if(!ii)return null;
+            const m=ii.extmetadata||{};
+            const license=(m.LicenseShortName?.value||m.License?.value||'').replace(/<[^>]+>/g,'').trim();
+            const author=(m.Artist?.value||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+            const source=(m.Credit?.value||m.Source?.value||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+            const allowed=/CC BY|CC0|Public domain|PD-/i.test(license);
+            return {url:ii.thumburl||ii.url,source_url:ii.descriptionurl,license,author,source,width:ii.width,height:ii.height,allowed};
+          }
+          const out=[];
+          for(const [slug,name] of fighters){
+            let hit=null;
+            for(const lang of ['en','fr','de','es','pt','ru']){
+              const c=await wikiCandidate(name,lang);
+              if(c){ const info=await commonsInfo(c.file); if(info?.allowed){hit={slug,name,...c,...info}; break;} }
+            }
+            if(hit){
+              out.push(hit);
+              try{
+                const res=await fetch(hit.url); if(res.ok){ const buf=Buffer.from(await res.arrayBuffer()); fs.writeFileSync(`diagnostics/photo-sweep/images/${slug}.jpg`,buf); }
+              }catch{}
+            } else out.push({slug,name,missing:true});
+          }
+          fs.writeFileSync('diagnostics/photo-sweep/candidates.json',JSON.stringify(out,null,2));
+          let html='<!doctype html><meta charset="utf-8"><style>body{font-family:system-ui;background:#111;color:#eee}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}.c{border:1px solid #444;padding:10px}.c img{width:100%;height:260px;object-fit:cover;background:#222}.m{color:#aaa;font-size:12px}</style><div class="g">';
+          for(const x of out){html+=`<div class="c"><strong>${x.name}</strong>${x.missing?'<p class="m">No licensed Wikipedia/Commons lead</p>':`<img src="images/${x.slug}.jpg"><div class="m">${x.file}<br>${x.license}<br>${x.width}×${x.height}</div>`}</div>`;} html+='</div>';
+          fs.writeFileSync('diagnostics/photo-sweep/index.html',html);
+          console.log(JSON.stringify({missingPool:fighters.size,candidates:out.filter(x=>!x.missing).length,missing:out.filter(x=>x.missing).map(x=>x.name)},null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licensed-fighter-photo-sweep
+          path: diagnostics/photo-sweep/
+          retention-days: 7
