@@ -31,19 +31,21 @@ export function seed(db){
 
   // Current production fixture: Predictor 0.2 / CMR 0.3.1 snapshot identity.
   const probabilities=forecast(ratingA,ratingB,{a:fighterA.name,b:fighterB.name});
-  const snapshot=predictionSnapshot({a:fighterA,b:fighterB,ratingA,ratingB,probabilities,snapshotKey:'0.3.1:fixture',sourceMaxDate:'2026-08-29',lockedAt:locked});
+  const currentSnapshot=predictionSnapshot({a:fighterA,b:fighterB,ratingA,ratingB,probabilities,snapshotKey:'0.3.1:fixture',sourceMaxDate:'2026-08-29',lockedAt:locked});
   const prediction=db.prepare('INSERT INTO predictions(id,bout_id,model_version_id,locked_at,fighter_a_probability,fighter_b_probability,picked_fighter_id,top_factors_json,notes,input_snapshot_key,input_snapshot_json) VALUES(?,?,100,?,?,?,?,?,?,?,?)');
-  for(const id of [1,2,3,4])prediction.run(id,id,locked,probabilities.probabilityA,probabilities.probabilityB,probabilities.pick==='a'?1:2,JSON.stringify(probabilities.drivers),probabilities.notes,snapshot.input_snapshot_key,JSON.stringify(snapshot));
-  const replacement=forecast(ratingA,null),replacementSnapshot=predictionSnapshot({a:fighterA,b:{name:'Replacement Fighter',slug:'replacement-fighter'},ratingA,ratingB:null,probabilities:replacement,snapshotKey:snapshot.input_snapshot_key,sourceMaxDate:'2026-08-29',lockedAt:locked});
-  prediction.run(5,5,locked,replacement.probabilityA,replacement.probabilityB,1,'[]',replacement.notes,snapshot.input_snapshot_key,JSON.stringify(replacementSnapshot));
+  for(const id of [2,3,4])prediction.run(id,id,locked,probabilities.probabilityA,probabilities.probabilityB,probabilities.pick==='a'?1:2,JSON.stringify(probabilities.drivers),probabilities.notes,currentSnapshot.input_snapshot_key,JSON.stringify(currentSnapshot));
+  const replacement=forecast(ratingA,null),replacementSnapshot=predictionSnapshot({a:fighterA,b:{name:'Replacement Fighter',slug:'replacement-fighter'},ratingA,ratingB:null,probabilities:replacement,snapshotKey:currentSnapshot.input_snapshot_key,sourceMaxDate:'2026-08-29',lockedAt:locked});
+  prediction.run(5,5,locked,replacement.probabilityA,replacement.probabilityB,1,'[]',replacement.notes,currentSnapshot.input_snapshot_key,JSON.stringify(replacementSnapshot));
 
-  // Frozen Predictor 0.1 rows remain available to prove archive compatibility and
-  // keep the legacy direct-index forecast route covered while production uses 0.2.
+  // Fight 1 is intentionally a frozen Predictor 0.1 historical row. This mirrors
+  // production after promotion: old locked predictions stay immutable while new
+  // cards use Predictor 0.2.
   const v01=predictV01Matchup(ratingA,ratingB);
   const legacyProbabilities={...v01,pick:Math.abs(v01.probabilityA-.5)<1e-10?null:v01.probabilityA>.5?'a':'b',modelUsed:'predictor_v01'};
   const legacySnapshot=predictionSnapshot({a:fighterA,b:fighterB,ratingA,ratingB,probabilities:legacyProbabilities,snapshotKey:'0.3.0:legacy-fixture',sourceMaxDate:'2026-08-29',lockedAt:locked,modelVersion:'0.1.0',cmrVersion:'0.3.0'});
   const legacyPrediction=db.prepare('INSERT INTO predictions(id,bout_id,model_version_id,locked_at,fighter_a_probability,fighter_b_probability,picked_fighter_id,top_factors_json,notes,input_snapshot_key,input_snapshot_json) VALUES(?,?,103,?,?,?,?,?,?,?,?)');
-  for(const [id,boutId] of [[7,1],[8,2],[9,3],[10,4]])legacyPrediction.run(id,boutId,locked,legacyProbabilities.probabilityA,legacyProbabilities.probabilityB,legacyProbabilities.pick==='a'?1:2,JSON.stringify(legacyProbabilities.drivers),'Frozen Predictor 0.1 legacy fixture.',legacySnapshot.input_snapshot_key,JSON.stringify(legacySnapshot));
+  legacyPrediction.run(1,1,locked,legacyProbabilities.probabilityA,legacyProbabilities.probabilityB,legacyProbabilities.pick==='a'?1:2,JSON.stringify(legacyProbabilities.drivers),'Frozen Predictor 0.1 legacy fixture.',legacySnapshot.input_snapshot_key,JSON.stringify(legacySnapshot));
+  for(const [id,boutId] of [[7,2],[8,3],[9,4]])legacyPrediction.run(id,boutId,locked,legacyProbabilities.probabilityA,legacyProbabilities.probabilityB,legacyProbabilities.pick==='a'?1:2,JSON.stringify(legacyProbabilities.drivers),'Frozen Predictor 0.1 legacy fixture.',legacySnapshot.input_snapshot_key,JSON.stringify(legacySnapshot));
 
   const legacyA=1/(1+Math.exp(-ELO_SLOPE*(ratingA.eloRaw-ratingB.eloRaw)));
   db.prepare("INSERT INTO predictions(id,bout_id,model_version_id,locked_at,fighter_a_probability,fighter_b_probability,picked_fighter_id,input_snapshot_key,notes) VALUES(6,2,101,?,?,?,?,?,'Result-based Elo probability; sample strength is separate from win chance.')").run(locked,legacyA,1-legacyA,1,legacySnapshot.input_snapshot_key);
@@ -52,6 +54,6 @@ export function seed(db){
   db.exec("INSERT INTO contributors(id,slug,display_name,bio) VALUES(1,'cagemetrix-desk','CageMetrix Desk','Preview contributor'),(2,'guest-analyst','Guest Analyst','Independent perspective')");
   const key=db.prepare('INSERT INTO contributor_keys(id,contributor_id,token_hash) VALUES(?,?,?)');
   key.run('test-key',1,createHash('sha256').update(token).digest('hex'));key.run('second-key',2,createHash('sha256').update(secondToken).digest('hex'));
-  return {snapshot:JSON.parse(JSON.stringify(snapshot)),legacySnapshot:JSON.parse(JSON.stringify(legacySnapshot)),probabilities,legacyProbabilities,locked};
+  return {snapshot:JSON.parse(JSON.stringify(legacySnapshot)),currentSnapshot:JSON.parse(JSON.stringify(currentSnapshot)),legacySnapshot:JSON.parse(JSON.stringify(legacySnapshot)),probabilities,legacyProbabilities,locked};
 }
 export function d1(db){return {prepare(sql){const s=db.prepare(sql);let bindings=[];return {bind(...v){bindings=v;return this;},async all(){return {results:s.all(...bindings)};},async first(){return s.get(...bindings)||null;},async run(){return {meta:s.run(...bindings)};}};},async batch(statements){db.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());db.exec('COMMIT');return results;}catch(e){db.exec('ROLLBACK');throw e;}}};}
