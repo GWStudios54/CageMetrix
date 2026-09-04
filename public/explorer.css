@@ -29,6 +29,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .fighter-name { font-size: clamp(34px, 5.5vw, 68px); overflow-wrap: anywhere; }
 .sample-card { min-height: 0; }
 @media (max-width: 760px) {
+  .topbar { height: auto; min-height: 0; padding: 12px 0 10px; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .topbar .brand { min-width: 0; }
+  .topbar .brand-mark { width: 38px; height: 38px; }
+  .topbar nav { order: 2; width: 100%; max-width: 100%; padding-top: 10px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: flex-start; gap: 22px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; font-size: 12px; line-height: 1.2; }
+  .topbar nav::-webkit-scrollbar { display: none; }
+  .topbar nav a { flex: 0 0 auto; white-space: nowrap; padding: 3px 0; }
   .ranking-controls { display: grid; grid-template-columns: 1fr 1fr; }
   .search-control { grid-column: 1 / -1; }
   .ranking-column-head { grid-template-columns: 28px minmax(0, 1fr) 62px; gap: 8px; padding: 10px; }
