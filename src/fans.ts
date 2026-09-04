@@ -2,10 +2,10 @@ type Env={DB:D1Database};
 type Row=Record<string,any>;
 
 const PUBLIC_MODEL='CageMetrix Win Probability';
-const PUBLIC_VERSION='0.1.0';
 const COOKIE='cm_fan_id';
 const SCORECARD_WINDOW_MS=48*60*60*1000;
 const idValid=(id:string)=>/^[1-9]\d{0,14}$/.test(id)&&Number.isSafeInteger(Number(id));
+const publicModelOrder=`CASE mv.version WHEN '0.2.1' THEN 0 WHEN '0.2.0' THEN 1 WHEN '0.1.0' THEN 2 ELSE 3 END`;
 
 function fanJson(data:unknown,status=200,setCookie?:string){
   const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -34,8 +34,8 @@ async function trackedBout(db:D1Database,id:string){
     LEFT JOIN event_result_sync s ON s.event_id=e.id
     WHERE b.id=? AND EXISTS(
       SELECT 1 FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id
-      WHERE p.bout_id=b.id AND mv.name=? AND mv.version=?
-    )`).bind(Number(id),PUBLIC_MODEL,PUBLIC_VERSION).first<Row>();
+      WHERE p.bout_id=b.id AND mv.name=?
+    )`).bind(Number(id),PUBLIC_MODEL).first<Row>();
 }
 
 function predictionGrade(bout:Row,pick:number|null){
@@ -93,9 +93,9 @@ async function summary(db:D1Database,bout:Row,voterId:string){
       SUM(CASE WHEN picked_fighter_id=? THEN 1 ELSE 0 END) b_votes
       FROM fan_predictions WHERE bout_id=?`).bind(bout.fighter_a_id,bout.fighter_b_id,bout.id).first<Row>(),
     db.prepare('SELECT picked_fighter_id FROM fan_predictions WHERE bout_id=? AND voter_id=?').bind(bout.id,voterId).first<Row>(),
-    db.prepare(`SELECT p.fighter_a_probability,p.fighter_b_probability,p.picked_fighter_id
+    db.prepare(`SELECT p.fighter_a_probability,p.fighter_b_probability,p.picked_fighter_id,mv.version model_version
       FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id
-      WHERE p.bout_id=? AND mv.name=? AND mv.version=? ORDER BY p.id DESC LIMIT 1`).bind(bout.id,PUBLIC_MODEL,PUBLIC_VERSION).first<Row>(),
+      WHERE p.bout_id=? AND mv.name=? ORDER BY ${publicModelOrder},p.id DESC LIMIT 1`).bind(bout.id,PUBLIC_MODEL).first<Row>(),
     db.prepare(`SELECT COUNT(*) total,AVG(total_a) avg_total_a,AVG(total_b) avg_total_b,
       SUM(CASE WHEN total_a>total_b THEN 1 ELSE 0 END) a_cards,
       SUM(CASE WHEN total_b>total_a THEN 1 ELSE 0 END) b_cards,
@@ -131,7 +131,7 @@ async function summary(db:D1Database,bout:Row,voterId:string){
       fighter_a_id:Number(bout.fighter_a_id),fighter_a_name:bout.fighter_a_name,fighter_a_slug:bout.fighter_a_slug,
       fighter_b_id:Number(bout.fighter_b_id),fighter_b_name:bout.fighter_b_name,fighter_b_slug:bout.fighter_b_slug,
       winner_id:bout.winner_id===null?null:Number(bout.winner_id),result_method:bout.result_method,result_round:bout.result_round,scheduled_rounds:bout.scheduled_rounds},
-    model:{fighter_a_probability:Number(model?.fighter_a_probability||0),fighter_b_probability:Number(model?.fighter_b_probability||0),grade:predictionGrade(bout,model?.picked_fighter_id?Number(model.picked_fighter_id):null)},
+    model:{model_version:String(model?.model_version||'unknown'),fighter_a_probability:Number(model?.fighter_a_probability||0),fighter_b_probability:Number(model?.fighter_b_probability||0),grade:predictionGrade(bout,model?.picked_fighter_id?Number(model.picked_fighter_id):null)},
     prediction:{open:predictionOpen,lock_at:bout.starts_at,lock_policy:'Fan picks lock at the published card start because exact individual bout start times are not reliably available.',
       total,a_votes:aVotes,b_votes:bVotes,a_pct:total?aVotes/total:null,b_pct:total?bVotes/total:null,
       consensus_pick:pick===bout.fighter_a_id?'a':pick===bout.fighter_b_id?'b':null,
@@ -205,9 +205,12 @@ export async function fanRecord(request:Request,env:Env){
   SELECT c.*,b.status,b.fighter_a_id,b.fighter_b_id,b.winner_id,
     p.fighter_a_probability model_a_probability,p.picked_fighter_id model_pick
   FROM consensus c JOIN bouts b ON b.id=c.bout_id
-  JOIN predictions p ON p.bout_id=b.id
-  JOIN model_versions mv ON mv.id=p.model_version_id
-  WHERE mv.name=? AND mv.version=? ORDER BY b.id`).bind(PUBLIC_MODEL,PUBLIC_VERSION).all<Row>();
+  JOIN predictions p ON p.id=(
+    SELECT p2.id FROM predictions p2 JOIN model_versions mv2 ON mv2.id=p2.model_version_id
+    WHERE p2.bout_id=b.id AND mv2.name=?
+    ORDER BY CASE mv2.version WHEN '0.2.1' THEN 0 WHEN '0.2.0' THEN 1 WHEN '0.1.0' THEN 2 ELSE 3 END,p2.id DESC LIMIT 1
+  )
+  ORDER BY b.id`).bind(PUBLIC_MODEL).all<Row>();
   let totalPicks=0,decisive=0,fanAccuracyN=0,fanCorrect=0,fanBrier=0,modelAccuracyN=0,modelCorrect=0,modelBrier=0;
   for(const row of rows.results){
     const total=Number(row.total||0),aVotes=Number(row.a_votes||0),bVotes=Number(row.b_votes||0);totalPicks+=total;
