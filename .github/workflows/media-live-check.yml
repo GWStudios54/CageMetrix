@@ -16,9 +16,16 @@ jobs:
           set -euo pipefail
           base='https://cagemetrix.aarin54.workers.dev'
           mkdir -p diagnostics
-          curl --fail --silent --show-error "$base/headshots.json" > diagnostics/headshots.json
-          curl --fail --silent --show-error "$base/fighter-media.js?v=initials-1" > diagnostics/fighter-media.js
-          curl --fail --silent --show-error "$base/photo-credits.html" > diagnostics/photo-credits.html
+          stamp=$(date +%s)
+          curl --fail --silent --show-error "$base/headshots.json?v=$stamp" > diagnostics/headshots.json
+          curl --fail --silent --show-error "$base/fighter-media.js?v=$stamp" > diagnostics/fighter-media.js
+          code=$(curl --silent --show-error --location --output diagnostics/photo-credits.html --dump-header diagnostics/photo-credits.headers --write-out '%{http_code}' "$base/photo-credits.html?v=$stamp")
+          echo "photo credits status=$code"
+          grep -iE '^(content-type|cache-control):' diagnostics/photo-credits.headers || true
+          echo '--- title ---'
+          grep -o '<title>[^<]*' diagnostics/photo-credits.html | head -1 || true
+          echo '--- credit names ---'
+          grep -oE 'Dan Hooker|Salahdine Parnasse|Fighter photo credits' diagnostics/photo-credits.html | sort -u || true
           node - <<'NODE'
           const fs=require('fs');
           const rows=JSON.parse(fs.readFileSync('diagnostics/headshots.json','utf8'));
