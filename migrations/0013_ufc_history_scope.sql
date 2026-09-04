@@ -97,8 +97,8 @@ FROM bout_totals
 GROUP BY fighter_id;
 
 -- Career rows for UFC-linked fighters only. The second branch recovers warehouse
--- participant rows whose source fighter ID is unresolved but whose normalized
--- identity matches a securely linked warehouse fighter.
+-- participant rows whose source fighter ID is unresolved, but only when the
+-- normalized name belongs to exactly one linked UFC fighter in that snapshot.
 CREATE VIEW IF NOT EXISTS mma_ufc_career_history AS
 SELECT
   lf.fighter_id,
@@ -158,6 +158,15 @@ SELECT
   o.fighter_name AS opponent_name,
   o.normalized_name AS opponent_normalized_name
 FROM mma_ufc_linked_fighters lf
+JOIN (
+  SELECT source_key,snapshot_id,normalized_name
+  FROM mma_ufc_linked_fighters
+  GROUP BY source_key,snapshot_id,normalized_name
+  HAVING COUNT(*) = 1
+) uq
+  ON uq.source_key = lf.source_key
+ AND uq.snapshot_id = lf.snapshot_id
+ AND uq.normalized_name = lf.normalized_name
 JOIN mma_completed_participants p
   ON p.source_key = lf.source_key
  AND p.snapshot_id = lf.snapshot_id
@@ -179,4 +188,5 @@ SELECT h.*, fb.first_ufc_date
 FROM mma_ufc_career_history h
 JOIN mma_ufc_first_bout fb ON fb.fighter_id = h.fighter_id
 WHERE h.event_date < fb.first_ufc_date
-  AND LOWER(COALESCE(h.organization, '')) NOT LIKE '%ufc%';
+  AND LOWER(COALESCE(h.organization, '')) NOT LIKE '%ufc%'
+  AND LOWER(COALESCE(h.organization, '')) NOT LIKE '%ultimate fighting championship%';
