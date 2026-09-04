@@ -35,20 +35,20 @@ export async function predictorForecasts(env:Env):Promise<Response>{
     WHERE mv.name='CageMetrix Win Probability' AND mv.version=?
     ORDER BY e.event_date DESC,b.bout_order,p.id
   `).bind(PREDICTOR_VERSION).all<Row>();
-  const rows=(result.results||[]).map(row=>({...row,
+  const rows:Row[]=(result.results||[]).map((row:Row)=>({...row,
     fight_url:`/fights/${row.bout_id}`,
     event_live:Date.now()>=Date.parse(row.starts_at)-30*60_000&&Date.now()<=Date.parse(row.starts_at)+12*3_600_000
   }));
   const pollerRow=await env.DB.prepare("SELECT value FROM bootstrap_state WHERE key='results:poller'").first<Row>();
-  const graded=rows.filter(r=>r.grade==='correct'||r.grade==='incorrect');
-  const correct=graded.filter(r=>r.grade==='correct').length;
-  const brier=graded.length?graded.reduce((sum,r)=>sum+(Number(r.fighter_a_probability)-Number(r.winner_id===r.fighter_a_id))**2,0)/graded.length:null;
+  const graded:Row[]=rows.filter((r:Row)=>r.grade==='correct'||r.grade==='incorrect');
+  const correct=graded.filter((r:Row)=>r.grade==='correct').length;
+  const brier=graded.length?graded.reduce((sum:number,r:Row)=>sum+(Number(r.fighter_a_probability)-Number(r.winner_id===r.fighter_a_id))**2,0)/graded.length:null;
   return json({data:rows,summary:{
     correct,incorrect:graded.length-correct,graded:graded.length,
     accuracy:graded.length?correct/graded.length:null,brier,
-    pending:rows.filter(r=>r.grade==='pending').length,
-    void:rows.filter(r=>r.grade==='void'||r.grade==='cancelled').length,
-    first_prediction_at:rows.map(r=>r.locked_at).sort()[0]||null,
+    pending:rows.filter((r:Row)=>r.grade==='pending').length,
+    void:rows.filter((r:Row)=>r.grade==='void'||r.grade==='cancelled').length,
+    first_prediction_at:rows.map((r:Row)=>r.locked_at).sort()[0]||null,
     policy:'Only predictions saved before the event starts are graded. Draws, no-contests, cancellations and 50/50 no-picks are excluded. Historical backtests are separate.'
   },meta:{model_version:PREDICTOR_VERSION,data:await dataStatus(env),live_results:{
     poll_seconds:RESULT_POLL_SECONDS,page_refresh_seconds:PAGE_POLL_SECONDS,
