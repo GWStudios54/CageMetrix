@@ -1,1 +1,47 @@
-{}
+{
+  "dan-hooker": {
+    "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/DanHooker2016.png?width=720",
+    "source_url": "https://commons.wikimedia.org/wiki/File:DanHooker2016.png",
+    "author": "Fight Bros NZ",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "source": "Wikimedia Commons",
+    "alt": "Dan Hooker during an interview in 2016"
+  },
+  "salahdine-parnasse": {
+    "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/ParnasseMMA2023.png?width=720",
+    "source_url": "https://commons.wikimedia.org/wiki/File:ParnasseMMA2023.png",
+    "author": "ZACK",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "source": "Wikimedia Commons",
+    "alt": "Salahdine Parnasse during an interview in 2023"
+  },
+  "michael-page": {
+    "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Michael_Page.png?width=720",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Michael_Page.png",
+    "author": "Amoby",
+    "license": "CC0 1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source": "Wikimedia Commons",
+    "alt": "Michael Page at UCMMA 29"
+  },
+  "nursulton-ruziboev": {
+    "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/NursultonRuziboev2024.png?width=720",
+    "source_url": "https://commons.wikimedia.org/wiki/File:NursultonRuziboev2024.png",
+    "author": "SPORTS UZ",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "source": "Wikimedia Commons",
+    "alt": "Nursulton Ruziboev in 2024"
+  },
+  "daniil-donchenko": {
+    "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Daniil_Donchenko_KyivFM.png?width=720",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Daniil_Donchenko_KyivFM.png",
+    "author": "KyivFM",
+    "license": "CC BY 3.0",
+    "license_url": "https://creativecommons.org/licenses/by/3.0/",
+    "source": "Wikimedia Commons",
+    "alt": "Daniil Donchenko during an interview on KyivFM"
+  }
+}
