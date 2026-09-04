@@ -1,4 +1,4 @@
-# Promotion attempt 4: D1 verification steps receive the same Cloudflare credentials as refresh/deploy.
+# Promotion attempt 5: verify deployed Worker directly and treat Cloudflare custom-domain bot challenges as edge diagnostics.
 name: Promote CMR 0.3.1 and Predictor 0.2
 
 on:
@@ -27,6 +27,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
@@ -79,9 +80,10 @@ jobs:
       - name: Smoke-test production cutover
         run: |
           mkdir -p .cache/promotion
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 https://cagemetrix.com/api/health > .cache/promotion/health.json
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 'https://cagemetrix.com/api/rankings?limit=1' > .cache/promotion/rankings.json
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 https://cagemetrix.com/api/forecasts > .cache/promotion/forecasts.json
+          base='https://cagemetrix.aarin54.workers.dev'
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 "$base/api/health" > .cache/promotion/health.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 "$base/api/rankings?limit=1" > .cache/promotion/rankings.json
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 "$base/api/forecasts" > .cache/promotion/forecasts.json
           node - <<'NODE'
           const fs=require('fs');
           const health=JSON.parse(fs.readFileSync('.cache/promotion/health.json','utf8'));
@@ -92,6 +94,17 @@ jobs:
           if(forecasts.meta?.model_version!=='0.2.0'||!(forecasts.data?.length>0)) throw new Error('Forecasts did not cut over to Predictor 0.2');
           console.log({cmr:health.model_version,predictor:forecasts.meta.model_version,forecast_rows:forecasts.data.length});
           NODE
+
+          custom_code=$(curl --silent --show-error --location --user-agent 'Mozilla/5.0 CageMetrix-Production-Smoke/1.0' --output .cache/promotion/custom-domain-health.body --dump-header .cache/promotion/custom-domain-health.headers --write-out '%{http_code}' https://cagemetrix.com/api/health || true)
+          if [ "$custom_code" = '200' ]; then
+            echo 'Custom domain health endpoint returned 200.'
+          elif [ "$custom_code" = '403' ] && grep -qi '^cf-mitigated: challenge' .cache/promotion/custom-domain-health.headers; then
+            echo '::warning::Cloudflare challenged the GitHub Actions datacenter request on cagemetrix.com; Worker deployment itself is verified through workers.dev.'
+          else
+            echo "Unexpected custom-domain health response: $custom_code"
+            cat .cache/promotion/custom-domain-health.headers || true
+            exit 1
+          fi
 
       - name: Upload promotion audit
         uses: actions/upload-artifact@v4
@@ -108,4 +121,6 @@ jobs:
             .cache/promotion/health.json
             .cache/promotion/rankings.json
             .cache/promotion/forecasts.json
+            .cache/promotion/custom-domain-health.headers
+            .cache/promotion/custom-domain-health.body
           retention-days: 30
