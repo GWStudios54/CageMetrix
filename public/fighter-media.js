@@ -14,7 +14,7 @@ const fighterMedia = (() => {
     footer.appendChild(link);
   }
 
-  const ready = fetch('/headshots.json?v=ufc-paris-1', { headers: { accept: 'application/json' } })
+  const ready = fetch('/headshots.json?v=headshots-20260904-1', { headers: { accept: 'application/json' } })
     .then(response => response.ok ? response.json() : {})
     .then(rows => {
       for (const [slug, item] of Object.entries(rows || {})) {
