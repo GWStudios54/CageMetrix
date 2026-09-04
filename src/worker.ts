@@ -5,6 +5,7 @@ import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
 import {predictorForecasts} from './forecasts.ts';
 import {augmentFighterProfileWithPreUfcHistory} from './fighter-history.ts';
 import {enhanceFightPage,enhanceFighterPage,eventPage,sitemap} from './seo.ts';
+import {homePage,predictionsPage} from './static-seo.ts';
 
 interface Env {
   DB:D1Database;
@@ -52,6 +53,8 @@ export default {
   },
   async fetch(request:Request,env:Env,context:ExecutionContext):Promise<Response>{
     const url=new URL(request.url);
+    if(request.method==='GET'&&url.pathname==='/')return homePage(request,env);
+    if(request.method==='GET'&&url.pathname==='/predictions.html')return predictionsPage(request,env);
     if(request.method==='GET'&&url.pathname==='/sitemap.xml')return sitemap(env);
     const eventMatch=url.pathname.match(/^\/events\/([a-z0-9-]{1,180})\/?$/);
     if(request.method==='GET'&&eventMatch){
@@ -78,7 +81,7 @@ export default {
         return who?new Response(JSON.stringify(who),{headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}}):new Response(JSON.stringify({error:'Invalid or revoked publishing key.'}),{status:401,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
       }
       if(request.method==='PATCH')return updateContributorProfile(request,env.DB);
-      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+      return new Response(JSON.stringify({error:'method_not_allowed'},null,2),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
     }
     if(url.pathname==='/api/contributors/device'){
       if(request.method==='POST')return rememberContributor(request,env.DB);
