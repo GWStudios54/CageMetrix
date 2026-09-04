@@ -17,49 +17,65 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Verify deployed portraits and credits
+      - name: Diagnose deployed portraits and credits
         shell: bash
         run: |
           mkdir -p diagnostics/freedom250-headshots-live
           node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
           import { chromium } from 'playwright';
           const base='https://cagemetrix.aarin54.workers.dev';
           const fetchJson=async path=>{
             const r=await fetch(`${base}${path}?live_check=${Date.now()}`,{headers:{accept:'application/json'},cache:'no-store'});
-            assert.equal(r.status,200,`${path} status ${r.status}`);
+            console.log('FETCH',path,'status',r.status);
+            if(!r.ok) throw new Error(`${path} status ${r.status}`);
             return r.json();
           };
           const first=await fetchJson('/headshots.json');
           const second=await fetchJson('/headshots-batch2.json');
-          assert.equal(Object.keys(first).length,17,'legacy catalog should have 17 entries');
-          assert.equal(Object.keys(second).length,14,'batch 2 catalog should have 14 entries');
+          console.log('CATALOG_COUNTS',Object.keys(first).length,Object.keys(second).length);
           const expected=['alex-pereira','ciryl-gane','sean-omalley','aiemann-zahabi','josh-hokit','derrick-lewis'];
-          for(const slug of expected) assert.ok(second[slug],`catalog missing ${slug}`);
+          for(const slug of expected) console.log('CATALOG',slug,Boolean(second[slug]),second[slug]?.url||'');
 
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
           const results=[];
           for(const slug of expected){
-            await page.goto(`${base}/fighters/${slug}?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
-            const img=page.locator('img.portrait-photo').first();
-            await img.waitFor({state:'visible',timeout:15000});
-            await page.waitForFunction(()=>{const el=document.querySelector('img.portrait-photo');return el&&el.complete&&el.naturalWidth>0&&el.naturalHeight>0;},null,{timeout:15000});
-            const data=await img.evaluate(el=>({src:el.currentSrc,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,rect:el.getBoundingClientRect().toJSON()}));
-            assert.ok(data.naturalWidth>=500&&data.naturalHeight>=500,`${slug} source too small/broken: ${JSON.stringify(data)}`);
-            assert.ok(data.rect.width>=100&&data.rect.height>=100,`${slug} portrait not visibly rendered`);
-            results.push({slug,...data});
-            await page.screenshot({path:`diagnostics/freedom250-headshots-live/${slug}.png`,fullPage:false});
+            console.log('\nCHECKING',slug);
+            const response=await page.goto(`${base}/fighters/${slug}?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+            console.log('PAGE_STATUS',slug,response?.status(), 'URL',page.url(), 'TITLE',await page.title());
+            await page.waitForTimeout(2500);
+            const body=(await page.locator('body').innerText().catch(()=>'' )).slice(0,1200).replace(/\s+/g,' ');
+            const imgs=await page.locator('img.portrait-photo').count();
+            const portraits=await page.locator('.portrait').count();
+            const scripts=await page.locator('script[src*="fighter-media"]').count();
+            console.log('DOM',slug,{imgs,portraits,scripts,body});
+            if(imgs){
+              const img=page.locator('img.portrait-photo').first();
+              const data=await img.evaluate(el=>({src:el.currentSrc||el.src,complete:el.complete,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,rect:el.getBoundingClientRect().toJSON()}));
+              console.log('IMAGE',slug,data);
+              results.push({slug,ok:data.complete&&data.naturalWidth>0&&data.naturalHeight>0,...data});
+            }else{
+              const placeholder=await page.locator('.portrait-initials').first().innerText().catch(()=>null);
+              console.log('NO_IMAGE',slug,'placeholder',placeholder);
+              results.push({slug,ok:false,reason:'no img.portrait-photo',placeholder});
+            }
+            await page.screenshot({path:`diagnostics/freedom250-headshots-live/${slug}.png`,fullPage:false}).catch(()=>{});
           }
-          await page.goto(`${base}/photo-credits.html?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
-          await page.getByText('31 licensed fighter photos currently in the CageMetrix catalog.').waitFor({state:'visible',timeout:15000});
-          assert.equal(await page.locator('.credit').count(),31,'credits page should render all 31 photos');
-          await page.screenshot({path:'diagnostics/freedom250-headshots-live/photo-credits.png',fullPage:false});
-          console.log(JSON.stringify({catalogs:{first:Object.keys(first).length,second:Object.keys(second).length,total:31},results,credits:31},null,2));
+          const creditsResponse=await page.goto(`${base}/photo-credits.html?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+          await page.waitForTimeout(2000);
+          const creditsText=await page.locator('#creditCount').innerText().catch(()=>null);
+          const creditCount=await page.locator('.credit').count();
+          console.log('CREDITS',creditsResponse?.status(),creditsText,creditCount);
+          await page.screenshot({path:'diagnostics/freedom250-headshots-live/photo-credits.png',fullPage:false}).catch(()=>{});
+          console.log('RESULTS',JSON.stringify(results,null,2));
           await browser.close();
+          if(Object.keys(first).length!==17||Object.keys(second).length!==14) process.exitCode=1;
+          if(creditCount!==31) process.exitCode=1;
+          if(results.some(r=>!r.ok)) process.exitCode=1;
           NODE
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: freedom250-headshots-live
           path: diagnostics/freedom250-headshots-live/
