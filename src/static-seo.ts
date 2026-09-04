@@ -44,8 +44,8 @@ function baseMeta(rewriter:HTMLRewriter,title:string,description:string,canonica
 
 export async function homePage(request:Request,env:Env){
   const [response,event]=await Promise.all([asset(request,env,'/index.html'),nextEvent(env)]);
-  const title='UFC Rankings, Fight Predictions & MMA Analytics | CageMetrix';
-  const description='Opponent-adjusted UFC rankings, fighter stats and locked fight predictions. Compare CMR, strength of schedule, technical ratings and model win probabilities.';
+  const title='UFC Rankings, Fight Predictions & MMA Analytics | CageMetrix™';
+  const description='Opponent-adjusted UFC rankings, fighter stats and locked fight predictions. Compare CMR™, strength of schedule, technical ratings and model win probabilities.';
   const canonical=`${SITE}/`;
   const schema={'@context':'https://schema.org','@graph':[{'@type':'WebSite',name:'CageMetrix',url:canonical,description},{'@type':'Organization',name:'CageMetrix',url:canonical,logo:`${SITE}/logo.svg`} ]};
   const rewriter=baseMeta(new HTMLRewriter(),title,description,canonical)
@@ -56,8 +56,8 @@ export async function homePage(request:Request,env:Env){
 
 export async function predictionsPage(request:Request,env:Env){
   const [response,event]=await Promise.all([asset(request,env,'/predictions.html'),nextEvent(env)]);
-  const title='UFC Fight Predictions, Picks & Win Probabilities | CageMetrix';
-  const description='Upcoming UFC fight predictions with locked CageMetrix win probabilities, matchup stats and an auditable record of every model pick.';
+  const title='UFC Fight Predictions, Picks & Win Probabilities | CageMetrix™';
+  const description='Upcoming UFC fight predictions with locked CageMetrix™ win probabilities, matchup stats and an auditable record of every model pick.';
   const canonical=`${SITE}/predictions.html`;
   const schema={'@context':'https://schema.org','@type':'CollectionPage',name:'CageMetrix UFC Fight Predictions',url:canonical,description,isPartOf:{'@type':'WebSite',name:'CageMetrix',url:`${SITE}/`}};
   const rewriter=baseMeta(new HTMLRewriter(),title,description,canonical)

@@ -11,7 +11,7 @@ const pageLabel = document.querySelector('#page-label');
 const retryButton = document.querySelector('#retry-rankings');
 const PAGE_SIZE = 25;
 const metricLabels = {
-  cmr: 'CMR', striking_offense: 'Striking O', striking_defense: 'Striking D',
+  cmr: 'CMR™', striking_offense: 'Striking O', striking_defense: 'Striking D',
   wrestling_offense: 'Wrestling O', wrestling_defense: 'Wrestling D', grappling: 'Grappling',
   strength_of_schedule: 'SoS', technical: 'Technical', resume: 'Résumé', recent_form: 'Form'
 };

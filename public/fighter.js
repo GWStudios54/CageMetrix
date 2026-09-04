@@ -8,7 +8,7 @@ const recentSection = document.querySelector('#recent-section');
 const modelSection = document.querySelector('#model-section');
 
 const metricConfig = [
-  ['cmr', 'Ranked CMR'],
+  ['cmr', 'Ranked CMR™'],
   ['technical_rating', 'Technical'],
   ['resume_rating', 'Résumé'],
   ['striking_offense', 'Striking offense'],
@@ -172,11 +172,11 @@ async function load() {
   if (!fighter) throw new Error('Fighter not available');
   const rating = storedRating || { cmr:null, confidence:0, sample_bouts:0, sample_minutes:0, provisional:true, model_version:'0.3.0', components:{} };
 
-  document.title = `${fighter.name} — CageMetrix`;
+  document.title = `${fighter.name} — CageMetrix™`;
   document.querySelector('#back-to-rankings').href = `/${location.search}#rankings`;
   document.querySelector('#fighter-portrait').innerHTML = fighterMedia.portrait(fighter, true);
   document.querySelector('#fighter-name').textContent = fighter.name;
-  document.querySelector('#fighter-division').textContent = fighter.current_weight_class || 'CAGEMETRIX FIGHTER PROFILE';
+  document.querySelector('#fighter-division').textContent = fighter.current_weight_class || 'CAGEMETRIX™ FIGHTER PROFILE';
   document.querySelector('#fighter-cmr').textContent = number(rating.cmr);
 
   const status = String(fighter.roster_status || (Number(fighter.active) === 1 ? 'active' : 'inactive')).toUpperCase();
@@ -193,7 +193,7 @@ async function load() {
   if (fighter.height_cm) meta.push(`${number(Number(fighter.height_cm) / 2.54, 0)} in height`);
   if (fighter.reach_cm) meta.push(`${number(Number(fighter.reach_cm) / 2.54, 0)} in reach`);
   if (fighter.last_fight_date) meta.push(`last UFC bout ${fighter.last_fight_date}`);
-  if (rating.provisional && Number.isFinite(Number(rating.performance_cmr))) meta.push(`performance CMR ${number(rating.performance_cmr)}`);
+  if (rating.provisional && Number.isFinite(Number(rating.performance_cmr))) meta.push(`performance CMR™ ${number(rating.performance_cmr)}`);
   document.querySelector('#fighter-meta').textContent = meta.join(' · ');
   document.querySelector('#fighter-snapshot').textContent = `Rating snapshot: ${rating.as_of_date || 'unavailable'} · Model v${rating.model_version || '?'}`;
 
@@ -205,8 +205,8 @@ async function load() {
 
   const sample = document.querySelector('#sample-card');
   const provisionalCopy = rating.provisional
-    ? `<p><strong>PROVISIONAL.</strong> Performance CMR ${number(rating.performance_cmr)} is shown separately; ranked CMR ${number(rating.cmr)} includes uncertainty shrinkage.</p>`
-    : '<p>Established sample. Ranked CMR and underlying performance are no longer materially separated by uncertainty.</p>';
+    ? `<p><strong>PROVISIONAL.</strong> Performance CMR™ ${number(rating.performance_cmr)} is shown separately; Ranked CMR™ ${number(rating.cmr)} includes uncertainty shrinkage.</p>`
+    : '<p>Established sample. Ranked CMR™ and underlying performance are no longer materially separated by uncertainty.</p>';
   const sampleComponents = rating.components || {};
   const transferredBouts = Number(sampleComponents.transferred_bouts || 0);
   const currentDivisionBouts = Number(sampleComponents.current_division_bouts ?? Math.max(0, Number(rating.sample_bouts || 0) - transferredBouts));

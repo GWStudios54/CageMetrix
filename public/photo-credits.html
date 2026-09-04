@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fighter Photo Credits | CageMetrix</title><meta name="description" content="Source and license credits for fighter photographs displayed on CageMetrix."><meta name="robots" content="noindex,follow">
+<title>Fighter Photo Credits | CageMetrix™</title><meta name="description" content="Source and license credits for fighter photographs displayed on CageMetrix™."><meta name="robots" content="noindex,follow">
 <link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/explorer.css">
 <style>.credits{max-width:900px;margin:0 auto;padding:48px 18px 80px}.credit-list{display:grid;gap:14px;margin-top:28px}.credit{border:1px solid var(--line);background:var(--panel);padding:22px}.credit h2{font-size:22px;margin:0 0 8px}.credit p{color:var(--muted);line-height:1.6;margin:8px 0}.credit a{text-decoration:underline;text-underline-offset:3px}.credits-note{color:var(--muted);line-height:1.65}.credit-count{margin-top:16px;color:var(--muted);font-size:14px}</style></head>
-<body><header class="topbar"><a class="brand" href="/"><img class="brand-mark" src="/logo.svg" alt="" width="44" height="44"><span>CageMetrix</span></a><nav><a href="/predictions.html">Predictions</a><a href="/#rankings">Rankings</a><a href="/validation.html">Track record</a></nav></header>
-<main class="credits"><div class="eyebrow">MEDIA ATTRIBUTION</div><h1>Fighter photo credits</h1><p class="credits-note">CageMetrix uses only photographs with a documented reusable license or explicit permission. Licensed images may be curated manually or resolved automatically through Wikidata and Wikimedia Commons. Photos are used for editorial identification and do not imply endorsement by the fighter, photographer, promotion, or source. If a photo's license or provenance becomes uncertain, we remove it and return to the initials fallback.</p><p class="credit-count" id="creditCount">Loading licensed photo catalog…</p>
+<body><header class="topbar"><a class="brand" href="/"><img class="brand-mark" src="/logo.svg" alt="" width="44" height="44"><span>CageMetrix™</span></a><nav><a href="/predictions.html">Predictions</a><a href="/#rankings">Rankings</a><a href="/validation.html">Track record</a></nav></header>
+<main class="credits"><div class="eyebrow">MEDIA ATTRIBUTION</div><h1>Fighter photo credits</h1><p class="credits-note">CageMetrix™ uses only photographs with a documented reusable license or explicit permission. Licensed images may be curated manually or resolved automatically through Wikidata and Wikimedia Commons. Photos are used for editorial identification and do not imply endorsement by the fighter, photographer, promotion, or source. If a photo's license or provenance becomes uncertain, we remove it and return to the initials fallback.</p><p class="credit-count" id="creditCount">Loading licensed photo catalog…</p>
 <section class="credit-list" id="creditList" aria-live="polite"></section></main>
-<footer><span>CageMetrix</span><span>Licensed editorial fighter imagery.</span></footer>
+<footer><span>CageMetrix™</span><span>Licensed editorial fighter imagery.</span></footer>
 <script>
 (() => {
   const catalogs=['/headshots-auto.json','/headshots.json?v=headshots-20260904-4','/headshots-batch2.json?v=headshots-20260904-4'];
@@ -24,7 +24,7 @@
     .then(groups=>{
       const merged=Object.assign({},...groups);
       const entries=Object.entries(merged).filter(([,item])=>item&&item.url&&item.source_url&&item.license).sort((a,b)=>displayName(a[0]).localeCompare(displayName(b[0])));
-      document.getElementById('creditCount').textContent=`${entries.length} licensed fighter photos currently in the CageMetrix catalog.`;
+      document.getElementById('creditCount').textContent=`${entries.length} licensed fighter photos currently in the CageMetrix™ catalog.`;
       document.getElementById('creditList').innerHTML=entries.map(([slug,item])=>{
         const author=item.author||item.source||'Source credited on Wikimedia Commons';
         const source=item.source||'Wikimedia Commons';
