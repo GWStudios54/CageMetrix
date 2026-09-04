@@ -89,7 +89,24 @@ jobs:
             echo "Snapshot ${SNAPSHOT_ID} is already complete; nothing to write."
             exit 0
           fi
+
+          # Wrangler's remote D1 file execution manages transaction boundaries itself
+          # and rejects explicit SQL BEGIN/COMMIT statements. Keep the source chunks
+          # unchanged for auditing, but create transaction-free copies for D1.
+          D1_SQL_DIR=".cache/mma-master/d1-sql"
+          rm -rf "$D1_SQL_DIR"
+          mkdir -p "$D1_SQL_DIR"
           for file in .cache/mma-master/sql/*.sql; do
+            output="$D1_SQL_DIR/$(basename "$file")"
+            sed -E '/^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT)[[:space:]]*;[[:space:]]*$/Id' "$file" > "$output"
+          done
+
+          if grep -RniE '^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT|SAVEPOINT|RELEASE([[:space:]]+SAVEPOINT)?|ROLLBACK)[[:space:]]' "$D1_SQL_DIR"; then
+            echo "D1-incompatible transaction control remained in generated SQL." >&2
+            exit 1
+          fi
+
+          for file in "$D1_SQL_DIR"/*.sql; do
             echo "Applying $(basename "$file")"
             npx wrangler d1 execute cagemetrix --remote --file "$file"
           done
