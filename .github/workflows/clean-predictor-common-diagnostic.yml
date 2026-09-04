@@ -1,0 +1,31 @@
+name: Diagnose cleaned Predictor common holdout
+on:
+  push:
+    branches:
+      - diagnostic/clean-predictor-common
+    paths:
+      - '.github/workflows/clean-predictor-common-diagnostic.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Run corrected common-holdout validation on cleaned D1
+        run: node scripts/validate-predictor-v02-common.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clean-predictor-common-diagnostic
+          path: .cache/predictor-v02-common-validation.json
+          if-no-files-found: ignore
+          retention-days: 7
