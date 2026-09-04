@@ -2,6 +2,10 @@ const fighterMedia = (() => {
   const escape = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const media = new Map();
   const slugify = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const catalogs = [
+    '/headshots.json?v=headshots-20260904-2',
+    '/headshots-batch2.json?v=headshots-20260904-2'
+  ];
 
   function addCreditsLink() {
     const footer = document.querySelector('footer');
@@ -14,15 +18,18 @@ const fighterMedia = (() => {
     footer.appendChild(link);
   }
 
-  const ready = fetch('/headshots.json?v=headshots-20260904-1', { headers: { accept: 'application/json' } })
-    .then(response => response.ok ? response.json() : {})
-    .then(rows => {
+  const ready = Promise.all(catalogs.map(url =>
+    fetch(url, { headers: { accept: 'application/json' } })
+      .then(response => response.ok ? response.json() : {})
+      .catch(() => ({}))
+  )).then(groups => {
+    for (const rows of groups) {
       for (const [slug, item] of Object.entries(rows || {})) {
         if (item && item.url && item.source_url && item.license) media.set(slug, item);
       }
-      if (media.size) addCreditsLink();
-    })
-    .catch(() => {});
+    }
+    if (media.size) addCreditsLink();
+  });
 
   document.addEventListener('error', event => {
     const target = event.target;
