@@ -3,6 +3,7 @@ import {fanRecord,getFanSummary,saveFanPrediction,saveFanScorecard} from './fans
 import {contributor,forgetContributor,rememberContributor,updateContributorProfile} from './contributors.ts';
 import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
 import {predictorForecasts} from './forecasts.ts';
+import {augmentFighterProfileWithPreUfcHistory} from './fighter-history.ts';
 
 interface Env {
   DB:D1Database;
@@ -79,6 +80,11 @@ export default {
     }
     if(request.method==='GET'&&url.pathname==='/api/forecasts')return forecastsWithFans(request,env);
     const authenticated=withContributorCookie(request);
-    return base.fetch(withModelCacheKey(authenticated,env.MODEL_VERSION),env,context);
+    const routed=withModelCacheKey(authenticated,env.MODEL_VERSION);
+    if(request.method==='GET'&&/^\/api\/fighters\/[^/]+$/.test(url.pathname)){
+      const response=await base.fetch(routed,env,context);
+      return augmentFighterProfileWithPreUfcHistory(response,env);
+    }
+    return base.fetch(routed,env,context);
   }
 } satisfies ExportedHandler<Env>;
