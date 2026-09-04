@@ -10,30 +10,91 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Check debutant and established profile behavior
         run: |
           set -euo pipefail
+          mkdir -p diagnostics
           base='https://cagemetrix.aarin54.workers.dev'
           search=$(curl --fail --silent --show-error "$base/api/fighters?q=Parnasse")
-          echo "$search" > parnasse-search.json
+          echo "$search" > diagnostics/parnasse-search.json
           slug=$(node -e "const p=JSON.parse(process.argv[1]);const r=(p.data||[]).find(x=>String(x.name||'').toLowerCase().includes('parnasse'));if(!r?.slug)process.exit(2);process.stdout.write(r.slug)" "$search")
           echo "Parnasse slug: $slug"
-          curl --fail --silent --show-error "$base/api/fighters/$slug" > parnasse-profile.json
-          curl --fail --silent --show-error "$base/api/fighters/arman-tsarukyan" > established-profile.json
+          curl --fail --silent --show-error "$base/api/fighters/$slug" > diagnostics/parnasse-profile.json
+          curl --fail --silent --show-error "$base/api/fighters/arman-tsarukyan" > diagnostics/established-profile.json
           node - <<'NODE'
           const fs=require('fs');
-          const p=JSON.parse(fs.readFileSync('parnasse-profile.json','utf8'));
-          const e=JSON.parse(fs.readFileSync('established-profile.json','utf8'));
+          const p=JSON.parse(fs.readFileSync('diagnostics/parnasse-profile.json','utf8'));
+          const e=JSON.parse(fs.readFileSync('diagnostics/established-profile.json','utf8'));
           const pre=p.pre_ufc_bouts||[];
           const orgs=[...new Set(pre.map(x=>x.organization).filter(Boolean))];
-          console.log(JSON.stringify({
-            parnasse:{name:p.fighter?.name,slug:p.fighter?.slug,ufc_bouts:p.fighter?.ufc_bouts,provisional:p.rating?.provisional,show_pre_ufc_history:p.show_pre_ufc_history,history_scope:p.history_scope,pre_ufc_bouts:pre.length,organizations:orgs.slice(0,10),sample:pre.slice(0,3).map(x=>({date:x.event_date,org:x.organization,result:x.result,opponent:x.opponent_name,method:x.method_normalized||x.method_raw}))},
+          const out={
+            parnasse:{name:p.fighter?.name,slug:p.fighter?.slug,ufc_bouts:p.fighter?.ufc_bouts,provisional:p.rating?.provisional,show_pre_ufc_history:p.show_pre_ufc_history,history_scope:p.history_scope,pre_ufc_bouts:pre.length,organizations:orgs,rows:pre},
             established:{name:e.fighter?.name,ufc_bouts:e.fighter?.ufc_bouts,provisional:e.rating?.provisional,show_pre_ufc_history:e.show_pre_ufc_history,history_scope:e.history_scope,pre_ufc_bouts:(e.pre_ufc_bouts||[]).length}
-          },null,2));
+          };
+          console.log(JSON.stringify({parnasse:{...out.parnasse,rows:undefined},established:out.established},null,2));
+          fs.writeFileSync('diagnostics/profile-history-summary.json',JSON.stringify(out,null,2));
           if(p.fighter?.name!=='Salahdine Parnasse') throw new Error('Unexpected Parnasse identity: '+p.fighter?.name);
           if(!p.show_pre_ufc_history||p.history_scope!=='combined'||pre.length<1) throw new Error('Parnasse pre-UFC history is not live');
           if(!orgs.some(x=>String(x).toUpperCase().includes('KSW'))) throw new Error('Parnasse live history does not contain KSW');
           if(e.show_pre_ufc_history||e.history_scope!=='ufc'||(e.pre_ufc_bouts||[]).length!==0) throw new Error('Established fighter did not return to UFC-focused history');
           NODE
+
+      - name: Audit raw upstream DuckDB
+        run: |
+          python -m pip install --disable-pip-version-check 'duckdb>=1.3,<2' 'kagglehub>=1.0,<2'
+          python - <<'PY'
+          import json, re, unicodedata
+          from collections import Counter
+          from pathlib import Path
+          import duckdb, kagglehub
+
+          def norm(v):
+              text=unicodedata.normalize('NFKD',str(v or ''))
+              text=''.join(c for c in text if not unicodedata.combining(c)).lower()
+              return re.sub(r'[^a-z0-9]+',' ',text).strip()
+
+          root=Path(kagglehub.dataset_download('leandroiber/mmastats',output_dir='.cache/raw-warehouse'))
+          db=max(root.rglob('*.duckdb'),key=lambda p:p.stat().st_size)
+          con=duckdb.connect(str(db),read_only=True)
+          cols=['fight_id','organization','event_name','event_date','fighter_1','fighter_2','winner_side','method_normalized','round_num','time_finish_seconds']
+          raw=con.execute('SELECT '+','.join(cols)+' FROM fights_career_longitudinal ORDER BY event_date,fight_id').fetchall()
+          desc=[d[0] for d in con.description]
+          rows=[dict(zip(desc,r)) for r in raw]
+          sigs=Counter()
+          for r in rows:
+              pair=tuple(sorted((norm(r['fighter_1']),norm(r['fighter_2']))))
+              sig=(str(r['event_date'])[:10],pair,norm(r['event_name']))
+              sigs[sig]+=1
+          duplicate_groups=sum(1 for c in sigs.values() if c>1)
+          duplicate_excess=sum(c-1 for c in sigs.values() if c>1)
+          p=[r for r in rows if 'parnasse' in norm(r['fighter_1']) or 'parnasse' in norm(r['fighter_2'])]
+          ksw114=[r for r in rows if 'ksw 114' in norm(r['event_name'])]
+          audit={
+              'database':str(db),
+              'total_rows':len(rows),
+              'duplicate_signature_groups':duplicate_groups,
+              'duplicate_excess_rows':duplicate_excess,
+              'parnasse_rows':p,
+              'ksw_114_rows':ksw114,
+          }
+          Path('diagnostics/raw-warehouse-audit.json').write_text(json.dumps(audit,default=str,indent=2))
+          print(json.dumps({k:v for k,v in audit.items() if k not in ('parnasse_rows','ksw_114_rows')},indent=2))
+          print('Parnasse raw rows:',len(p))
+          for r in p: print(r)
+          print('KSW 114 rows:',len(ksw114))
+          for r in ksw114[:20]: print(r)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: profile-history-upstream-audit
+          path: diagnostics/
+          retention-days: 7
