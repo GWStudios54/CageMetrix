@@ -3,8 +3,8 @@ const fighterMedia = (() => {
   const media = new Map();
   const slugify = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const catalogs = [
-    '/headshots.json?v=headshots-20260904-3',
-    '/headshots-batch2.json?v=headshots-20260904-3'
+    '/headshots.json?v=headshots-20260904-4',
+    '/headshots-batch2.json?v=headshots-20260904-4'
   ];
 
   function addCreditsLink() {
