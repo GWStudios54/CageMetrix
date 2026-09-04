@@ -9,14 +9,14 @@
 <footer><span>CageMetrix</span><span>Licensed editorial fighter imagery.</span></footer>
 <script>
 (() => {
-  const catalogs=['/headshots.json?v=headshots-20260904-3','/headshots-batch2.json?v=headshots-20260904-3'];
+  const catalogs=['/headshots.json?v=headshots-20260904-4','/headshots-batch2.json?v=headshots-20260904-4'];
   const overrides={
     'michael-page':'Michael “Venom” Page',
     'nursulton-ruziboev':'Nursulton Ruziboev',
     'alexandre-pantoja':'Alexandre Pantoja',
     'deiveson-figueiredo':'Deiveson Figueiredo',
     'jiri-prochazka':'Jiří Procházka',
-    'sean-omalley':"Sean O'Malley"
+    'sean-o-malley':"Sean O'Malley"
   };
   const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const displayName=slug=>overrides[slug]||slug.split('-').map(part=>part ? part[0].toUpperCase()+part.slice(1) : '').join(' ');
