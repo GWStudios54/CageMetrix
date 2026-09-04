@@ -1,4 +1,4 @@
-name: Verify Freedom 250 headshots live
+name: Find Sean OMalley production slug
 on:
   push:
     branches:
@@ -6,77 +6,29 @@ on:
 permissions:
   contents: read
 jobs:
-  verify:
+  find:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Diagnose deployed portraits and credits
+      - name: Inspect production sitemap and rankings
         shell: bash
         run: |
-          mkdir -p diagnostics/freedom250-headshots-live
-          node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
-          const base='https://cagemetrix.aarin54.workers.dev';
-          const fetchJson=async path=>{
-            const r=await fetch(`${base}${path}?live_check=${Date.now()}`,{headers:{accept:'application/json'},cache:'no-store'});
-            console.log('FETCH',path,'status',r.status);
-            if(!r.ok) throw new Error(`${path} status ${r.status}`);
-            return r.json();
-          };
-          const first=await fetchJson('/headshots.json');
-          const second=await fetchJson('/headshots-batch2.json');
-          console.log('CATALOG_COUNTS',Object.keys(first).length,Object.keys(second).length);
-          const expected=['alex-pereira','ciryl-gane','sean-omalley','aiemann-zahabi','josh-hokit','derrick-lewis'];
-          for(const slug of expected) console.log('CATALOG',slug,Boolean(second[slug]),second[slug]?.url||'');
-
-          const browser=await chromium.launch({headless:true});
-          const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          const page=await context.newPage();
-          const results=[];
-          for(const slug of expected){
-            console.log('\nCHECKING',slug);
-            const response=await page.goto(`${base}/fighters/${slug}?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
-            console.log('PAGE_STATUS',slug,response?.status(), 'URL',page.url(), 'TITLE',await page.title());
-            await page.waitForTimeout(2500);
-            const body=(await page.locator('body').innerText().catch(()=>'' )).slice(0,1200).replace(/\s+/g,' ');
-            const imgs=await page.locator('img.portrait-photo').count();
-            const portraits=await page.locator('.portrait').count();
-            const scripts=await page.locator('script[src*="fighter-media"]').count();
-            console.log('DOM',slug,{imgs,portraits,scripts,body});
-            if(imgs){
-              const img=page.locator('img.portrait-photo').first();
-              const data=await img.evaluate(el=>({src:el.currentSrc||el.src,complete:el.complete,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,rect:el.getBoundingClientRect().toJSON()}));
-              console.log('IMAGE',slug,data);
-              results.push({slug,ok:data.complete&&data.naturalWidth>0&&data.naturalHeight>0,...data});
-            }else{
-              const placeholder=await page.locator('.portrait-initials').first().innerText().catch(()=>null);
-              console.log('NO_IMAGE',slug,'placeholder',placeholder);
-              results.push({slug,ok:false,reason:'no img.portrait-photo',placeholder});
-            }
-            await page.screenshot({path:`diagnostics/freedom250-headshots-live/${slug}.png`,fullPage:false}).catch(()=>{});
-          }
-          const creditsResponse=await page.goto(`${base}/photo-credits.html?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
-          await page.waitForTimeout(2000);
-          const creditsText=await page.locator('#creditCount').innerText().catch(()=>null);
-          const creditCount=await page.locator('.credit').count();
-          console.log('CREDITS',creditsResponse?.status(),creditsText,creditCount);
-          await page.screenshot({path:'diagnostics/freedom250-headshots-live/photo-credits.png',fullPage:false}).catch(()=>{});
-          console.log('RESULTS',JSON.stringify(results,null,2));
-          await browser.close();
-          if(Object.keys(first).length!==17||Object.keys(second).length!==14) process.exitCode=1;
-          if(creditCount!==31) process.exitCode=1;
-          if(results.some(r=>!r.ok)) process.exitCode=1;
-          NODE
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: freedom250-headshots-live
-          path: diagnostics/freedom250-headshots-live/
-          retention-days: 7
+          python - <<'PY'
+          import json, urllib.request
+          base='https://cagemetrix.aarin54.workers.dev'
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'CageMetrix diagnostic','Accept':'application/json,text/xml,text/plain'})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return r.status,r.read().decode('utf-8','replace')
+          for path in ['/sitemap.xml','/api/rankings']:
+              try:
+                  status,body=get(path)
+                  print('\nPATH',path,'STATUS',status,'LEN',len(body))
+                  low=body.lower()
+                  for term in ['sean','omalley','o-malley','o%27malley']:
+                      idx=low.find(term)
+                      if idx>=0:
+                          print('MATCH',term,body[max(0,idx-300):idx+500].replace('\n',' '))
+              except Exception as e:
+                  print('ERROR',path,repr(e))
+          PY
