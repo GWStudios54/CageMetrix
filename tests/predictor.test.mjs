@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FEATURE_NAMES, featureVector, predictFrozenVector, predictMatchup } from '../scripts/lib/predictor_v01.mjs';
+import { FEATURE_NAMES, featureVector, predictFrozenVector } from '../scripts/lib/predictor_v01.mjs';
+import {
+  PREDICTOR_V02_FEATURE_NAMES,
+  PREDICTOR_V02_VERSION,
+  predictorV02FeatureVector,
+  predictV02Vector,
+  predictV02Matchup
+} from '../scripts/lib/predictor_v02.mjs';
 import { FORECAST_NAME, FORECAST_VERSION, forecast } from '../scripts/lib/forecast.mjs';
 
 function rating(overrides = {}) {
@@ -16,12 +23,13 @@ function rating(overrides = {}) {
   };
 }
 
-test('Predictor 0.1 production identity stays on the public forecast key', () => {
+test('Predictor 0.2 production identity stays on the public forecast key', () => {
   assert.equal(FORECAST_NAME, 'CageMetrix Win Probability');
-  assert.equal(FORECAST_VERSION, '0.1.0');
+  assert.equal(FORECAST_VERSION, '0.2.0');
+  assert.equal(PREDICTOR_V02_VERSION, '0.2.0');
 });
 
-test('feature vector and frozen probability are symmetric when fighters swap', () => {
+test('legacy Predictor 0.1 feature vector and frozen probability remain symmetric', () => {
   const a = rating({ eloRaw: 1610, cmr: 63, strikingOffense: 72, wrestlingDefense: 68, bouts: 9 });
   const b = rating({ eloRaw: 1480, cmr: 54, strikingDefense: 61, wrestlingOffense: 66, bouts: 4 });
   const ab = featureVector(a, b);
@@ -33,23 +41,35 @@ test('feature vector and frozen probability are symmetric when fighters swap', (
   assert.ok(Math.abs((p + reverse) - 1) < 1e-10);
 });
 
-test('frozen coefficients reproduce the validated Predictor 0.1 holdout probability', () => {
+test('frozen coefficients still reproduce the validated Predictor 0.1 holdout probability', () => {
   const x = [-12.91679927936184,1.5655783684974551,0.13154959890941598,-1.6310763993490127,-13.028007325754288,20.287416293066748,-4.678438074128479,2.7490810972709028,6.2216219965648065,-17.159190321902592,1.851379540228642,1.3960600560491088,-3.092258301246673,17.138617053186145,0.4054651081081643,0.6613984822453651,4.33107632693827,-0.8839873450085527,4.430177012412056,6.368148049205878,2.014076985355949,-0.7634573929760933,8.845626424075759,-2.710210522406782];
   assert.ok(Math.abs(predictFrozenVector(x) - 0.5108549846086381) < 1e-12);
 });
 
-test('rated fighters use Predictor 0.1 with auditable matchup drivers', () => {
+test('Predictor 0.2 feature vector and probability are symmetric when fighters swap', () => {
+  const a = rating({ eloRaw: 1610, cmr: 63, strikingOffense: 72, wrestlingDefense: 68, bouts: 9 });
+  const b = rating({ eloRaw: 1480, cmr: 54, strikingDefense: 61, wrestlingOffense: 66, bouts: 4 });
+  const summaryA={pre_ufc_bouts:9,pre_ufc_wins:7,pre_ufc_losses:2,pre_ufc_finishes:5,pre_ufc_major_org_bouts:3,days_from_last_pre_ufc_to_debut:90};
+  const summaryB={pre_ufc_bouts:6,pre_ufc_wins:4,pre_ufc_losses:2,pre_ufc_finishes:2,pre_ufc_major_org_bouts:1,days_from_last_pre_ufc_to_debut:180};
+  const ab=predictorV02FeatureVector(a,b,summaryA,summaryB);
+  const ba=predictorV02FeatureVector(b,a,summaryB,summaryA);
+  assert.equal(ab.length,PREDICTOR_V02_FEATURE_NAMES.length);
+  for(let i=0;i<ab.length;i++)assert.ok(Math.abs(ab[i]+ba[i])<1e-9,PREDICTOR_V02_FEATURE_NAMES[i]);
+  assert.ok(Math.abs(predictV02Vector(ab)+predictV02Vector(ba)-1)<1e-10);
+});
+
+test('rated fighters use Predictor 0.2 with auditable matchup drivers', () => {
   const a = rating({ name:'Alpha', eloRaw:1630, cmr:64, strikingOffense:69, wrestlingOffense:63, recentForm:61 });
   const b = rating({ name:'Bravo', eloRaw:1510, cmr:56, strikingDefense:60, wrestlingDefense:58, recentForm:53 });
-  const raw = predictMatchup(a,b);
+  const raw = predictV02Matchup(a,b,null,null);
   const result = forecast(a,b,{a:'Alpha',b:'Bravo'});
-  assert.equal(result.modelUsed, 'predictor_v01');
+  assert.equal(result.modelUsed, 'predictor_v02');
   assert.ok(Math.abs(result.probabilityA - raw.probabilityA) < 1e-12);
   assert.ok(result.drivers.length > 0);
   assert.match(result.notes, /Main model edges:/);
 });
 
-test('an unrated UFC debutant uses the documented Elo fallback', () => {
+test('an unrated fighter without verified warehouse history uses the documented Elo fallback', () => {
   const veteran = rating({ eloRaw:1600, bouts:8, confidence:80 });
   const result = forecast(veteran, null, {a:'Veteran',b:'Debutant'});
   assert.equal(result.modelUsed, 'elo_fallback');
