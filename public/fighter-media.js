@@ -3,6 +3,7 @@ const fighterMedia = (() => {
   const media = new Map();
   const slugify = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const catalogs = [
+    '/headshots-auto.json',
     '/headshots.json?v=headshots-20260904-4',
     '/headshots-batch2.json?v=headshots-20260904-4'
   ];
@@ -19,7 +20,7 @@ const fighterMedia = (() => {
   }
 
   const ready = Promise.all(catalogs.map(url =>
-    fetch(url, { headers: { accept: 'application/json' } })
+    fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' })
       .then(response => response.ok ? response.json() : {})
       .catch(() => ({}))
   )).then(groups => {
