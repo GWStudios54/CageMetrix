@@ -147,9 +147,11 @@ export function applyWarehousePrior(baseRating, summaryInput, options = {}) {
   };
 }
 
-// Only fields that can change a warehouse prior or its provenance enter this
+// Only fields that can change a warehouse prior enter this
 // canonical fingerprint. updated_at is deliberately excluded so an identical
-// history refresh does not create a fake new model snapshot.
+// history refresh does not create a fake new model snapshot. Snapshot IDs and
+// source keys are provenance for the underlying warehouse load; they do not
+// change the canonical summary consumed by CMR and are excluded for stability.
 const WAREHOUSE_SNAPSHOT_FIELDS = Object.freeze([
   'fighter_id',
   'first_ufc_date',
@@ -166,9 +168,7 @@ const WAREHOUSE_SNAPSHOT_FIELDS = Object.freeze([
   'pre_ufc_submission_wins',
   'pre_ufc_decision_wins',
   'pre_ufc_major_org_bouts',
-  'pre_ufc_distinct_opponents',
-  'source_key',
-  'snapshot_id'
+  'pre_ufc_distinct_opponents'
 ]);
 
 export function warehouseSummarySnapshot(rows = []) {

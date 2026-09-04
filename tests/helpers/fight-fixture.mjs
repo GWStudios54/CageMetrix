@@ -11,10 +11,11 @@ export const ratingB={...ratingA,eloRaw:1580,cmr:59,strikingOffense:60,strikingD
 export const fighterA={name:'Umar Nurmagomedov',slug:'umar-nurmagomedov'},fighterB={name:'Song Yadong',slug:'song-yadong'};
 export function freshDb(){const db=new DatabaseSync(':memory:');for(const file of readdirSync(new URL('../../migrations/',import.meta.url)).sort())db.exec(readFileSync(new URL(`../../migrations/${file}`,import.meta.url),'utf8'));return db;}
 export function seed(db){
-  db.prepare("INSERT INTO model_versions(id,name,version,parameters_json) VALUES(100,'CageMetrix Win Probability','0.2.0',?)").run(JSON.stringify(FORECAST_PARAMETERS));
+  db.prepare("INSERT INTO model_versions(id,name,version,parameters_json) VALUES(100,'CageMetrix Win Probability','0.2.1',?)").run(JSON.stringify(FORECAST_PARAMETERS));
   db.exec("INSERT INTO model_versions(id,name,version) VALUES(101,'CageMetrix Elo Baseline','0.1.0')");
   db.exec("INSERT INTO model_versions(id,name,version) VALUES(102,'CageMetrix Opponent-Adjusted Rating','0.3.0')");
   db.exec("INSERT INTO model_versions(id,name,version) VALUES(103,'CageMetrix Win Probability','0.1.0')");
+  db.exec("INSERT INTO model_versions(id,name,version) VALUES(104,'CageMetrix Win Probability','0.2.0')");
   const insert=db.prepare('INSERT INTO fighters(id,slug,name,current_weight_class) VALUES(?,?,?,?)');
   insert.run(1,fighterA.slug,fighterA.name,'Bantamweight');insert.run(2,fighterB.slug,fighterB.name,'Bantamweight');insert.run(3,'replacement-fighter','Replacement Fighter','Bantamweight');
   const past=new Date(Date.now()-3600000).toISOString(),future=new Date(Date.now()+86400000).toISOString(),locked=new Date(Date.now()-86400000).toISOString();
@@ -29,13 +30,18 @@ export function seed(db){
   bout.run(5,2,3,3,'scheduled','ufc:44444:replacement-fighter:umar-nurmagomedov');
   db.exec("UPDATE bouts SET winner_id=2,result_method='KO/TKO',result_round=2,result_time_seconds=108 WHERE id=3");
 
-  // Current production fixture: Predictor 0.2 / CMR 0.3.1 snapshot identity.
+  // Current production fixture: Predictor 0.2.1 / CMR 0.3.2 snapshot identity.
   const probabilities=forecast(ratingA,ratingB,{a:fighterA.name,b:fighterB.name});
-  const currentSnapshot=predictionSnapshot({a:fighterA,b:fighterB,ratingA,ratingB,probabilities,snapshotKey:'0.3.1:fixture',sourceMaxDate:'2026-08-29',lockedAt:locked});
+  const currentSnapshot=predictionSnapshot({a:fighterA,b:fighterB,ratingA,ratingB,probabilities,snapshotKey:'0.3.2:fixture',sourceMaxDate:'2026-08-29',lockedAt:locked});
   const prediction=db.prepare('INSERT INTO predictions(id,bout_id,model_version_id,locked_at,fighter_a_probability,fighter_b_probability,picked_fighter_id,top_factors_json,notes,input_snapshot_key,input_snapshot_json) VALUES(?,?,100,?,?,?,?,?,?,?,?)');
   for(const id of [2,3,4])prediction.run(id,id,locked,probabilities.probabilityA,probabilities.probabilityB,probabilities.pick==='a'?1:2,JSON.stringify(probabilities.drivers),probabilities.notes,currentSnapshot.input_snapshot_key,JSON.stringify(currentSnapshot));
   const replacement=forecast(ratingA,null),replacementSnapshot=predictionSnapshot({a:fighterA,b:{name:'Replacement Fighter',slug:'replacement-fighter'},ratingA,ratingB:null,probabilities:replacement,snapshotKey:currentSnapshot.input_snapshot_key,sourceMaxDate:'2026-08-29',lockedAt:locked});
   prediction.run(5,5,locked,replacement.probabilityA,replacement.probabilityB,1,'[]',replacement.notes,currentSnapshot.input_snapshot_key,JSON.stringify(replacementSnapshot));
+
+  // A locked Predictor 0.2.0 row remains selectable and immutable after the
+  // 0.2.1 promotion; its original 0.3.1 pre-fight snapshot is retained.
+  const archivedV02=predictionSnapshot({a:fighterA,b:fighterB,ratingA,ratingB,probabilities,snapshotKey:'0.3.1:archived-fixture',sourceMaxDate:'2026-08-29',lockedAt:locked,modelVersion:'0.2.0',cmrVersion:'0.3.1'});
+  db.prepare('INSERT INTO predictions(id,bout_id,model_version_id,locked_at,fighter_a_probability,fighter_b_probability,picked_fighter_id,top_factors_json,notes,input_snapshot_key,input_snapshot_json) VALUES(10,2,104,?,?,?,?,?,?,?,?)').run(locked,probabilities.probabilityA,probabilities.probabilityB,probabilities.pick==='a'?1:2,JSON.stringify(probabilities.drivers),'Frozen Predictor 0.2.0 archived fixture.',archivedV02.input_snapshot_key,JSON.stringify(archivedV02));
 
   // Fight 1 is intentionally a frozen Predictor 0.1 historical row. This mirrors
   // production after promotion: old locked predictions stay immutable while new

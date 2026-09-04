@@ -11,7 +11,7 @@ import {
   PREDICTOR_V02_BENCHMARK
 } from '../scripts/lib/predictor_v02.mjs';
 
-// These cores are intentionally unchanged by the 0.3.1 / 0.2 promotion:
+// These cores are intentionally unchanged by the 0.3.2 / 0.2.1 promotion:
 // Predictor 0.1 remains reproducible for historical predictions, CMR's UFC
 // technical engine remains stable, and the official live-results grader is
 // independent of model promotion.
@@ -28,10 +28,10 @@ test('model promotion preserves legacy/result cores and pins the new production 
   }
   const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
   assert.deepEqual(config.triggers.crons,['*/2 * * * *']);
-  assert.equal(config.vars.MODEL_VERSION,'0.3.1');
+  assert.equal(config.vars.MODEL_VERSION,'0.3.2');
   assert.equal(FORECAST_NAME,'CageMetrix Win Probability');
-  assert.equal(FORECAST_VERSION,'0.2.0');
-  assert.equal(PREDICTOR_V02_VERSION,'0.2.0');
+  assert.equal(FORECAST_VERSION,'0.2.1');
+  assert.equal(PREDICTOR_V02_VERSION,'0.2.1');
   assert.equal(PREDICTOR_V02_WEIGHTS.length,33);
   assert.equal(PREDICTOR_V02_SCALES.length,33);
   assert.deepEqual(PREDICTOR_V02_PRIOR_OPTIONS,{maxWeight:0.65,decayBouts:4});

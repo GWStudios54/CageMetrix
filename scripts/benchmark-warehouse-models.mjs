@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseDelimited } from './lib/csv.mjs';
 import { buildObservations, buildRatings } from './lib/model_v03.mjs';
-import { MODEL_VERSION, STATS_URL } from './lib/dataset.mjs';
+import { STATS_URL } from './lib/dataset.mjs';
 import {
   FEATURE_NAMES as BASE_FEATURE_NAMES,
   featureVector as baseFeatureVector,
@@ -22,6 +22,7 @@ import {
   coefficientsWithNames,
   predictorV02FeatureVector
 } from './lib/predictor_v02.mjs';
+import { isFiniteProbability } from './lib/model-validation.mjs';
 
 const DB = 'cagemetrix';
 const CMR_CANDIDATE_VERSION = '0.3.2-warehouse-candidate';
@@ -39,13 +40,8 @@ const PRIOR_OPTIONS = [
   { maxWeight: 0.65, decayBouts: 4 }
 ];
 
-// Number(null) is 0, so Number.isFinite(Number(value)) incorrectly treated a
-// missing Predictor 0.1 probability as a real 0% forecast. Keep the common
-// comparison restricted to bouts where the baseline actually produced a value.
-const finite = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
-
 function wrangler(args) {
-  return execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['wrangler', ...args], {
+  return execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
@@ -231,7 +227,7 @@ async function main() {
     ...row,
     v02_p: predict(predictorModel, row)
   }));
-  const predictorCommon = scoredPredictor.filter(row => finite(row.v01_p));
+  const predictorCommon = scoredPredictor.filter(row => isFiniteProbability(row.v01_p));
 
   const report = {
     generated_at: new Date().toISOString(),
@@ -244,7 +240,7 @@ async function main() {
       warehouse_scope: 'Completed pre-UFC history only for CageMetrix UFC fighters. No regional technical stats are synthesized.'
     },
     source_max_date: pairs.map(pair => pair.red.eventDate).sort().at(-1),
-    baseline_cmr_version: MODEL_VERSION,
+    baseline_cmr_version: '0.3.1',
     candidate_cmr_version: CMR_CANDIDATE_VERSION,
     baseline_predictor_version: '0.1.0',
     candidate_predictor_version: PREDICTOR_V02_VERSION,

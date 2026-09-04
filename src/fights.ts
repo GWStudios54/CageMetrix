@@ -60,7 +60,8 @@ export async function getFight(id:string,env:Env,selected?:string|null):Promise<
   const rows=await env.DB.prepare(`SELECT p.*,mv.name model_name,mv.version model_version,COALESCE(p.input_snapshot_json,s.snapshot_json) snapshot_json
     FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id LEFT JOIN prediction_snapshots s ON s.prediction_id=p.id
     WHERE p.bout_id=? ORDER BY CASE
-      WHEN mv.name='CageMetrix Win Probability' AND mv.version='0.2.0' THEN 0
+      WHEN mv.name='CageMetrix Win Probability' AND mv.version='0.2.1' THEN 0
+      WHEN mv.name='CageMetrix Win Probability' AND mv.version='0.2.0' THEN 1
       WHEN mv.name='CageMetrix Win Probability' AND mv.version='0.1.0' THEN 1
       ELSE 2 END,p.id DESC`).bind(Number(id)).all<Row>();
   if(!rows.results.length)return null;

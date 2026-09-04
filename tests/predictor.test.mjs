@@ -9,6 +9,7 @@ import {
   predictV02Matchup
 } from '../scripts/lib/predictor_v02.mjs';
 import { FORECAST_NAME, FORECAST_VERSION, forecast } from '../scripts/lib/forecast.mjs';
+import { isFiniteProbability } from '../scripts/lib/model-validation.mjs';
 
 function rating(overrides = {}) {
   return {
@@ -23,10 +24,18 @@ function rating(overrides = {}) {
   };
 }
 
-test('Predictor 0.2 production identity stays on the public forecast key', () => {
+test('Predictor 0.2.1 production identity stays on the public forecast key', () => {
   assert.equal(FORECAST_NAME, 'CageMetrix Win Probability');
-  assert.equal(FORECAST_VERSION, '0.2.0');
-  assert.equal(PREDICTOR_V02_VERSION, '0.2.0');
+  assert.equal(FORECAST_VERSION, '0.2.1');
+  assert.equal(PREDICTOR_V02_VERSION, '0.2.1');
+});
+
+test('common-holdout validation excludes absent baseline probabilities', () => {
+  assert.equal(isFiniteProbability(null), false);
+  assert.equal(isFiniteProbability(undefined), false);
+  assert.equal(isFiniteProbability(''), false);
+  assert.equal(isFiniteProbability(0), true);
+  assert.equal(isFiniteProbability(0.5), true);
 });
 
 test('legacy Predictor 0.1 feature vector and frozen probability remain symmetric', () => {

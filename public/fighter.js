@@ -221,7 +221,7 @@ async function load() {
     ${provisionalCopy}
     <div class="confidence-track"><span style="width:${Math.max(0, Math.min(100, Number(rating.confidence || 0)))}%"></span></div>`;
 
-  document.querySelector('#model-label').textContent = `${rating.model_name || 'CageMetrix'} · v${rating.model_version || '0.2.0'}`;
+  document.querySelector('#model-label').textContent = `${rating.model_name || 'CageMetrix'} · v${rating.model_version || '0.3.2'}`;
 
   loading.hidden = true;
   [content, adjustedSection, historySection, whySection, rawSection, recentSection, modelSection].forEach(el => { el.hidden = false; });

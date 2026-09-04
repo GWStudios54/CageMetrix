@@ -1,4 +1,4 @@
-name: Validate Predictor 0.2 common holdout
+name: Validate Predictor 0.2.1 common holdout
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - 'scripts/validate-predictor-v02-common.mjs'
       - 'scripts/lib/warehouse-prior.mjs'
       - 'scripts/lib/predictor_v02.mjs'
+      - 'scripts/lib/model-validation.mjs'
       - '.github/workflows/predictor-v02-common-validation.yml'
   workflow_dispatch:
 
@@ -41,7 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: predictor-v02-common-validation
+          name: predictor-v02-1-common-validation
           path: .cache/predictor-v02-common-validation.json
           if-no-files-found: ignore
           retention-days: 30
