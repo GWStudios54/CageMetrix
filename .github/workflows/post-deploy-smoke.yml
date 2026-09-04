@@ -1,0 +1,37 @@
+name: Diagnose CageMetrix production endpoints
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/post-deploy-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe Worker and custom domain
+        shell: bash
+        run: |
+          set -u
+          mkdir -p diagnostics
+          for base in https://cagemetrix.aarin54.workers.dev https://cagemetrix.com; do
+            key=$(echo "$base" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
+            for path in /api/health '/api/rankings?limit=1' /api/forecasts; do
+              name=$(echo "$path" | sed 's#[/?=&]#_#g')
+              code=$(curl --silent --show-error --location --user-agent 'Mozilla/5.0 CageMetrix-Production-Smoke/1.0' --output "diagnostics/${key}${name}.body" --dump-header "diagnostics/${key}${name}.headers" --write-out '%{http_code}' "${base}${path}" || true)
+              echo "$base$path -> $code"
+              head -c 300 "diagnostics/${key}${name}.body" || true
+              echo
+            done
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: post-deploy-diagnostics
+          path: diagnostics/
+          retention-days: 7
