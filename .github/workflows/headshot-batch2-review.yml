@@ -11,13 +11,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - name: Install review dependency
+        run: python -m pip install --quiet pillow
       - name: Build candidate contact sheet
         shell: bash
         run: |
           mkdir -p diagnostics/headshot-batch2/images
           python - <<'PY'
           import os, urllib.parse, urllib.request
-          from PIL import Image, ImageDraw, ImageFont, ImageOps
+          from PIL import Image, ImageDraw, ImageOps
           items = {
             'islam-makhachev': 'Islam Makhachev and Sergey Melikov 2025 (cropped).jpg',
             'ilia-topuria': 'Ilia Topuria at the Orbeliani Palace (cropped).jpg',
