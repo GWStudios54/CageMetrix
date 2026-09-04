@@ -1,0 +1,54 @@
+name: Verify deployed fighter portraits
+on:
+  push:
+    branches:
+      - diagnostic/headshot-live-check
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Check live headshot catalog and portraits
+        shell: bash
+        run: |
+          mkdir -p diagnostics/headshots
+          node --input-type=module <<'NODE'
+          import {chromium} from 'playwright';
+          import assert from 'node:assert/strict';
+          const base='https://cagemetrix.aarin54.workers.dev';
+          const catalog=await fetch(`${base}/headshots.json?v=headshots-20260904-1`,{cache:'no-store'}).then(async r=>{assert.equal(r.status,200);return r.json();});
+          assert.equal(Object.keys(catalog).length,17,'expected 17 licensed headshots');
+          const targets=['alexander-volkanovski','arman-tsarukyan','muslim-salikhov','alexandre-pantoja','renato-moicano','deiveson-figueiredo','alexa-grasso','nathaniel-wood','tai-tuivasa','petr-yan','dominick-reyes','alexander-volkov'];
+          for(const slug of targets){assert.ok(catalog[slug],`catalog missing ${slug}`);}
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          const results=[];
+          for(const slug of ['alexander-volkanovski','arman-tsarukyan','muslim-salikhov','alexandre-pantoja','deiveson-figueiredo','alexa-grasso']){
+            await page.goto(`${base}/fighters/${slug}?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+            const img=page.locator('img.portrait-photo').first();
+            await img.waitFor({state:'visible',timeout:15000});
+            await page.waitForFunction(()=>{const el=document.querySelector('img.portrait-photo');return el&&el.complete&&el.naturalWidth>0&&el.naturalHeight>0;},null,{timeout:15000});
+            const data=await img.evaluate(el=>({src:el.currentSrc,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,rect:el.getBoundingClientRect().toJSON()}));
+            assert.ok(data.naturalWidth>=300&&data.naturalHeight>=300,`${slug} image too small or broken: ${JSON.stringify(data)}`);
+            assert.ok(data.rect.width>=100&&data.rect.height>=100,`${slug} profile portrait not visibly rendered`);
+            results.push({slug,...data});
+            await page.screenshot({path:`diagnostics/headshots/${slug}.png`,fullPage:false});
+          }
+          console.log(JSON.stringify({catalogSize:Object.keys(catalog).length,results},null,2));
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: headshot-live-check
+          path: diagnostics/headshots/
+          retention-days: 7
