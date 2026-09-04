@@ -20,7 +20,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/fighters/*", "/fights/*"]
+    "run_worker_first": ["/api/*", "/fighters/*", "/fights/*", "/events/*", "/sitemap.xml"]
   },
   "vars": {
     "MODEL_VERSION": "0.3.2"
