@@ -10,6 +10,7 @@ on:
       - 'migrations/0016_precomputed_ufc_history_features.sql'
       - 'scripts/import-mma-master.py'
       - 'scripts/refresh-ufc-history.py'
+      - 'scripts/refresh-ufc-history-small.py'
       - 'scripts/refresh-ufc-history.mjs'
       - 'scripts/lib/warehouse-history.mjs'
       - 'tests/warehouse-history.test.mjs'
@@ -25,6 +26,7 @@ on:
       - 'migrations/0016_precomputed_ufc_history_features.sql'
       - 'scripts/import-mma-master.py'
       - 'scripts/refresh-ufc-history.py'
+      - 'scripts/refresh-ufc-history-small.py'
       - 'scripts/refresh-ufc-history.mjs'
       - 'scripts/lib/warehouse-history.mjs'
       - 'tests/warehouse-history.test.mjs'
@@ -60,7 +62,7 @@ jobs:
 
       - name: Validate UFC history pipeline
         run: |
-          python -m py_compile scripts/refresh-ufc-history.py
+          python -m py_compile scripts/refresh-ufc-history.py scripts/refresh-ufc-history-small.py
           node --check scripts/refresh-ufc-history.mjs
           node --test tests/warehouse-history.test.mjs
 
@@ -145,7 +147,7 @@ jobs:
 
       - name: Refresh UFC-linked warehouse history
         if: github.event_name != 'pull_request'
-        run: python scripts/refresh-ufc-history.py --remote
+        run: python scripts/refresh-ufc-history-small.py --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
