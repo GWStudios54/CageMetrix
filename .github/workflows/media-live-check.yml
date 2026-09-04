@@ -1,0 +1,33 @@
+name: Verify deployed fighter media
+on:
+  push:
+    branches:
+      - diagnostic/media-live-check
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check live media assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://cagemetrix.aarin54.workers.dev'
+          mkdir -p diagnostics
+          curl --fail --silent --show-error "$base/headshots.json" > diagnostics/headshots.json
+          curl --fail --silent --show-error "$base/fighter-media.js?v=initials-1" > diagnostics/fighter-media.js
+          curl --fail --silent --show-error "$base/photo-credits.html" > diagnostics/photo-credits.html
+          node - <<'NODE'
+          const fs=require('fs');
+          const rows=JSON.parse(fs.readFileSync('diagnostics/headshots.json','utf8'));
+          const expected=['dan-hooker','salahdine-parnasse','michael-page','nursulton-ruziboev','daniil-donchenko'];
+          for(const slug of expected) if(!rows[slug]?.url||!rows[slug]?.license) throw new Error(`Missing deployed media: ${slug}`);
+          if(Object.keys(rows).length!==5) throw new Error(`Expected 5 deployed media entries, got ${Object.keys(rows).length}`);
+          const js=fs.readFileSync('diagnostics/fighter-media.js','utf8');
+          if(!js.includes('portrait-photo')||!js.includes('photo-credits.html')) throw new Error('Deployed fighter-media.js is stale');
+          const credits=fs.readFileSync('diagnostics/photo-credits.html','utf8');
+          if(!credits.includes('Fighter photo credits')||!credits.includes('Salahdine Parnasse')||!credits.includes('Dan Hooker')) throw new Error('Photo credits page incomplete');
+          console.log({media:Object.keys(rows), renderer:'current', credits:'current'});
+          NODE
