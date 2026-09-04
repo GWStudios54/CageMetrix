@@ -28,6 +28,7 @@ interface PreUfcBoutRow {
 
 export function shouldSurfacePreUfcHistory(payload: FighterProfilePayload): boolean {
   if (!payload?.fighter?.id) return false;
+  if (Number(payload.fighter.ufc_bouts || 0) === 0) return true;
   if (!payload.rating) return true;
   return Boolean(payload.rating.provisional);
 }
