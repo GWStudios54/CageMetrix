@@ -20,6 +20,7 @@ jobs:
       - name: Check live headshot catalog and portraits
         shell: bash
         run: |
+          rm -rf diagnostics/headshots
           mkdir -p diagnostics/headshots
           node --input-type=module <<'NODE'
           import {chromium} from 'playwright';
@@ -33,7 +34,7 @@ jobs:
           const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
           const results=[];
-          for(const slug of ['alexander-volkanovski','arman-tsarukyan','muslim-salikhov','alexandre-pantoja','deiveson-figueiredo','alexa-grasso']){
+          for(const slug of targets){
             await page.goto(`${base}/fighters/${slug}?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
             const img=page.locator('img.portrait-photo').first();
             await img.waitFor({state:'visible',timeout:15000});
@@ -49,6 +50,6 @@ jobs:
           NODE
       - uses: actions/upload-artifact@v4
         with:
-          name: headshot-live-check
+          name: headshot-live-check-all
           path: diagnostics/headshots/
           retention-days: 7
