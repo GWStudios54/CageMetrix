@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const AUTO_PATH = path.join(ROOT, 'public', 'headshots-auto.json');
@@ -105,6 +106,21 @@ async function getJson(url, { attempts = 3 } = {}) {
   throw lastError || new Error(`Request failed: ${url}`);
 }
 
+function wrangler(params) {
+  return execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...params], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 50 * 1024 * 1024
+  });
+}
+
+function d1Fighters() {
+  const sql = `SELECT id, slug, name, current_weight_class, nationality, active, roster_status, status_source, last_fight_date, ufc_bouts FROM fighters ORDER BY name COLLATE NOCASE`;
+  const parsed = JSON.parse(wrangler(['d1', 'execute', 'cagemetrix', '--remote', '--command', sql, '--json']));
+  const parts = Array.isArray(parsed) ? parsed : [parsed];
+  return parts.flatMap(part => part.results || []);
+}
+
 async function fetchFighters(baseUrl) {
   const fighters = [];
   const limit = 200;
@@ -203,6 +219,7 @@ async function main() {
   const max = positiveInt(argValue('max'), DEFAULT_MAX);
   const refresh = hasFlag('refresh');
   const activeOnly = hasFlag('active-only');
+  const remote = hasFlag('remote');
 
   const [auto, state, ...curatedGroups] = await Promise.all([
     readJson(AUTO_PATH, {}),
@@ -210,7 +227,7 @@ async function main() {
     ...CURATED_PATHS.map(filePath => readJson(filePath, {}))
   ]);
   const curated = Object.assign({}, ...curatedGroups);
-  const fighters = await fetchFighters(baseUrl);
+  const fighters = remote ? d1Fighters() : await fetchFighters(baseUrl);
   const now = Date.now();
 
   const targets = fighters
