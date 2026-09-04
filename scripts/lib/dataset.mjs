@@ -3,7 +3,7 @@ import { parseDelimited, parseDate, parseHeightCm, parseReachCm, parsePair } fro
 import { buildObservations, careerAggregates, buildRatings } from './model_v03.mjs';
 import { resolveRosterStatus } from './roster.mjs';
 
-export const MODEL_VERSION = '0.3.0';
+export const MODEL_VERSION = '0.3.1';
 export const MODEL_NAME = 'CageMetrix Opponent-Adjusted Rating';
 export const STATS_URL = 'https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/stats/stats_raw.csv';
 export const DETAILS_URL = 'https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/external_data/raw_fighter_details.csv';
@@ -51,7 +51,7 @@ export function datasetSql(data) {
   const modelId = `(SELECT id FROM model_versions WHERE name=${q(MODEL_NAME)} AND version=${q(MODEL_VERSION)})`;
   const sql = [
     'PRAGMA foreign_keys=ON;',
-    `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(MODEL_NAME)},${q(MODEL_VERSION)},'rating','development','Identity-corrected, sex-separated descriptive CMR; retrospective validation published separately.',${q(JSON.stringify({ technical: .56, elo_resume: .24, schedule: .10, recent_form: .10, evidence: '42% cage time + 58% bout count; not probability', no_contests: 'excluded from ratings', previous_division_years: 2 }))},${q(sourceMaxDate)}) ON CONFLICT(name,version) DO UPDATE SET training_window_end=excluded.training_window_end;`
+    `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(MODEL_NAME)},${q(MODEL_VERSION)},'rating','production','Warehouse-informed UFC CMR. UFC technical performance remains authoritative; completed pre-UFC career history for fighters who reached the UFC supplies a conservative entry prior that decays as UFC evidence accumulates.',${q(JSON.stringify({ base_model: '0.3.0', technical: .56, elo_resume: .24, schedule: .10, recent_form: .10, evidence: '42% cage time + 58% bout count; not probability', no_contests: 'excluded from ratings', previous_division_years: 2, warehouse_prior: { scope: 'completed pre-UFC fights only for fighters who reached UFC', max_weight: .65, decay_ufc_bouts: 4, regional_technical_stats: 'never synthesized' } }))},${q(sourceMaxDate)}) ON CONFLICT(name,version) DO UPDATE SET status='production',training_window_end=excluded.training_window_end,description=excluded.description,parameters_json=excluded.parameters_json;`
   ];
   for (const f of fighters) {
     // UPSERT preserves existing IDs and all references. Never REPLACE fighters.
@@ -75,7 +75,7 @@ export function datasetSql(data) {
   // A new source hash appends a snapshot even if its date is unchanged. Old values
   // remain immutable and can be audited against rating_runs.source_key.
   sql.push(...inserts('ratings_history', 'fighter_id,model_version_id,as_of_date,weight_class,cmr,striking_offense,striking_defense,wrestling_offense,wrestling_defense,grappling,durability,pace,finishing,strength_of_schedule,recent_form,competitive_rating,technical_rating,resume_rating,confidence,sample_bouts,sample_minutes,components_json,snapshot_key', ratingRows));
-  sql.push(`INSERT INTO rating_runs (model_version_id,source_key,source_max_date,fighters_scored,completed_at,notes) VALUES (${modelId},${q(snapshotKey)},${q(sourceMaxDate)},${ratings.length},CURRENT_TIMESTAMP,'v0.3.0 identity and division corrections; source hash identifies this immutable snapshot.');`);
+  sql.push(`INSERT INTO rating_runs (model_version_id,source_key,source_max_date,fighters_scored,completed_at,notes) VALUES (${modelId},${q(snapshotKey)},${q(sourceMaxDate)},${ratings.length},CURRENT_TIMESTAMP,'v0.3.1 warehouse-informed UFC rating; pre-UFC prior max weight 0.65 and four-UFC-bout decay.');`);
   for (const event of data.eventArchive || []) sql.push(`INSERT INTO event_source_archive (source_url,event_date,payload_json) VALUES (${q(event.official_url)},${q(event.date)},${q(JSON.stringify(event))}) ON CONFLICT(source_url) DO UPDATE SET payload_json=excluded.payload_json,updated_at=CURRENT_TIMESTAMP;`);
   sql.push(statusSql(data));
   return sql.join('\n');
