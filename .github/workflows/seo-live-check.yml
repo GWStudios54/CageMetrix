@@ -1,0 +1,55 @@
+name: Verify deployed SEO pages
+on:
+  push:
+    branches:
+      - diagnostic/seo-live-check
+    paths:
+      - '.github/workflows/seo-live-check.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check live SEO HTML
+        run: |
+          set -euo pipefail
+          base='https://cagemetrix.aarin54.workers.dev'
+          mkdir -p diagnostics
+          curl --fail --silent --show-error "$base/" > diagnostics/home.html
+          curl --fail --silent --show-error "$base/predictions.html" > diagnostics/predictions.html
+          curl --fail --silent --show-error "$base/events/ufc-fight-night-september-05-2026" > diagnostics/event.html
+          curl --fail --silent --show-error "$base/fighters/salahdine-parnasse" > diagnostics/parnasse.html
+          curl --fail --silent --show-error "$base/sitemap.xml" > diagnostics/sitemap.xml
+          fight_path=$(grep -oE '/fights/[1-9][0-9]*' diagnostics/event.html | head -n 1)
+          test -n "$fight_path"
+          curl --fail --silent --show-error "$base$fight_path" > diagnostics/fight.html
+
+          grep -q 'UFC Rankings, Fight Predictions &amp; MMA Analytics' diagnostics/home.html
+          grep -q '/events/ufc-fight-night-september-05-2026' diagnostics/home.html
+          grep -q 'UFC Fight Predictions &amp; Win Probabilities' diagnostics/predictions.html
+          grep -q 'UFC Paris Predictions:' diagnostics/event.html
+          grep -q 'application/ld+json' diagnostics/event.html
+          grep -q 'Salahdine Parnasse Stats, CMR &amp; Fight History' diagnostics/parnasse.html
+          grep -q 'application/ld+json' diagnostics/parnasse.html
+          grep -q '<urlset' diagnostics/sitemap.xml
+          grep -q '/events/ufc-fight-night-september-05-2026' diagnostics/sitemap.xml
+          grep -q 'Prediction &amp; Stats — UFC Paris' diagnostics/fight.html
+          grep -q 'Model estimates, not betting odds.' diagnostics/fight.html
+
+          echo "fight_path=$fight_path"
+          echo '--- HOME TITLE ---'
+          grep -o '<title>[^<]*' diagnostics/home.html | head -1
+          echo '--- EVENT TITLE ---'
+          grep -o '<title>[^<]*' diagnostics/event.html | head -1
+          echo '--- PARNASSE TITLE ---'
+          grep -o '<title>[^<]*' diagnostics/parnasse.html | head -1
+          echo '--- SITEMAP URL COUNT ---'
+          grep -o '<url>' diagnostics/sitemap.xml | wc -l
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: seo-live-check
+          path: diagnostics/
+          retention-days: 7
