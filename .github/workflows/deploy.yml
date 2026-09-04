@@ -12,10 +12,15 @@ on:
       - 'migrations/0016_precomputed_ufc_history_features.sql'
       - 'scripts/import-mma-master.py'
       - 'scripts/refresh-ufc-history.py'
+      - 'scripts/refresh-ufc-history-small.py'
       - 'scripts/refresh-ufc-history.mjs'
       - 'scripts/lib/warehouse-history.mjs'
+      - 'scripts/lib/warehouse-prior.mjs'
+      - 'scripts/lib/predictor_v02.mjs'
+      - 'scripts/benchmark-warehouse-models.mjs'
       - 'tests/warehouse-history.test.mjs'
       - '.github/workflows/mma-master-sync.yml'
+      - '.github/workflows/warehouse-model-benchmark.yml'
   workflow_dispatch:
 
 concurrency:
