@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { normalizeWarehouseName, sqlValue } from './lib/warehouse-history.mjs';
 
 const DB = 'cagemetrix';
+const MASTER_SOURCE = 'leandroiber_mmastats';
 const remote = process.argv.includes('--remote');
 const locationFlag = remote ? '--remote' : '--local';
 
@@ -19,11 +20,18 @@ function wrangler(args, capture = false) {
 function queryRows(sql) {
   const raw = wrangler(['d1', 'execute', DB, locationFlag, '--command', sql, '--json'], true);
   const parsed = JSON.parse(raw);
-  return parsed.flatMap(part => part?.results || []);
+  const parts = Array.isArray(parsed) ? parsed : [parsed];
+  return parts.flatMap(part => part?.results || []);
 }
 
 function executeFile(path) {
   wrangler(['d1', 'execute', DB, locationFlag, '--file', path]);
+}
+
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function nativeFighters() {
@@ -40,7 +48,7 @@ function nativeFighters() {
 function writeIdentityKeys(dir, fighters) {
   const statements = ['DELETE FROM ufc_fighter_identity_keys;'];
   for (let i = 0; i < fighters.length; i += 120) {
-    const values = fighters.slice(i, i + 120).map(f => `(${Number(f.id)},${sqlValue(normalizeWarehouseName(f.name))},${sqlValue(String(f.dob || '').slice(0, 10) || null)},${sqlValue(Number.isFinite(Number(f.height_cm)) ? Number(f.height_cm) : null)},${sqlValue(Number.isFinite(Number(f.reach_cm)) ? Number(f.reach_cm) : null)},${sqlValue(f.stance || null)},CURRENT_TIMESTAMP)`).join(',\n');
+    const values = fighters.slice(i, i + 120).map(f => `(${Number(f.id)},${sqlValue(normalizeWarehouseName(f.name))},${sqlValue(String(f.dob || '').slice(0, 10) || null)},${sqlValue(numericOrNull(f.height_cm))},${sqlValue(numericOrNull(f.reach_cm))},${sqlValue(f.stance || null)},CURRENT_TIMESTAMP)`).join(',\n');
     statements.push(`INSERT OR REPLACE INTO ufc_fighter_identity_keys (fighter_id,normalized_name,dob,height_cm,reach_cm,stance,updated_at) VALUES\n${values};`);
   }
   const path = join(dir, 'identity-keys.sql');
@@ -49,8 +57,8 @@ function writeIdentityKeys(dir, fighters) {
 }
 
 const refreshSql = `
--- Preserve reviewed/manual links and rebuild only automatic matches.
-DELETE FROM mma_identity_links WHERE reviewed = 0;
+-- Preserve reviewed/manual links and rebuild only automatic matches for this source.
+DELETE FROM mma_identity_links WHERE source_key='${MASTER_SOURCE}' AND reviewed = 0;
 
 -- Safest automatic path: the normalized name is unique in both universes.
 INSERT OR IGNORE INTO mma_identity_links (
@@ -72,6 +80,7 @@ FROM mma_active_fighters wf
 JOIN (
   SELECT normalized_name
   FROM mma_active_fighters
+  WHERE source_key='${MASTER_SOURCE}'
   GROUP BY normalized_name
   HAVING COUNT(*) = 1
 ) wu ON wu.normalized_name = wf.normalized_name
@@ -82,10 +91,11 @@ JOIN (
   GROUP BY normalized_name
   HAVING COUNT(*) = 1
 ) nu ON nu.normalized_name = n.normalized_name
-WHERE NOT (
-  n.dob IS NOT NULL AND wf.dob IS NOT NULL
-  AND SUBSTR(n.dob,1,10) <> SUBSTR(wf.dob,1,10)
-);
+WHERE wf.source_key='${MASTER_SOURCE}'
+  AND NOT (
+    n.dob IS NOT NULL AND wf.dob IS NOT NULL
+    AND SUBSTR(n.dob,1,10) <> SUBSTR(wf.dob,1,10)
+  );
 
 -- Resolve otherwise ambiguous same-name cases only when DOB uniquely identifies
 -- one warehouse fighter and one existing UFC-native fighter.
@@ -110,7 +120,7 @@ JOIN ufc_fighter_identity_keys n
 JOIN (
   SELECT normalized_name,SUBSTR(dob,1,10) AS dob_key
   FROM mma_active_fighters
-  WHERE dob IS NOT NULL
+  WHERE source_key='${MASTER_SOURCE}' AND dob IS NOT NULL
   GROUP BY normalized_name,SUBSTR(dob,1,10)
   HAVING COUNT(*) = 1
 ) wu ON wu.normalized_name = wf.normalized_name AND wu.dob_key = SUBSTR(wf.dob,1,10)
@@ -120,7 +130,8 @@ JOIN (
   WHERE dob IS NOT NULL
   GROUP BY normalized_name,SUBSTR(dob,1,10)
   HAVING COUNT(*) = 1
-) nu ON nu.normalized_name = n.normalized_name AND nu.dob_key = SUBSTR(n.dob,1,10);
+) nu ON nu.normalized_name = n.normalized_name AND nu.dob_key = SUBSTR(n.dob,1,10)
+WHERE wf.source_key='${MASTER_SOURCE}';
 
 DELETE FROM ufc_fighter_history_summary;
 INSERT INTO ufc_fighter_history_summary (
