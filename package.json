@@ -11,6 +11,7 @@
     "test:fights:e2e": "node scripts/test-fight-e2e.mjs",
     "snapshots:backfill": "node scripts/backfill-prediction-snapshots.mjs",
     "contributor": "node scripts/contributor.mjs",
+    "photos:refresh": "node scripts/refresh-fighter-media.mjs",
     "cf-typegen": "wrangler types",
     "typecheck": "wrangler types && tsc --noEmit",
     "db:create": "wrangler d1 create cagemetrix",
