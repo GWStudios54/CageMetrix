@@ -4,6 +4,7 @@ import { shouldSurfacePreUfcHistory } from '../src/fighter-history.ts';
 
 test('debutants and provisional UFC samples surface verified pre-UFC history', () => {
   assert.equal(shouldSurfacePreUfcHistory({ fighter: { id: 10, ufc_bouts: 0 }, rating: null }), true);
+  assert.equal(shouldSurfacePreUfcHistory({ fighter: { id: 10, ufc_bouts: 0 }, rating: { provisional: false } }), true);
   assert.equal(shouldSurfacePreUfcHistory({ fighter: { id: 10, ufc_bouts: 2 }, rating: { provisional: true } }), true);
 });
 
