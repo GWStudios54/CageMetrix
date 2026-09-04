@@ -1,4 +1,4 @@
-# Retry after Predictor 0.2 forecast row typing fix.
+# Promotion attempt 3: production tests now cover Predictor 0.2 plus immutable Predictor 0.1 history.
 name: Promote CMR 0.3.1 and Predictor 0.2
 
 on:
