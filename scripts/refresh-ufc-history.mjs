@@ -6,6 +6,7 @@ import { normalizeWarehouseName, sqlValue } from './lib/warehouse-history.mjs';
 
 const DB = 'cagemetrix';
 const MASTER_SOURCE = 'leandroiber_mmastats';
+const FIGHTER_CHUNK = 50;
 const remote = process.argv.includes('--remote');
 const locationFlag = remote ? '--remote' : '--local';
 
@@ -24,7 +25,10 @@ function queryRows(sql) {
   return parts.flatMap(part => part?.results || []);
 }
 
-function executeFile(path) {
+function executeSqlFile(dir, name, sql) {
+  const path = join(dir, `${name}.sql`);
+  writeFileSync(path, `${sql.trim()}\n`, 'utf8');
+  console.log(`Applying ${name}…`);
   wrangler(['d1', 'execute', DB, locationFlag, '--file', path]);
 }
 
@@ -45,22 +49,28 @@ function nativeFighters() {
   return rows;
 }
 
+function chunks(values, size = FIGHTER_CHUNK) {
+  const out = [];
+  for (let i = 0; i < values.length; i += size) out.push(values.slice(i, i + size));
+  return out;
+}
+
+function idsSql(ids) {
+  return ids.map(id => Number(id)).filter(Number.isFinite).join(',');
+}
+
 function writeIdentityKeys(dir, fighters) {
   const statements = ['DELETE FROM ufc_fighter_identity_keys;'];
   for (let i = 0; i < fighters.length; i += 120) {
     const values = fighters.slice(i, i + 120).map(f => `(${Number(f.id)},${sqlValue(normalizeWarehouseName(f.name))},${sqlValue(String(f.dob || '').slice(0, 10) || null)},${sqlValue(numericOrNull(f.height_cm))},${sqlValue(numericOrNull(f.reach_cm))},${sqlValue(f.stance || null)},CURRENT_TIMESTAMP)`).join(',\n');
     statements.push(`INSERT OR REPLACE INTO ufc_fighter_identity_keys (fighter_id,normalized_name,dob,height_cm,reach_cm,stance,updated_at) VALUES\n${values};`);
   }
-  const path = join(dir, 'identity-keys.sql');
-  writeFileSync(path, `${statements.join('\n')}\n`, 'utf8');
-  executeFile(path);
+  executeSqlFile(dir, '010-identity-keys', statements.join('\n'));
 }
 
-const refreshSql = `
--- Preserve reviewed/manual links and rebuild only automatic matches for this source.
+const linkSql = `
 DELETE FROM mma_identity_links WHERE source_key='${MASTER_SOURCE}' AND reviewed = 0;
 
--- Safest automatic path: the normalized name is unique in both universes.
 INSERT OR IGNORE INTO mma_identity_links (
   source_key,source_fighter_id,cagemetrix_fighter_id,match_method,confidence,reviewed,notes,updated_at
 )
@@ -97,8 +107,6 @@ WHERE wf.source_key='${MASTER_SOURCE}'
     AND SUBSTR(n.dob,1,10) <> SUBSTR(wf.dob,1,10)
   );
 
--- Resolve otherwise ambiguous same-name cases only when DOB uniquely identifies
--- one warehouse fighter and one existing UFC-native fighter.
 INSERT OR IGNORE INTO mma_identity_links (
   source_key,source_fighter_id,cagemetrix_fighter_id,match_method,confidence,reviewed,notes,updated_at
 )
@@ -132,9 +140,38 @@ JOIN (
   HAVING COUNT(*) = 1
 ) nu ON nu.normalized_name = n.normalized_name AND nu.dob_key = SUBSTR(n.dob,1,10)
 WHERE wf.source_key='${MASTER_SOURCE}';
+`;
 
-DELETE FROM ufc_fighter_history_summary;
-INSERT INTO ufc_fighter_history_summary (
+function materializeCareer(dir, fighterIds) {
+  executeSqlFile(dir, '030-clear-materialized-history', `DELETE FROM ufc_warehouse_career_rows;`);
+  let part = 0;
+  for (const group of chunks(fighterIds)) {
+    part += 1;
+    const ids = idsSql(group);
+    executeSqlFile(dir, `040-career-${String(part).padStart(3, '0')}`, `
+INSERT OR REPLACE INTO ufc_warehouse_career_rows (
+  fighter_id,source_key,snapshot_id,source_fight_id,event_date,organization,event_name,
+  weight_class,is_major_org,method_raw,method_normalized,method_detail,round_num,
+  time_finish_seconds,result,fighter_name,normalized_name,opponent_name,opponent_normalized_name
+)
+SELECT
+  fighter_id,source_key,snapshot_id,source_fight_id,event_date,organization,event_name,
+  weight_class,is_major_org,method_raw,method_normalized,method_detail,round_num,
+  time_finish_seconds,result,fighter_name,normalized_name,opponent_name,opponent_normalized_name
+FROM mma_ufc_career_history
+WHERE fighter_id IN (${ids});
+`);
+  }
+}
+
+function buildSummaries(dir, fighterIds) {
+  executeSqlFile(dir, '050-clear-summaries', `DELETE FROM ufc_fighter_history_summary;`);
+  let part = 0;
+  for (const group of chunks(fighterIds)) {
+    part += 1;
+    const ids = idsSql(group);
+    executeSqlFile(dir, `060-summary-${String(part).padStart(3, '0')}`, `
+INSERT OR REPLACE INTO ufc_fighter_history_summary (
   fighter_id,first_ufc_date,first_pre_ufc_fight_date,last_pre_ufc_fight_date,
   days_from_last_pre_ufc_to_debut,pre_ufc_bouts,pre_ufc_wins,pre_ufc_losses,
   pre_ufc_draws,pre_ufc_no_contests,pre_ufc_finishes,pre_ufc_ko_tko_wins,
@@ -163,11 +200,21 @@ SELECT
   MAX(h.snapshot_id),
   CURRENT_TIMESTAMP
 FROM mma_ufc_first_bout fb
-LEFT JOIN mma_ufc_pre_ufc_history h ON h.fighter_id = fb.fighter_id
+LEFT JOIN ufc_warehouse_pre_ufc_rows h ON h.fighter_id = fb.fighter_id
+WHERE fb.fighter_id IN (${ids})
 GROUP BY fb.fighter_id,fb.first_ufc_date;
+`);
+  }
+}
 
-DELETE FROM ufc_prefight_history_features;
-INSERT INTO ufc_prefight_history_features (
+function buildPrefightFeatures(dir, fighterIds) {
+  executeSqlFile(dir, '070-clear-prefight-features', `DELETE FROM ufc_prefight_history_features;`);
+  let part = 0;
+  for (const group of chunks(fighterIds)) {
+    part += 1;
+    const ids = idsSql(group);
+    executeSqlFile(dir, `080-prefight-${String(part).padStart(3, '0')}`, `
+INSERT OR REPLACE INTO ufc_prefight_history_features (
   fighter_id,ufc_source_key,as_of_date,warehouse_career_bouts,warehouse_career_wins,
   warehouse_career_losses,warehouse_career_draws,warehouse_career_no_contests,
   warehouse_career_finishes,warehouse_finish_rate,warehouse_major_org_bouts,
@@ -197,12 +244,15 @@ SELECT
   MAX(h.snapshot_id),
   CURRENT_TIMESTAMP
 FROM bout_totals bt
-LEFT JOIN mma_ufc_career_history h
+LEFT JOIN ufc_warehouse_career_rows h
   ON h.fighter_id = bt.fighter_id
  AND h.event_date < bt.event_date
 LEFT JOIN ufc_fighter_history_summary s ON s.fighter_id = bt.fighter_id
+WHERE bt.fighter_id IN (${ids})
 GROUP BY bt.fighter_id,bt.source_key,bt.event_date,s.pre_ufc_bouts;
-`;
+`);
+  }
+}
 
 function main() {
   const fighters = nativeFighters();
@@ -211,31 +261,38 @@ function main() {
   const dir = mkdtempSync(join(tmpdir(), 'cagemetrix-ufc-history-'));
   try {
     writeIdentityKeys(dir, fighters);
-    const refreshPath = join(dir, 'refresh.sql');
-    writeFileSync(refreshPath, refreshSql, 'utf8');
-    executeFile(refreshPath);
+    executeSqlFile(dir, '020-link-identities', linkSql);
+
+    const linkedRows = queryRows(`SELECT DISTINCT fighter_id FROM mma_ufc_linked_fighters ORDER BY fighter_id`);
+    const fighterIds = linkedRows.map(row => Number(row.fighter_id)).filter(Number.isFinite);
+    if (fighterIds.length < 500) throw new Error(`Warehouse identity coverage unexpectedly low: ${fighterIds.length} UFC-linked fighters.`);
+
+    materializeCareer(dir, fighterIds);
+    buildSummaries(dir, fighterIds);
+    buildPrefightFeatures(dir, fighterIds);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 
   const linked = queryRows(`SELECT COUNT(*) AS n FROM mma_ufc_linked_fighters`)[0]?.n || 0;
-  const preUfcRows = queryRows(`SELECT COUNT(*) AS n FROM mma_ufc_pre_ufc_history`)[0]?.n || 0;
+  const materialized = queryRows(`SELECT COUNT(*) AS n FROM ufc_warehouse_career_rows`)[0]?.n || 0;
+  const preUfcRows = queryRows(`SELECT COUNT(*) AS n FROM ufc_warehouse_pre_ufc_rows`)[0]?.n || 0;
   const summaries = queryRows(`SELECT COUNT(*) AS n FROM ufc_fighter_history_summary`)[0]?.n || 0;
   const prefight = queryRows(`SELECT COUNT(*) AS n FROM ufc_prefight_history_features`)[0]?.n || 0;
-  const badScope = queryRows(`SELECT COUNT(*) AS n FROM mma_identity_links l LEFT JOIN fighters f ON f.id=CAST(l.cagemetrix_fighter_id AS INTEGER) WHERE l.cagemetrix_fighter_id IS NOT NULL AND f.id IS NULL`)[0]?.n || 0;
-  const futureLeak = queryRows(`SELECT COUNT(*) AS n FROM mma_ufc_pre_ufc_history WHERE event_date >= first_ufc_date`)[0]?.n || 0;
+  const badScope = queryRows(`SELECT COUNT(*) AS n FROM ufc_warehouse_career_rows h LEFT JOIN fighters f ON f.id=h.fighter_id WHERE f.id IS NULL`)[0]?.n || 0;
+  const futureLeak = queryRows(`SELECT COUNT(*) AS n FROM ufc_warehouse_pre_ufc_rows WHERE event_date >= first_ufc_date`)[0]?.n || 0;
 
-  if (Number(badScope) !== 0) throw new Error(`Warehouse identity scope violation: ${badScope} links target non-UFC-native fighters.`);
+  if (Number(badScope) !== 0) throw new Error(`Warehouse history scope violation: ${badScope} rows target non-UFC-native fighters.`);
   if (Number(futureLeak) !== 0) throw new Error(`Pre-UFC history leakage detected: ${futureLeak} rows are not before UFC debut.`);
-  if (Number(linked) < 500) throw new Error(`Warehouse identity coverage unexpectedly low: ${linked} UFC-linked fighters.`);
 
   const audit = {
     native_ufc_fighters: fighters.length,
     warehouse_linked_ufc_fighters: Number(linked),
+    materialized_linked_career_rows: Number(materialized),
     pre_ufc_regional_history_rows: Number(preUfcRows),
     fighter_history_summaries: Number(summaries),
     prefight_history_feature_rows: Number(prefight),
-    non_ufc_native_link_violations: Number(badScope),
+    non_ufc_native_history_violations: Number(badScope),
     pre_ufc_future_leak_rows: Number(futureLeak),
     scope: 'Non-UFC warehouse bouts are retained only as history/context for fighters already present in CageMetrix UFC-native fighters.',
     generated_at: new Date().toISOString()
