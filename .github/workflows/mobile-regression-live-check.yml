@@ -56,6 +56,38 @@ jobs:
           assert.equal(color,'rgb(255, 255, 255)',`CTA text is not white: ${color}`);
           await page.screenshot({path:'diagnostics/home-mobile.png',fullPage:true});
 
+          const eventUrl=`${base}/events/ufc-fight-night-september-05-2026?v=${Date.now()}`;
+          await page.goto(eventUrl,{waitUntil:'domcontentloaded'});
+          const eventCard=page.locator('.event-card-seo');
+          await eventCard.waitFor({timeout:15000});
+          await page.waitForTimeout(1200);
+          const eventBox=await eventCard.boundingBox();
+          assert.ok(eventBox&&eventBox.x>=0&&eventBox.x+eventBox.width<=413,`event card overflowed mobile viewport: ${JSON.stringify(eventBox)}`);
+          const bouts=eventCard.locator('.forecast-bout');
+          assert.ok(await bouts.count()>=5,'expected multiple restored forecast rows');
+          const first=bouts.first();
+          const firstText=await first.innerText();
+          assert.match(firstText,/Dan Hooker/i,'first fight is missing Dan Hooker');
+          assert.match(firstText,/Salahdine Parnasse/i,'first fight is missing Salahdine Parnasse');
+          assert.match(firstText,/63\.5%/,'Hooker probability missing from restored row');
+          assert.match(firstText,/36\.5%/,'Parnasse probability missing from restored row');
+          assert.equal(await first.locator('.forecast-fighter').count(),2,'restored row does not have two fighter sides');
+          assert.equal(await first.locator('.portrait').count(),2,'restored row does not have two fighter portraits/placeholders');
+          const portraits=await first.locator('.portrait').evaluateAll(nodes=>nodes.map(el=>({display:getComputedStyle(el).display,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,hasPhoto:Boolean(el.querySelector('.portrait-photo'))})));
+          assert.ok(portraits.every(p=>p.display!=='none'&&p.width>=35&&p.height>=40),`portraits/placeholders are not visible: ${JSON.stringify(portraits)}`);
+          const bar=first.locator('.probability-bar');
+          assert.equal(await bar.count(),1,'probability bar missing');
+          const barBox=await bar.boundingBox();
+          assert.ok(barBox&&barBox.width>200&&barBox.height>=6,'probability bar is not visibly rendered');
+          const barPct=await bar.locator('span').evaluate((el)=>parseFloat(getComputedStyle(el).width)/parseFloat(getComputedStyle(el.parentElement).width)*100);
+          assert.ok(Math.abs(barPct-63.4723)<1.0,`Hooker probability bar width is wrong: ${barPct}`);
+          assert.equal(await page.locator('.event-grid').count(),0,'old giant event grid is still rendered');
+          assert.equal(await first.locator('.button.secondary').count(),0,'old broken fight CTA is still rendered');
+          assert.ok((await page.locator('link[rel="canonical"]').getAttribute('href'))?.includes('/events/ufc-fight-night-september-05-2026'),'canonical event URL missing');
+          assert.match(await page.title(),/UFC Paris Predictions/i,'SEO event title missing');
+          assert.ok(await page.locator('script[type="application/ld+json"]').count()>=2,'event structured data missing');
+          await page.screenshot({path:'diagnostics/event-mobile.png',fullPage:true});
+
           await page.goto(`${base}/fights/1?v=${Date.now()}`,{waitUntil:'domcontentloaded'});
           await page.locator('#fan-prediction .fans-side h3').first().waitFor({timeout:15000});
           const [fight,fans]=await page.evaluate(async()=>Promise.all([
@@ -74,7 +106,7 @@ jobs:
           assert.ok(driverText.includes('UFC sample & uncertainty adjustment'),'UFC sample/uncertainty label was not applied');
           assert.ok(driverText.includes('not a claim that the favored fighter has more UFC experience'),'experience disclaimer is missing');
           await page.screenshot({path:'diagnostics/fight-mobile.png',fullPage:true});
-          console.log(JSON.stringify({version,a:fight.prediction.fighter_a_probability,b:fight.prediction.fighter_b_probability,ctaColor:color,topbarBox,brandBox,navBox,navMetrics,navLinks,edgeLabels},null,2));
+          console.log(JSON.stringify({version,a:fight.prediction.fighter_a_probability,b:fight.prediction.fighter_b_probability,ctaColor:color,eventBox,barPct,portraits,topbarBox,brandBox,navBox,navMetrics,navLinks,edgeLabels},null,2));
           await browser.close();
           NODE
       - uses: actions/upload-artifact@v4
