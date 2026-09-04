@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseDelimited } from './lib/csv.mjs';
 import { buildObservations, buildRatings } from './lib/model_v03.mjs';
-import { MODEL_VERSION, STATS_URL } from './lib/dataset.mjs';
+import { STATS_URL } from './lib/dataset.mjs';
 import {
   FEATURE_NAMES as BASE_FEATURE_NAMES,
   featureVector as baseFeatureVector,
@@ -22,9 +22,10 @@ import {
   coefficientsWithNames,
   predictorV02FeatureVector
 } from './lib/predictor_v02.mjs';
+import { isFiniteProbability } from './lib/model-validation.mjs';
 
 const DB = 'cagemetrix';
-const CMR_CANDIDATE_VERSION = '0.3.1-warehouse-candidate';
+const CMR_CANDIDATE_VERSION = '0.3.2-warehouse-candidate';
 const START_DATE = '2018-01-01';
 const TUNE_DATE = '2022-01-01';
 const TEST_DATE = '2023-01-01';
@@ -39,10 +40,8 @@ const PRIOR_OPTIONS = [
   { maxWeight: 0.65, decayBouts: 4 }
 ];
 
-const finite = value => Number.isFinite(Number(value));
-
 function wrangler(args) {
-  return execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['wrangler', ...args], {
+  return execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
@@ -80,37 +79,16 @@ function metrics(rows, key) {
 }
 
 function calibration(rows, key) {
-  const buckets = Array.from({ length: 10 }, (_, index) => ({ low: index / 10, high: (index + 1) / 10, n: 0, predicted: 0, actual: 0 }));
-  for (const row of rows) {
-    const p = Math.max(0, Math.min(0.999999, row[key]));
-    const bucket = buckets[Math.min(9, Math.floor(p * 10))];
-    bucket.n += 1;
-    bucket.predicted += p;
-    bucket.actual += row.won;
-  }
-  return buckets.filter(bucket => bucket.n).map(bucket => ({
-    range: `${Math.round(bucket.low * 100)}-${Math.round(bucket.high * 100)}%`,
-    bouts: bucket.n,
-    mean_predicted: bucket.predicted / bucket.n,
-    observed_win_rate: bucket.actual / bucket.n
-  }));
-}
-
-function probability(difference, slope) {
-  return sigmoid(slope * difference);
-}
-
-function fitSlope(rows, key) {
-  if (!rows.length) return 0;
-  let low = 0;
-  let high = 2;
-  for (let iteration = 0; iteration < 70; iteration++) {
-    const slope = (low + high) / 2;
-    const gradient = rows.reduce((sum, row) => sum + row[key] * (probability(row[key], slope) - row.won), 0);
-    if (gradient > 0) high = slope;
-    else low = slope;
-  }
-  return (low + high) / 2;
+  return Array.from({ length: 10 }, (_, bucket) => {
+    const lo = bucket / 10, hi = (bucket + 1) / 10;
+    const selected = rows.filter(row => row[key] >= lo && (bucket === 9 ? row[key] <= hi : row[key] < hi));
+    return {
+      bucket: `${Math.round(lo * 100)}-${Math.round(hi * 100)}%`,
+      n: selected.length,
+      mean_probability: selected.length ? selected.reduce((s, row) => s + row[key], 0) / selected.length : null,
+      observed_win_rate: selected.length ? selected.reduce((s, row) => s + row.won, 0) / selected.length : null
+    };
+  });
 }
 
 function warehouseSummaryMap() {
@@ -124,15 +102,13 @@ function warehouseSummaryMap() {
   const map = new Map();
   for (const row of rows) {
     const key = normalizeFighterName(row.fighter_name);
-    if (!key || map.has(key)) continue;
-    map.set(key, row);
+    if (key && !map.has(key)) map.set(key, row);
   }
   return { rows, map };
 }
 
-function collectHistoricalRecords(pairs, summaries) {
-  const allDates = [...new Set(pairs.map(pair => pair.red.eventDate))].sort();
-  const evaluationDates = allDates.filter(date => date >= START_DATE);
+function historicalRecords(pairs, summaries) {
+  const dates = [...new Set(pairs.map(pair => pair.red.eventDate))].sort();
   const byDate = new Map();
   for (const pair of pairs) {
     if (!byDate.has(pair.red.eventDate)) byDate.set(pair.red.eventDate, []);
@@ -141,13 +117,12 @@ function collectHistoricalRecords(pairs, summaries) {
 
   const prior = pairs.filter(pair => pair.red.eventDate < START_DATE);
   const records = [];
-  let decisive = 0;
-  for (const [index, date] of evaluationDates.entries()) {
-    const ratings = new Map(buildRatings(prior).ratings.map(rating => [rating.fighterId, rating]));
+  for (const date of dates.filter(date => date >= START_DATE)) {
+    const ratingRows = buildRatings(prior).ratings;
+    const ratings = new Map(ratingRows.map(rating => [rating.fighterId, rating]));
     const eventPairs = byDate.get(date) || [];
     for (const pair of eventPairs) {
       if (pair.red.noContest || pair.red.won === 0.5) continue;
-      decisive += 1;
       const baseA = ratings.get(pair.red.fighterId) || null;
       const baseB = ratings.get(pair.blue.fighterId) || null;
       const summaryA = summaries.get(normalizeFighterName(pair.red.name)) || null;
@@ -155,8 +130,6 @@ function collectHistoricalRecords(pairs, summaries) {
       records.push({
         date,
         won: pair.red.won,
-        fighterA: pair.red.name,
-        fighterB: pair.blue.name,
         baseA,
         baseB,
         summaryA,
@@ -165,179 +138,154 @@ function collectHistoricalRecords(pairs, summaries) {
       });
     }
     prior.push(...eventPairs);
-    if (index % 50 === 0) console.log(`Warehouse model history: ${index + 1}/${evaluationDates.length} event dates (${date})`);
   }
-  return { records, decisive };
+  return records;
 }
 
-function cmrRows(records, options) {
-  const rows = [];
-  for (const record of records) {
-    const a = applyWarehousePrior(record.baseA, record.summaryA, options);
-    const b = applyWarehousePrior(record.baseB, record.summaryB, options);
+function scoreCmr(records, options) {
+  const scored = [];
+  for (const row of records) {
+    const a = applyWarehousePrior(row.baseA, row.summaryA, options);
+    const b = applyWarehousePrior(row.baseB, row.summaryB, options);
     if (!a || !b) continue;
-    rows.push({
-      ...record,
-      cmr_diff: a.cmr - b.cmr,
-      base_cmr_diff: record.baseEligible ? record.baseA.cmr - record.baseB.cmr : null
-    });
+    const probabilityA = sigmoid((a.cmr - b.cmr) / 12);
+    scored.push({ ...row, probabilityA });
   }
-  return rows;
+  return scored;
 }
 
-function scoreCmr(rows, key, slope, outputKey) {
-  return rows.map(row => ({ ...row, [outputKey]: probability(row[key], slope) }));
+function scoreBaselineCmr(records) {
+  return records
+    .filter(row => row.baseA && row.baseB)
+    .map(row => ({ ...row, probabilityA: sigmoid((row.baseA.cmr - row.baseB.cmr) / 12) }));
 }
 
-function choosePriorOptions(records) {
-  const trials = [];
-  for (const options of PRIOR_OPTIONS) {
-    const rows = cmrRows(records, options);
-    const train = rows.filter(row => row.date < TUNE_DATE);
-    const validation = rows.filter(row => row.date >= TUNE_DATE && row.date < TEST_DATE);
-    const slope = fitSlope(train, 'cmr_diff');
-    const scored = scoreCmr(validation, 'cmr_diff', slope, 'p');
-    const result = metrics(scored, 'p');
-    trials.push({ ...options, train_bouts: train.length, validation_bouts: validation.length, slope, ...result });
-  }
-  trials.sort((a, b) => a.log_loss - b.log_loss || a.brier - b.brier);
-  return { selected: { maxWeight: trials[0].maxWeight, decayBouts: trials[0].decayBouts }, trials };
+function tunePrior(records) {
+  const train = records.filter(row => row.date < TUNE_DATE);
+  const validation = records.filter(row => row.date >= TUNE_DATE && row.date < TEST_DATE);
+  const trials = PRIOR_OPTIONS.map(options => {
+    const trainScored = scoreCmr(train, options);
+    const validationScored = scoreCmr(validation, options);
+    return {
+      ...options,
+      train_bouts: trainScored.length,
+      validation: metrics(validationScored, 'probabilityA')
+    };
+  }).sort((a, b) => a.validation.log_loss - b.validation.log_loss || a.validation.brier - b.validation.brier);
+  return { options: { maxWeight: trials[0].maxWeight, decayBouts: trials[0].decayBouts }, trials };
 }
 
-function predictorRows(records, options) {
-  const rows = [];
-  for (const record of records) {
-    const a = applyWarehousePrior(record.baseA, record.summaryA, options);
-    const b = applyWarehousePrior(record.baseB, record.summaryB, options);
-    if (!a || !b) continue;
-    const x = predictorV02FeatureVector(a, b, record.summaryA, record.summaryB);
-    let v01p = null;
-    if (record.baseEligible) {
-      v01p = predictFrozenVector(baseFeatureVector(record.baseA, record.baseB));
-    }
-    rows.push({ ...record, x, v01_p: v01p, min_ufc_bouts: Math.min(a.bouts || 0, b.bouts || 0) });
-  }
-  return rows;
+function predictorRows(records, priorOptions) {
+  return records.map(row => {
+    const a = applyWarehousePrior(row.baseA, row.summaryA, priorOptions);
+    const b = applyWarehousePrior(row.baseB, row.summaryB, priorOptions);
+    if (!a || !b) return null;
+    return {
+      ...row,
+      x: predictorV02FeatureVector(a, b, row.summaryA, row.summaryB),
+      v01_p: row.baseEligible ? predictFrozenVector(baseFeatureVector(row.baseA, row.baseB)) : null
+    };
+  }).filter(Boolean);
 }
 
-function chooseLambda(train, validation) {
+function tunePredictor(rows) {
   const featureIndexes = PREDICTOR_V02_FEATURE_NAMES.map((_, index) => index);
-  const trials = [];
-  for (const lambda of LAMBDAS) {
+  const train = rows.filter(row => row.date < TUNE_DATE);
+  const validation = rows.filter(row => row.date >= TUNE_DATE && row.date < TEST_DATE);
+  const trials = LAMBDAS.map(lambda => {
     const model = fitLogistic(train, { featureIndexes, lambda, iterations: 500 });
     const scored = validation.map(row => ({ ...row, p: predict(model, row) }));
-    const result = metrics(scored, 'p');
-    trials.push({ lambda, ...result });
-  }
-  trials.sort((a, b) => a.log_loss - b.log_loss || a.brier - b.brier);
+    return { lambda, ...metrics(scored, 'p') };
+  }).sort((a, b) => a.log_loss - b.log_loss || a.brier - b.brier);
   return { lambda: trials[0].lambda, trials };
-}
-
-function summarizeWarehouse(rows) {
-  const priors = rows.map(row => warehousePrior(row)).filter(prior => prior.available);
-  return {
-    fighters_with_pre_ufc_history: rows.length,
-    pre_ufc_bouts: rows.reduce((sum, row) => sum + Number(row.pre_ufc_bouts || 0), 0),
-    major_org_pre_ufc_bouts: rows.reduce((sum, row) => sum + Number(row.pre_ufc_major_org_bouts || 0), 0),
-    median_prior_score: priors.length ? priors.map(prior => prior.score).sort((a, b) => a - b)[Math.floor(priors.length / 2)] : null,
-    mean_prior_reliability: priors.length ? priors.reduce((sum, prior) => sum + prior.reliability, 0) / priors.length : null
-  };
 }
 
 async function main() {
   const response = await fetch(STATS_URL);
   if (!response.ok) throw new Error(`UFC stats download failed (${response.status})`);
-  const source = await response.text();
-  const pairs = buildObservations(parseDelimited(source, ';').filter(row => row.red_fighter_name && row.blue_fighter_name && row.event_date));
-
+  const text = await response.text();
+  const pairs = buildObservations(parseDelimited(text, ';').filter(row => row.red_fighter_name && row.blue_fighter_name && row.event_date));
   const warehouse = warehouseSummaryMap();
-  if (warehouse.rows.length < 100) throw new Error(`Warehouse UFC history coverage is too small to benchmark: ${warehouse.rows.length}`);
-  console.log(`Loaded ${warehouse.rows.length} UFC fighters with pre-UFC warehouse summaries.`);
+  const records = historicalRecords(pairs, warehouse.map);
 
-  const { records, decisive } = collectHistoricalRecords(pairs, warehouse.map);
-  const priorTuning = choosePriorOptions(records);
-  const selectedPrior = priorTuning.selected;
-  console.log('Selected CMR warehouse-prior parameters:', selectedPrior);
+  const cmrTune = tunePrior(records);
+  const baselineCmr = scoreBaselineCmr(records.filter(row => row.date >= TEST_DATE));
+  const candidateCmr = scoreCmr(records.filter(row => row.date >= TEST_DATE), cmrTune.options);
+  const baselineByKey = new Map(baselineCmr.map(row => [`${row.date}|${row.baseA?.fighterId}|${row.baseB?.fighterId}`, row]));
+  const candidateCommon = candidateCmr.filter(row => baselineByKey.has(`${row.date}|${row.baseA?.fighterId}|${row.baseB?.fighterId}`));
+  const baselineCommon = candidateCommon.map(row => baselineByKey.get(`${row.date}|${row.baseA?.fighterId}|${row.baseB?.fighterId}`));
 
-  const candidateCmrRows = cmrRows(records, selectedPrior);
-  const baselineCmrRows = candidateCmrRows.filter(row => row.baseEligible);
-  const candidateFinalTrain = candidateCmrRows.filter(row => row.date < TEST_DATE);
-  const candidateTest = candidateCmrRows.filter(row => row.date >= TEST_DATE);
-  const baselineFinalTrain = baselineCmrRows.filter(row => row.date < TEST_DATE);
-  const baselineTest = baselineCmrRows.filter(row => row.date >= TEST_DATE);
-  const candidateSlope = fitSlope(candidateFinalTrain, 'cmr_diff');
-  const baselineSlope = fitSlope(baselineFinalTrain, 'base_cmr_diff');
-  const scoredCandidate = scoreCmr(candidateTest, 'cmr_diff', candidateSlope, 'warehouse_cmr_p');
-  const scoredBaseline = scoreCmr(baselineTest, 'base_cmr_diff', baselineSlope, 'base_cmr_p');
-  const baselineByKey = new Map(scoredBaseline.map(row => [`${row.date}|${row.fighterA}|${row.fighterB}`, row.base_cmr_p]));
-  const cmrCommon = scoredCandidate
-    .map(row => ({ ...row, base_cmr_p: baselineByKey.get(`${row.date}|${row.fighterA}|${row.fighterB}`) }))
-    .filter(row => finite(row.base_cmr_p));
-
-  const pRows = predictorRows(records, selectedPrior);
-  const tuningTrain = pRows.filter(row => row.date < TUNE_DATE);
-  const tuningValidation = pRows.filter(row => row.date >= TUNE_DATE && row.date < TEST_DATE);
-  const finalTrain = pRows.filter(row => row.date < TEST_DATE);
-  const test = pRows.filter(row => row.date >= TEST_DATE);
-  const lambdaTuning = chooseLambda(tuningTrain, tuningValidation);
+  const predictorData = predictorRows(records, cmrTune.options);
+  const predictorTune = tunePredictor(predictorData);
   const featureIndexes = PREDICTOR_V02_FEATURE_NAMES.map((_, index) => index);
-  const predictor = fitLogistic(finalTrain, { featureIndexes, lambda: lambdaTuning.lambda, iterations: 900 });
-  const scoredPredictor = test.map(row => ({ ...row, v02_p: predict(predictor, row) }));
-  const predictorCommon = scoredPredictor.filter(row => finite(row.v01_p));
-
-  const cmrCommonCandidate = metrics(cmrCommon, 'warehouse_cmr_p');
-  const cmrCommonBaseline = metrics(cmrCommon, 'base_cmr_p');
-  const predictorCommonCandidate = metrics(predictorCommon, 'v02_p');
-  const predictorCommonBaseline = metrics(predictorCommon, 'v01_p');
-  const predictorExpanded = metrics(scoredPredictor, 'v02_p');
+  const predictorModel = fitLogistic(
+    predictorData.filter(row => row.date < TEST_DATE),
+    { featureIndexes, lambda: predictorTune.lambda, iterations: 900 }
+  );
+  const predictorHoldout = predictorData.filter(row => row.date >= TEST_DATE);
+  const scoredPredictor = predictorHoldout.map(row => ({
+    ...row,
+    v02_p: predict(predictorModel, row)
+  }));
+  const predictorCommon = scoredPredictor.filter(row => isFiniteProbability(row.v01_p));
 
   const report = {
     generated_at: new Date().toISOString(),
+    design: {
+      time_split: 'Leakage-safe walk-forward ratings; every fight uses only bouts earlier than its event date.',
+      training: '2018-2021',
+      hyperparameter_validation: '2022',
+      final_predictor_training: '2018-2022',
+      holdout: `2023 through ${pairs.map(pair => pair.red.eventDate).sort().at(-1)}`,
+      warehouse_scope: 'Completed pre-UFC history only for CageMetrix UFC fighters. No regional technical stats are synthesized.'
+    },
     source_max_date: pairs.map(pair => pair.red.eventDate).sort().at(-1),
-    baseline_cmr_version: MODEL_VERSION,
+    baseline_cmr_version: '0.3.1',
     candidate_cmr_version: CMR_CANDIDATE_VERSION,
     baseline_predictor_version: '0.1.0',
     candidate_predictor_version: PREDICTOR_V02_VERSION,
-    design: 'Leakage-safe UFC walk-forward. Warehouse data is restricted to fights completed before each fighter first entered the UFC. Regional evidence creates a shrunk entry prior and explicit Predictor features; UFC technical evidence remains UFC-only. CMR prior strength and Predictor regularization are selected on pre-2023 data only; 2023+ remains holdout.',
-    warehouse: summarizeWarehouse(warehouse.rows),
-    decisive_ufc_bouts_since_2018: decisive,
+    warehouse: {
+      fighters_with_pre_ufc_history: warehouse.rows.length,
+      pre_ufc_bouts: warehouse.rows.reduce((sum, row) => sum + Number(row.pre_ufc_bouts || 0), 0),
+      major_org_pre_ufc_bouts: warehouse.rows.reduce((sum, row) => sum + Number(row.pre_ufc_major_org_bouts || 0), 0),
+      median_prior_score: [...warehouse.map.values()].map(warehousePrior).map(p => p.score).sort((a, b) => a - b)[Math.floor(warehouse.rows.length / 2)] || null,
+      mean_prior_reliability: warehouse.rows.length ? [...warehouse.map.values()].map(warehousePrior).reduce((sum, p) => sum + p.reliability, 0) / warehouse.rows.length : null
+    },
+    historical_records: records.length,
     cmr: {
-      prior_tuning: priorTuning,
-      selected_prior: selectedPrior,
-      baseline_probability_slope: baselineSlope,
-      candidate_probability_slope: candidateSlope,
-      expanded_holdout: metrics(scoredCandidate, 'warehouse_cmr_p'),
+      selected_prior: cmrTune.options,
+      tuning: cmrTune.trials,
+      expanded_holdout: metrics(candidateCmr, 'probabilityA'),
       common_holdout: {
-        bouts: cmrCommon.length,
-        baseline: cmrCommonBaseline,
-        warehouse_candidate: cmrCommonCandidate
+        bouts: candidateCommon.length,
+        baseline: metrics(baselineCommon, 'probabilityA'),
+        warehouse_candidate: metrics(candidateCommon, 'probabilityA')
       },
-      added_holdout_coverage_bouts: scoredCandidate.length - cmrCommon.length,
+      added_holdout_coverage: Math.max(0, candidateCmr.length - baselineCmr.length),
       promotion_recommended: Boolean(
-        cmrCommonCandidate.brier < cmrCommonBaseline.brier &&
-        cmrCommonCandidate.log_loss < cmrCommonBaseline.log_loss
+        metrics(candidateCommon, 'probabilityA').brier < metrics(baselineCommon, 'probabilityA').brier &&
+        metrics(candidateCommon, 'probabilityA').log_loss < metrics(baselineCommon, 'probabilityA').log_loss
       )
     },
     predictor: {
-      feature_count: PREDICTOR_V02_FEATURE_NAMES.length,
-      base_feature_count: BASE_FEATURE_NAMES.length,
-      features: PREDICTOR_V02_FEATURE_NAMES,
-      lambda_tuning: lambdaTuning,
-      selected_lambda: lambdaTuning.lambda,
-      final_train_bouts_2018_2022: finalTrain.length,
-      expanded_holdout: predictorExpanded,
+      feature_count_v01: BASE_FEATURE_NAMES.length,
+      feature_count_v02: PREDICTOR_V02_FEATURE_NAMES.length,
+      selected_lambda: predictorTune.lambda,
+      lambda_tuning: predictorTune.trials,
+      final_train_bouts_2018_2022: predictorData.filter(row => row.date < TEST_DATE).length,
+      expanded_holdout: metrics(scoredPredictor, 'v02_p'),
       common_holdout: {
         bouts: predictorCommon.length,
-        predictor_v01: predictorCommonBaseline,
-        predictor_v02: predictorCommonCandidate
+        predictor_v01: metrics(predictorCommon, 'v01_p'),
+        predictor_v02: metrics(predictorCommon, 'v02_p')
       },
-      added_holdout_coverage_bouts: scoredPredictor.length - predictorCommon.length,
+      added_holdout_coverage: Math.max(0, scoredPredictor.length - predictorCommon.length),
       calibration: calibration(scoredPredictor, 'v02_p'),
-      coefficients: coefficientsWithNames(predictor),
+      coefficients: coefficientsWithNames(predictorModel),
       promotion_recommended: Boolean(
-        predictorCommonCandidate.brier < predictorCommonBaseline.brier &&
-        predictorCommonCandidate.log_loss < predictorCommonBaseline.log_loss &&
-        predictorCommonCandidate.accuracy >= predictorCommonBaseline.accuracy - 0.005
+        metrics(predictorCommon, 'v02_p').brier < metrics(predictorCommon, 'v01_p').brier &&
+        metrics(predictorCommon, 'v02_p').log_loss < metrics(predictorCommon, 'v01_p').log_loss &&
+        metrics(predictorCommon, 'v02_p').accuracy >= metrics(predictorCommon, 'v01_p').accuracy - 0.005
       )
     }
   };
@@ -346,13 +294,13 @@ async function main() {
   writeFileSync('.cache/warehouse-model-benchmark.json', JSON.stringify(report, null, 2) + '\n');
   writeFileSync('.cache/predictor-v02-fit.json', JSON.stringify({
     version: PREDICTOR_V02_VERSION,
-    rating_prior: selectedPrior,
-    lambda: lambdaTuning.lambda,
+    rating_prior: cmrTune.options,
+    lambda: predictorTune.lambda,
     feature_names: PREDICTOR_V02_FEATURE_NAMES,
-    feature_indexes: predictor.featureIndexes,
-    scales: predictor.scales,
-    weights: predictor.weights,
-    coefficients: coefficientsWithNames(predictor),
+    feature_indexes: predictorModel.featureIndexes,
+    scales: predictorModel.scales,
+    weights: predictorModel.weights,
+    coefficients: coefficientsWithNames(predictorModel),
     training_end: '2022-12-31'
   }, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));

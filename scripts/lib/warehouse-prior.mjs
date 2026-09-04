@@ -126,7 +126,7 @@ export function applyWarehousePrior(baseRating, summaryInput, options = {}) {
   }
 
   const maxWeight = options.maxWeight ?? 0.65;
-  const decayBouts = options.decayBouts ?? 3;
+  const decayBouts = options.decayBouts ?? 4;
   const ufcBouts = Math.max(0, finite(baseRating.bouts));
   const weight = clamp(prior.reliability * Math.exp(-ufcBouts / Math.max(0.5, decayBouts)), 0, maxWeight);
   const blend = (base, regional, multiplier = 1) => {
@@ -145,6 +145,36 @@ export function applyWarehousePrior(baseRating, summaryInput, options = {}) {
     warehousePriorWeight: weight,
     warehousePriorOnly: false
   };
+}
+
+// Only fields that can change a warehouse prior enter this
+// canonical fingerprint. updated_at is deliberately excluded so an identical
+// history refresh does not create a fake new model snapshot. Snapshot IDs and
+// source keys are provenance for the underlying warehouse load; they do not
+// change the canonical summary consumed by CMR and are excluded for stability.
+const WAREHOUSE_SNAPSHOT_FIELDS = Object.freeze([
+  'fighter_id',
+  'first_ufc_date',
+  'first_pre_ufc_fight_date',
+  'last_pre_ufc_fight_date',
+  'days_from_last_pre_ufc_to_debut',
+  'pre_ufc_bouts',
+  'pre_ufc_wins',
+  'pre_ufc_losses',
+  'pre_ufc_draws',
+  'pre_ufc_no_contests',
+  'pre_ufc_finishes',
+  'pre_ufc_ko_tko_wins',
+  'pre_ufc_submission_wins',
+  'pre_ufc_decision_wins',
+  'pre_ufc_major_org_bouts',
+  'pre_ufc_distinct_opponents'
+]);
+
+export function warehouseSummarySnapshot(rows = []) {
+  return [...rows]
+    .sort((a, b) => Number(a?.fighter_id || 0) - Number(b?.fighter_id || 0))
+    .map(row => WAREHOUSE_SNAPSHOT_FIELDS.map(field => row?.[field] ?? null));
 }
 
 export const WAREHOUSE_FEATURE_NAMES = [

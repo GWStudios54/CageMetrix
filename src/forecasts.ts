@@ -2,7 +2,7 @@ import {RESULT_POLL_SECONDS,PAGE_POLL_SECONDS} from './live-results.ts';
 
 type Env={DB:D1Database};
 type Row=Record<string,any>;
-const PREDICTOR_VERSION='0.2.0';
+const PREDICTOR_VERSION='0.2.1';
 
 function parse(value:unknown,fallback:any=null){if(typeof value!=='string'||!value)return fallback;try{return JSON.parse(value)||fallback;}catch{return fallback;}}
 function json(data:unknown,cacheSeconds=15){return new Response(JSON.stringify(data),{headers:{'content-type':'application/json; charset=utf-8','cache-control':`public, max-age=${cacheSeconds}`}});}

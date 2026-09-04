@@ -48,10 +48,10 @@ function preserveRating(rating) {
   return {...Object.fromEntries(Object.keys(fields).map(key=>[key,rating[key] ?? null])),
     weightClass:rating.weightClass ?? null,components:rating.components ?? {},warehouseSummary:compactWarehouse(rating.warehouseSummary)};
 }
-export function predictionSnapshot({a,b,ratingA,ratingB,probabilities,snapshotKey,sourceMaxDate,lockedAt,provenance='at_prediction',modelName='CageMetrix Win Probability',modelVersion=FORECAST_VERSION,cmrVersion=modelVersion==='0.2.0'?'0.3.1':'0.3.0'}) {
+export function predictionSnapshot({a,b,ratingA,ratingB,probabilities,snapshotKey,sourceMaxDate,lockedAt,provenance='at_prediction',modelName='CageMetrix Win Probability',modelVersion=FORECAST_VERSION,cmrVersion=modelVersion==='0.2.1'?'0.3.2':modelVersion==='0.2.0'?'0.3.1':'0.3.0'}) {
   const baseline=modelName==='CageMetrix Elo Baseline';
   const elo=baseline || probabilities.modelUsed==='elo_fallback';
-  const v02=!elo&&modelVersion==='0.2.0';
+  const v02=!elo&&['0.2.0','0.2.1'].includes(modelVersion);
   const vector=elo
     ?[(ratingA?.eloRaw??1500)-(ratingB?.eloRaw??1500)]
     :v02
@@ -79,7 +79,7 @@ export function recoverSnapshot(row,ratingA,ratingB,sourceMaxDate) {
     input_snapshot_key:row.input_snapshot_key,locked_at:row.locked_at});
   if (!row.input_snapshot_key || !sourceMaxDate || !Number.isFinite(Date.parse(row.locked_at)) || sourceMaxDate>row.locked_at.slice(0,10)) return unavailable('The original pre-fight rating archive is unavailable. Current ratings are not substituted.');
   const baseline=row.model_name==='CageMetrix Elo Baseline';
-  if (!['0.1.0','0.2.0'].includes(row.model_version) || !baseline && row.model_name!=='CageMetrix Win Probability')return unavailable('This model does not have a supported archived feature definition.');
+  if (!['0.1.0','0.2.0','0.2.1'].includes(row.model_version) || !baseline && row.model_name!=='CageMetrix Win Probability')return unavailable('This model does not have a supported archived feature definition.');
   if ([ratingA,ratingB].some(r=>r&&Object.keys(fields).some(key=>!Number.isFinite(r[key]))))return unavailable('The archived rating is missing exact numeric model inputs.');
   // A missing rating is only an intentional neutral start if the saved record
   // explicitly identified that fallback. Missing archives never imply debutants.
@@ -92,7 +92,7 @@ export function recoverSnapshot(row,ratingA,ratingB,sourceMaxDate) {
     const result=predictV01Matchup(ratingA,ratingB);
     prediction={...result,modelUsed:'predictor_v01'};
   }else{
-    // Predictor 0.2 requires the verified pre-UFC summary. New 0.2 predictions
+    // Predictor 0.2.x requires the verified pre-UFC summary. New predictions
     // always store a complete snapshot, so absence here means reconstruction is
     // not sufficiently evidenced and must not substitute current warehouse data.
     return unavailable('The original Predictor 0.2 warehouse context is unavailable. The saved prediction is preserved without reconstructed inputs.');

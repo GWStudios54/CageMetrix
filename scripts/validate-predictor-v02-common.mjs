@@ -11,6 +11,7 @@ import {
 } from './lib/predictor_v01.mjs';
 import { applyWarehousePrior, normalizeFighterName } from './lib/warehouse-prior.mjs';
 import { PREDICTOR_V02_FEATURE_NAMES, predictorV02FeatureVector } from './lib/predictor_v02.mjs';
+import { isFiniteProbability } from './lib/model-validation.mjs';
 
 const DB = 'cagemetrix';
 const START_DATE = '2018-01-01';
@@ -20,7 +21,7 @@ const PRIOR_OPTIONS = { maxWeight: 0.65, decayBouts: 4 };
 const LAMBDAS = [0.003, 0.01, 0.03, 0.1];
 
 function wrangler(args) {
-  return execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['wrangler', ...args], {
+  return execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
@@ -136,7 +137,7 @@ async function main() {
   });
   const test = rows.filter(row => row.date >= TEST_DATE);
   const common = test
-    .filter(row => row.baseEligible && Number.isFinite(row.v01p))
+    .filter(row => row.baseEligible && isFiniteProbability(row.v01p))
     .map(row => ({ ...row, v02p: predict(model, row) }));
   const expanded = test.map(row => ({ ...row, v02p: predict(model, row) }));
   const baseline = metrics(common, 'v01p');

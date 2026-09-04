@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { prepareDataset, datasetSql, statusSql, q, STATS_URL, DETAILS_URL } from './lib/dataset.mjs';
+import { prepareDataset, datasetSql, statusSql, q, hash, STATS_URL, DETAILS_URL } from './lib/dataset.mjs';
 import { parseDelimited, parseDate } from './lib/csv.mjs';
-import { applyWarehousePrior, normalizeFighterName } from './lib/warehouse-prior.mjs';
+import { applyWarehousePrior, normalizeFighterName, warehouseSummarySnapshot } from './lib/warehouse-prior.mjs';
 import { PREDICTOR_V02_PRIOR_OPTIONS } from './lib/predictor_v02.mjs';
 
 const args = process.argv.slice(2);
@@ -29,16 +29,18 @@ function d1Rows(target, sql) {
   const parts = Array.isArray(parsed) ? parsed : [parsed];
   return parts.flatMap(part => part.results || []);
 }
-function applyWarehouseHistory(data, target, required = false) {
-  let rows = [];
+function loadWarehouseHistory(target, required = false) {
   try {
-    rows = d1Rows(target, `SELECT f.name AS fighter_name,h.* FROM ufc_fighter_history_summary h JOIN fighters f ON f.id=h.fighter_id WHERE h.pre_ufc_bouts>0 ORDER BY h.fighter_id`);
+    const rows = d1Rows(target, `SELECT f.name AS fighter_name,h.* FROM ufc_fighter_history_summary h JOIN fighters f ON f.id=h.fighter_id WHERE h.pre_ufc_bouts>0 ORDER BY h.fighter_id`);
+    if (required && rows.length < 1000) throw new Error(`Warehouse history coverage is unexpectedly small: ${rows.length}`);
+    return rows;
   } catch (error) {
     if (required) throw error;
     console.warn('Warehouse history unavailable for this dry/local preparation; base UFC ratings only.');
-    return 0;
+    return [];
   }
-  if (required && rows.length < 1000) throw new Error(`Warehouse history coverage is unexpectedly small: ${rows.length}`);
+}
+function applyWarehouseHistory(data, rows) {
   const summaries = new Map();
   for (const row of rows) {
     const key = normalizeFighterName(row.fighter_name);
@@ -91,14 +93,16 @@ const csvField = value => `"${String(value ?? '').replaceAll('"','""')}"`;
 const stats = [columns.join(';'), ...merged.map(r => columns.map(k => csvField(r[k])).join(';'))].join('\n');
 writeFileSync(`${directory}/stats.csv`, stats);
 writeFileSync(`${directory}/details.csv`, details);
-const data = prepareDataset(stats, details);
-data.eventArchive = supplement.events;
 const target = remote ? '--remote' : '--local';
-const warehousePriorRatings = applyWarehouseHistory(data, target, remote);
+const warehouseRows = loadWarehouseHistory(target, remote);
+const warehouseFingerprint = warehouseRows.length ? hash(JSON.stringify(warehouseSummarySnapshot(warehouseRows))) : null;
+const data = prepareDataset(stats, details, new Date().toISOString(), { warehouseFingerprint });
+data.eventArchive = supplement.events;
+const warehousePriorRatings = applyWarehouseHistory(data, warehouseRows);
 // A partial source fetch must never replace the full database.
 if (data.pairs.length < 8500 || data.fighters.length < 2600) throw new Error('Source is incomplete; retaining existing dataset');
 const sqlPath = `${directory}/refresh.sql`;
-writeFileSync(`${directory}/summary.json`, JSON.stringify({ snapshot_key: data.snapshotKey, source_max_date: data.sourceMaxDate, fighters: data.fighters.length, ratings: data.ratings.length, bouts: data.pairs.length, warehouse_prior_ratings: warehousePriorRatings }, null, 2));
+writeFileSync(`${directory}/summary.json`, JSON.stringify({ snapshot_key: data.snapshotKey, source_max_date: data.sourceMaxDate, warehouse_fingerprint: warehouseFingerprint, warehouse_summary_rows: warehouseRows.length, fighters: data.fighters.length, ratings: data.ratings.length, bouts: data.pairs.length, warehouse_prior_ratings: warehousePriorRatings }, null, 2));
 if (!dryRun) {
   const previous = JSON.parse(wrangler(['d1', 'execute', 'cagemetrix', target, '--command', "SELECT value FROM bootstrap_state WHERE key='data:latest'", '--json'], true))[0]?.results?.[0];
   const prior = previous ? JSON.parse(previous.value) : null;

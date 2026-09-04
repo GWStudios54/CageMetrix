@@ -3,7 +3,7 @@ import { parseDelimited, parseDate, parseHeightCm, parseReachCm, parsePair } fro
 import { buildObservations, careerAggregates, buildRatings } from './model_v03.mjs';
 import { resolveRosterStatus } from './roster.mjs';
 
-export const MODEL_VERSION = '0.3.1';
+export const MODEL_VERSION = '0.3.2';
 export const MODEL_NAME = 'CageMetrix Opponent-Adjusted Rating';
 export const STATS_URL = 'https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/stats/stats_raw.csv';
 export const DETAILS_URL = 'https://raw.githubusercontent.com/komaksym/UFC-DataLab/main/data/external_data/raw_fighter_details.csv';
@@ -12,7 +12,7 @@ export const q = value => value == null ? 'NULL' : `'${String(value).replaceAll(
 const n = value => Number.isFinite(value) ? String(value) : 'NULL';
 const fighterSqlId = identity => `(SELECT fighter_id FROM fighter_source_ids WHERE provider='CageMetrix identity' AND external_id=${q(identity)})`;
 
-export function prepareDataset(statsText, detailsText, checkedAt = new Date().toISOString()) {
+export function prepareDataset(statsText, detailsText, checkedAt = new Date().toISOString(), options = {}) {
   const raw = parseDelimited(statsText, ';');
   if (!raw.length || !raw.every(r => r.red_fighter_name && r.blue_fighter_name && r.event_date)) throw new Error('Incomplete statistics source');
   const pairs = buildObservations(raw);
@@ -36,8 +36,11 @@ export function prepareDataset(statsText, detailsText, checkedAt = new Date().to
       reachCm: a.identity.slug === 'bruno-silva' ? 65 * 2.54 : parseReachCm(d.Reach), stance: d.Stance || null };
   });
   if (ratings.some(r => !Number.isFinite(r.cmr) || r.cmr < 0 || r.cmr > 100)) throw new Error('Invalid rating output');
-  const snapshotKey = `${MODEL_VERSION}:${hash(statsText + '\n' + detailsText)}`;
-  return { pairs, fighters, ratings, sourceMaxDate, snapshotKey, checkedAt };
+  const ufcSourceFingerprint = hash(statsText + '\n' + detailsText);
+  const warehouseFingerprint = options.warehouseFingerprint || null;
+  if (warehouseFingerprint !== null && !/^[a-f0-9]{64}$/.test(warehouseFingerprint)) throw new Error('Invalid warehouse fingerprint');
+  const snapshotKey = `${MODEL_VERSION}:${hash(`${ufcSourceFingerprint}\nwarehouse:${warehouseFingerprint || 'unavailable'}`)}`;
+  return { pairs, fighters, ratings, sourceMaxDate, snapshotKey, checkedAt, ufcSourceFingerprint, warehouseFingerprint };
 }
 
 function inserts(table, columns, rows, size = 10) {
@@ -51,7 +54,7 @@ export function datasetSql(data) {
   const modelId = `(SELECT id FROM model_versions WHERE name=${q(MODEL_NAME)} AND version=${q(MODEL_VERSION)})`;
   const sql = [
     'PRAGMA foreign_keys=ON;',
-    `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(MODEL_NAME)},${q(MODEL_VERSION)},'rating','production','Warehouse-informed UFC CMR. UFC technical performance remains authoritative; completed pre-UFC career history for fighters who reached the UFC supplies a conservative entry prior that decays as UFC evidence accumulates.',${q(JSON.stringify({ base_model: '0.3.0', technical: .56, elo_resume: .24, schedule: .10, recent_form: .10, evidence: '42% cage time + 58% bout count; not probability', no_contests: 'excluded from ratings', previous_division_years: 2, warehouse_prior: { scope: 'completed pre-UFC fights only for fighters who reached UFC', max_weight: .65, decay_ufc_bouts: 4, regional_technical_stats: 'never synthesized' } }))},${q(sourceMaxDate)}) ON CONFLICT(name,version) DO UPDATE SET status='production',training_window_end=excluded.training_window_end,description=excluded.description,parameters_json=excluded.parameters_json;`
+    `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(MODEL_NAME)},${q(MODEL_VERSION)},'rating','production','Canonical-history warehouse-informed UFC CMR. UFC technical performance remains authoritative; deduplicated completed pre-UFC career history supplies a conservative entry prior that decays as UFC evidence accumulates.',${q(JSON.stringify({ base_model: '0.3.1', technical: .56, elo_resume: .24, schedule: .10, recent_form: .10, evidence: '42% cage time + 58% bout count; not probability', no_contests: 'excluded from ratings', previous_division_years: 2, warehouse_fingerprint: data.warehouseFingerprint, warehouse_prior: { scope: 'canonical completed pre-UFC fights only for fighters who reached UFC', max_weight: .65, decay_ufc_bouts: 4, regional_technical_stats: 'never synthesized' } }))},${q(sourceMaxDate)}) ON CONFLICT(name,version) DO UPDATE SET status='production',training_window_end=excluded.training_window_end,description=excluded.description,parameters_json=excluded.parameters_json;`
   ];
   for (const f of fighters) {
     // UPSERT preserves existing IDs and all references. Never REPLACE fighters.
@@ -75,12 +78,12 @@ export function datasetSql(data) {
   // A new source hash appends a snapshot even if its date is unchanged. Old values
   // remain immutable and can be audited against rating_runs.source_key.
   sql.push(...inserts('ratings_history', 'fighter_id,model_version_id,as_of_date,weight_class,cmr,striking_offense,striking_defense,wrestling_offense,wrestling_defense,grappling,durability,pace,finishing,strength_of_schedule,recent_form,competitive_rating,technical_rating,resume_rating,confidence,sample_bouts,sample_minutes,components_json,snapshot_key', ratingRows));
-  sql.push(`INSERT INTO rating_runs (model_version_id,source_key,source_max_date,fighters_scored,completed_at,notes) VALUES (${modelId},${q(snapshotKey)},${q(sourceMaxDate)},${ratings.length},CURRENT_TIMESTAMP,'v0.3.1 warehouse-informed UFC rating; pre-UFC prior max weight 0.65 and four-UFC-bout decay.');`);
+  sql.push(`INSERT INTO rating_runs (model_version_id,source_key,source_max_date,fighters_scored,completed_at,notes) VALUES (${modelId},${q(snapshotKey)},${q(sourceMaxDate)},${ratings.length},CURRENT_TIMESTAMP,${q(`v0.3.2 canonical-history warehouse-informed UFC rating; warehouse fingerprint ${data.warehouseFingerprint || 'unavailable'}; pre-UFC prior max weight 0.65 and four-UFC-bout decay.`)});`);
   for (const event of data.eventArchive || []) sql.push(`INSERT INTO event_source_archive (source_url,event_date,payload_json) VALUES (${q(event.official_url)},${q(event.date)},${q(JSON.stringify(event))}) ON CONFLICT(source_url) DO UPDATE SET payload_json=excluded.payload_json,updated_at=CURRENT_TIMESTAMP;`);
   sql.push(statusSql(data));
   return sql.join('\n');
 }
 
 export function statusSql(data) {
-  return `INSERT INTO bootstrap_state (key,value,updated_at) VALUES ('data:latest',${q(JSON.stringify({ model_version: MODEL_VERSION, source_max_date: data.sourceMaxDate, snapshot_key: data.snapshotKey, checked_at: data.checkedAt, fighters: data.fighters.length, ratings: data.ratings.length, bouts: data.pairs.length }))},CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP;`;
+  return `INSERT INTO bootstrap_state (key,value,updated_at) VALUES ('data:latest',${q(JSON.stringify({ model_version: MODEL_VERSION, source_max_date: data.sourceMaxDate, snapshot_key: data.snapshotKey, warehouse_fingerprint: data.warehouseFingerprint || null, checked_at: data.checkedAt, fighters: data.fighters.length, ratings: data.ratings.length, bouts: data.pairs.length }))},CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP;`;
 }

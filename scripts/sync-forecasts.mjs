@@ -1,22 +1,20 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { JSDOM } from 'jsdom';
-import { prepareDataset, q } from './lib/dataset.mjs';
+import { prepareDataset, q, hash } from './lib/dataset.mjs';
 import { slugify, displayName } from './lib/csv.mjs';
 import { nameKey } from './lib/recent-source.mjs';
 import { fighterIdentity } from './lib/identity.mjs';
 import { FORECAST_NAME, FORECAST_VERSION, FORECAST_PARAMETERS, forecast } from './lib/forecast.mjs';
 import { predictionSnapshot } from './lib/prediction-snapshot.mjs';
-import { applyWarehousePrior, normalizeFighterName } from './lib/warehouse-prior.mjs';
+import { applyWarehousePrior, normalizeFighterName, warehouseSummarySnapshot } from './lib/warehouse-prior.mjs';
 import { PREDICTOR_V02_PRIOR_OPTIONS } from './lib/predictor_v02.mjs';
 
 const args = process.argv.slice(2), remote = args.includes('--remote'), dry = args.includes('--dry-run');
 if (!remote && !dry && !args.includes('--local')) throw new Error('Choose --dry-run, --local or --remote');
 const now = new Date().toISOString();
-const dataset = prepareDataset(readFileSync('.cache/refresh/stats.csv','utf8'),readFileSync('.cache/refresh/details.csv','utf8'),now);
-const byName = new Map(dataset.fighters.map(f => [nameKey(f.name), f]));
-const bySlug = new Map(dataset.fighters.map(f => [f.slug, f]));
-const baseRatings = new Map(dataset.ratings.map(r => [r.fighterId,r]));
+const statsText=readFileSync('.cache/refresh/stats.csv','utf8');
+const detailsText=readFileSync('.cache/refresh/details.csv','utf8');
 const modelId = `(SELECT id FROM model_versions WHERE name=${q(FORECAST_NAME)} AND version=${q(FORECAST_VERSION)})`;
 const fighterId = slug => `(SELECT id FROM fighters WHERE slug=${q(slug)})`;
 const location = remote ? '--remote' : '--local';
@@ -37,14 +35,19 @@ function loadWarehouseSummaries(required=false) {
     if(required&&rows.length<1000)throw new Error(`Warehouse history coverage is unexpectedly small: ${rows.length}`);
     const map=new Map();
     for(const row of rows){const key=normalizeFighterName(row.fighter_name);if(key&&!map.has(key))map.set(key,row);}
-    return map;
+    return {map,fingerprint:hash(JSON.stringify(warehouseSummarySnapshot(rows)))};
   } catch(error) {
     if(required)throw error;
     console.warn('Warehouse history unavailable for dry-run forecast preparation; verified production forecasts require remote history.');
-    return new Map();
+    return {map:new Map(),fingerprint:null};
   }
 }
-const warehouseSummaries=loadWarehouseSummaries(remote);
+const warehouse=loadWarehouseSummaries(remote);
+const warehouseSummaries=warehouse.map;
+const dataset=prepareDataset(statsText,detailsText,now,{warehouseFingerprint:warehouse.fingerprint});
+const byName = new Map(dataset.fighters.map(f => [nameKey(f.name), f]));
+const bySlug = new Map(dataset.fighters.map(f => [f.slug, f]));
+const baseRatings = new Map(dataset.ratings.map(r => [r.fighterId,r]));
 function ratingFor(fighter) {
   if(!fighter)return null;
   const base=baseRatings.get(fighter.id)||null;
@@ -66,7 +69,7 @@ const sql = [
   // Preserve every historical forecast model. Predictor 0.2 gets a new model
   // version, so all previously locked Predictor 0.1 predictions remain immutable.
   `UPDATE model_versions SET name='CageMetrix Elo Baseline' WHERE name='CageMetrix Win Probability' AND version='0.1.0' AND description LIKE 'Chronological Elo probabilities%';`,
-  `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(FORECAST_NAME)},${q(FORECAST_VERSION)},'prediction','production','Frozen Predictor 0.2 probabilities using UFC CMR/technical evidence plus verified completed pre-UFC résumé context for fighters who reached the UFC; no betting-market inputs.',${q(JSON.stringify(FORECAST_PARAMETERS))},${q(FORECAST_PARAMETERS.trained_through)}) ON CONFLICT(name,version) DO UPDATE SET status='production',description=excluded.description,parameters_json=excluded.parameters_json,training_window_end=excluded.training_window_end;`
+  `INSERT INTO model_versions (name,version,kind,status,description,parameters_json,training_window_end) VALUES (${q(FORECAST_NAME)},${q(FORECAST_VERSION)},'prediction','production','Frozen Predictor 0.2.1 probabilities refit on canonicalized pre-UFC history using UFC CMR/technical evidence plus verified completed pre-UFC résumé context; no betting-market inputs.',${q(JSON.stringify(FORECAST_PARAMETERS))},${q(FORECAST_PARAMETERS.trained_through)}) ON CONFLICT(name,version) DO UPDATE SET status='production',description=excluded.description,parameters_json=excluded.parameters_json,training_window_end=excluded.training_window_end;`
 ];
 async function html(url) {
   const response = await fetch(url,{signal:AbortSignal.timeout(45000)});
@@ -142,4 +145,4 @@ if (!dry) {
   const output=wrangler(['d1','execute','cagemetrix',location,'--file','.cache/forecasts/forecasts.sql'],true);
   writeFileSync('.cache/forecasts/wrangler-output.log',output);
 }
-console.log(`Saved ${cards.length} upcoming cards with ${cards.reduce((n,c)=>n+c.bouts.length,0)} Predictor 0.2 forecasts; existing predictions remain locked.`);
+console.log(`Saved ${cards.length} upcoming cards with ${cards.reduce((n,c)=>n+c.bouts.length,0)} Predictor ${FORECAST_VERSION} forecasts; existing predictions remain locked.`);
