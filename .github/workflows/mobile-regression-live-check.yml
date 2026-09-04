@@ -1,0 +1,67 @@
+name: Verify deployed mobile regressions
+on:
+  push:
+    branches:
+      - diagnostic/mobile-regression-live-check
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Check live mobile UI and model consistency
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+          const base='https://cagemetrix.aarin54.workers.dev';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          await page.goto(`${base}/?v=${Date.now()}`,{waitUntil:'networkidle'});
+          const spotlight=page.locator('.event-spotlight');
+          await spotlight.waitFor();
+          const box=await spotlight.boundingBox();
+          assert.ok(box&&box.x>=0&&box.x+box.width<=413,`spotlight overflowed mobile viewport: ${JSON.stringify(box)}`);
+          assert.equal(await spotlight.locator('.status-dot').count(),0,'legacy status dot is still rendered');
+          const cta=spotlight.locator('.button.primary');
+          const color=await cta.evaluate(el=>getComputedStyle(el).color);
+          assert.equal(color,'rgb(255, 255, 255)',`CTA text is not white: ${color}`);
+          await page.screenshot({path:'diagnostics/home-mobile.png',fullPage:true});
+
+          await page.goto(`${base}/fights/1?v=${Date.now()}`,{waitUntil:'networkidle'});
+          await page.locator('#fan-prediction .fans-side h3').first().waitFor();
+          const [fight,fans]=await page.evaluate(async()=>Promise.all([
+            fetch('/api/fights/1',{cache:'no-store'}).then(r=>r.json()),
+            fetch('/api/fights/1/fans',{cache:'no-store'}).then(r=>r.json())
+          ]));
+          assert.equal(fight.prediction.model_version,fans.model.model_version,'fight and fan panels use different model versions');
+          assert.ok(Math.abs(fight.prediction.fighter_a_probability-fans.model.fighter_a_probability)<1e-12,'fighter A probability differs between panels');
+          assert.ok(Math.abs(fight.prediction.fighter_b_probability-fans.model.fighter_b_probability)<1e-12,'fighter B probability differs between panels');
+          const version=fight.prediction.model_version;
+          assert.ok((await page.locator('.locked-note').innerText()).includes(`Predictor ${version}`),'main probability label is stale');
+          assert.ok((await page.locator('#fan-prediction .fans-side h3').first().innerText()).includes(version),'fan comparison label is stale');
+          const edgeLabels=await page.locator('#fight-drivers .driver-heading span').allInnerTexts();
+          assert.ok(edgeLabels.every(text=>!/\bedge$/i.test(text)),`literal edge language remains: ${edgeLabels.join(' | ')}`);
+          const driverText=await page.locator('#fight-drivers').innerText();
+          assert.ok(driverText.includes('UFC sample & uncertainty adjustment'),'UFC sample/uncertainty label was not applied');
+          assert.ok(driverText.includes('not a claim that the favored fighter has more UFC experience'),'experience disclaimer is missing');
+          await page.screenshot({path:'diagnostics/fight-mobile.png',fullPage:true});
+          console.log(JSON.stringify({version,a:fight.prediction.fighter_a_probability,b:fight.prediction.fighter_b_probability,ctaColor:color,edgeLabels},null,2));
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-regression-live-check
+          path: diagnostics/
+          retention-days: 7
