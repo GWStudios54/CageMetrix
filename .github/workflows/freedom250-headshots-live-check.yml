@@ -1,4 +1,4 @@
-name: Find Sean OMalley production slug
+name: Verify Sean OMalley headshot live
 on:
   push:
     branches:
@@ -6,29 +6,53 @@ on:
 permissions:
   contents: read
 jobs:
-  find:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Inspect production sitemap and rankings
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify Sean portrait and catalog
         shell: bash
         run: |
-          python - <<'PY'
-          import json, urllib.request
-          base='https://cagemetrix.aarin54.workers.dev'
-          def get(path):
-              req=urllib.request.Request(base+path,headers={'User-Agent':'CageMetrix diagnostic','Accept':'application/json,text/xml,text/plain'})
-              with urllib.request.urlopen(req,timeout=30) as r:
-                  return r.status,r.read().decode('utf-8','replace')
-          for path in ['/sitemap.xml','/api/rankings']:
-              try:
-                  status,body=get(path)
-                  print('\nPATH',path,'STATUS',status,'LEN',len(body))
-                  low=body.lower()
-                  for term in ['sean','omalley','o-malley','o%27malley']:
-                      idx=low.find(term)
-                      if idx>=0:
-                          print('MATCH',term,body[max(0,idx-300):idx+500].replace('\n',' '))
-              except Exception as e:
-                  print('ERROR',path,repr(e))
-          PY
+          mkdir -p diagnostics/sean-omalley-live
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { chromium } from 'playwright';
+          const base='https://cagemetrix.aarin54.workers.dev';
+          const catalogResponse=await fetch(`${base}/headshots-batch2.json?check=${Date.now()}`,{cache:'no-store'});
+          assert.equal(catalogResponse.status,200);
+          const catalog=await catalogResponse.json();
+          assert.equal(Object.keys(catalog).length,14);
+          assert.ok(catalog['sean-o-malley'],'canonical Sean OMalley key missing');
+          assert.ok(!catalog['sean-omalley'],'obsolete Sean key still present');
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          const response=await page.goto(`${base}/fighters/sean-o-malley?photo_check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+          assert.equal(response?.status(),200,'Sean fighter page should return 200');
+          const img=page.locator('img.portrait-photo').first();
+          await img.waitFor({state:'visible',timeout:15000});
+          await page.waitForFunction(()=>{const el=document.querySelector('img.portrait-photo');return el&&el.complete&&el.naturalWidth>0&&el.naturalHeight>0;},null,{timeout:15000});
+          const data=await img.evaluate(el=>({src:el.currentSrc,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,rect:el.getBoundingClientRect().toJSON()}));
+          assert.ok(data.naturalWidth>=500&&data.naturalHeight>=500,JSON.stringify(data));
+          assert.ok(data.rect.width>=100&&data.rect.height>=100,JSON.stringify(data));
+          await page.screenshot({path:'diagnostics/sean-omalley-live/sean-o-malley.png',fullPage:false});
+          await page.goto(`${base}/photo-credits.html?check=${Date.now()}`,{waitUntil:'domcontentloaded'});
+          await page.getByText('31 licensed fighter photos currently in the CageMetrix catalog.').waitFor({state:'visible',timeout:15000});
+          assert.equal(await page.locator('.credit').count(),31);
+          assert.equal(await page.getByRole('heading',{name:"Sean O'Malley"}).count(),1);
+          console.log(JSON.stringify({sean:data,credits:31},null,2));
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sean-omalley-live
+          path: diagnostics/sean-omalley-live/
+          retention-days: 7
