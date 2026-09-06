@@ -8015,6 +8015,12 @@
     "checked_at": "2026-09-04T23:12:05.726Z",
     "retry_after": "2026-10-04T23:12:05.726Z"
   },
+  "joseph-kropschot": {
+    "status": "not_found",
+    "source": "wikimedia",
+    "checked_at": "2026-09-06T13:19:19.460Z",
+    "retry_after": "2026-10-06T13:19:19.460Z"
+  },
   "joseph-morales": {
     "status": "not_found",
     "source": "wikimedia",
@@ -9598,6 +9604,12 @@
     "source": "wikimedia",
     "checked_at": "2026-09-04T21:56:23.715Z",
     "retry_after": "2026-10-04T21:56:23.715Z"
+  },
+  "lucia-szabova": {
+    "status": "not_found",
+    "source": "wikimedia",
+    "checked_at": "2026-09-06T13:19:19.460Z",
+    "retry_after": "2026-10-06T13:19:19.460Z"
   },
   "lucie-pudilova": {
     "status": "not_found",
@@ -13072,6 +13084,12 @@
     "source": "wikimedia",
     "checked_at": "2026-09-04T21:57:25.628Z",
     "retry_after": "2026-10-04T21:57:25.628Z"
+  },
+  "roberto-soldic": {
+    "status": "resolved",
+    "source": "wikimedia",
+    "checked_at": "2026-09-06T13:19:19.460Z",
+    "wikidata_id": "Q46706516"
   },
   "roberto-traven": {
     "status": "resolved",
