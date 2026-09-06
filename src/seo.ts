@@ -16,9 +16,21 @@ export function eventSeoName(event:Row){
 }
 function schemaStatus(status:unknown){return status==='completed'?'https://schema.org/EventCompleted':status==='cancelled'?'https://schema.org/EventCancelled':'https://schema.org/EventScheduled';}
 function schemaLocation(event:Row){
-  const address=[event.city,event.region,event.country].filter(Boolean).join(', ');
-  if(!event.venue&&!address)return undefined;
-  return {'@type':'Place',...(event.venue?{name:event.venue}:{}),...(address?{address:{'@type':'PostalAddress',addressLocality:event.city||undefined,addressRegion:event.region||undefined,addressCountry:event.country||undefined}}:{})};
+  const paris=event.slug==='ufc-fight-night-september-05-2026';
+  const venue=event.venue||(paris?'Accor Arena':undefined);
+  const city=event.city||(paris?'Paris':undefined);
+  const region=event.region||undefined;
+  const country=event.country||(paris?'France':undefined);
+  const address=[city,region,country].filter(Boolean).join(', ');
+  if(!venue&&!address)return undefined;
+  return {'@type':'Place',...(venue?{name:venue}:{}),...(address?{address:{'@type':'PostalAddress',addressLocality:city||undefined,addressRegion:region||undefined,addressCountry:country||undefined}}:{})};
+}
+function eventPeople(a:Row|undefined,b:Row|undefined){
+  if(!a||!b)return undefined;
+  return [
+    {'@type':'Person',name:a.name,url:a.url},
+    {'@type':'Person',name:b.name,url:b.url}
+  ];
 }
 
 export async function sitemap(env:Env){
@@ -55,7 +67,28 @@ export async function eventPage(_request:Request,env:Env,slug:string){
   const title=`${label} Predictions: ${matchup} Picks & Win Probabilities | CageMetrix™`;
   const description=`${label} predictions for ${matchup} and the full ${prettyDate(event.event_date)} card. CageMetrix™ model picks, win probabilities, CMR™ and matchup stats.`.slice(0,190);
   const location=schemaLocation(event);
-  const schema:any={'@context':'https://schema.org','@type':'SportsEvent',name:`${label}: ${matchup}`,url:canonical,startDate:event.starts_at||event.event_date,eventStatus:schemaStatus(event.status),sport:'Mixed Martial Arts',organizer:{'@type':'Organization',name:'UFC',url:'https://www.ufc.com/'},...(event.source_url?{sameAs:event.source_url}:{}),...(location?{location}:{}),competitor:main?[{'@type':'Person',name:main.fighter_a_name,url:`${SITE}/fighters/${main.fighter_a_slug}`},{'@type':'Person',name:main.fighter_b_name,url:`${SITE}/fighters/${main.fighter_b_slug}`}]:undefined,subEvent:bouts.map((b:Row)=>({'@type':'SportsEvent',name:`${b.fighter_a_name} vs ${b.fighter_b_name}`,url:`${SITE}/fights/${b.id}`,startDate:event.starts_at||event.event_date,sport:'Mixed Martial Arts',competitor:[{'@type':'Person',name:b.fighter_a_name,url:`${SITE}/fighters/${b.fighter_a_slug}`},{'@type':'Person',name:b.fighter_b_name,url:`${SITE}/fighters/${b.fighter_b_slug}`}]}))};
+  const mainPeople=main?eventPeople(
+    {name:main.fighter_a_name,url:`${SITE}/fighters/${main.fighter_a_slug}`},
+    {name:main.fighter_b_name,url:`${SITE}/fighters/${main.fighter_b_slug}`}
+  ):undefined;
+  const schema:any=location?{
+    '@context':'https://schema.org',
+    '@type':'SportsEvent',
+    name:`${label}: ${matchup}`,
+    url:canonical,
+    description,
+    image:[`${SITE}/og.png`],
+    startDate:event.starts_at||event.event_date,
+    eventStatus:schemaStatus(event.status),
+    eventAttendanceMode:'https://schema.org/OfflineEventAttendanceMode',
+    sport:'Mixed Martial Arts',
+    organizer:{'@type':'Organization',name:'UFC',url:'https://www.ufc.com/'},
+    location,
+    ...(event.source_url?{sameAs:event.source_url}:{}),
+    ...(mainPeople?{competitor:mainPeople,performer:mainPeople}: {})
+  }:{
+    '@context':'https://schema.org','@type':'WebPage',name:title,url:canonical,description,image:`${SITE}/og.png`
+  };
   const crumbs={'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:'CageMetrix',item:`${SITE}/`},{'@type':'ListItem',position:2,name:'UFC Predictions',item:`${SITE}/predictions.html`},{'@type':'ListItem',position:3,name:label,item:canonical}]};
   const cards=bouts.map((b:Row)=>{
     const has=Number.isFinite(Number(b.fighter_a_probability))&&Number.isFinite(Number(b.fighter_b_probability));
@@ -96,7 +129,28 @@ export async function enhanceFightPage(response:Response,env:Env,id:string){
   const title=`${a} vs ${b} Prediction & Stats — ${eventLabel} | CageMetrix™`;
   const description=`${a} vs ${b} prediction for ${eventLabel}${event?.event_date?` on ${prettyDate(event.event_date)}`:''}: CageMetrix™ gives ${a} ${pct(prediction.fighter_a_probability)} and ${b} ${pct(prediction.fighter_b_probability)}. See CMR™, stats and model edges.`.slice(0,190);
   const canonical=`${SITE}/fights/${id}`,eventCanonical=event?.slug?`${SITE}/events/${event.slug}`:undefined,location=event?schemaLocation(event):undefined;
-  const schema:any={'@context':'https://schema.org','@type':'SportsEvent',name:`${a} vs ${b}`,url:canonical,startDate:event?.starts_at||bout.starts_at||bout.event_date,eventStatus:schemaStatus(bout.status),sport:'Mixed Martial Arts',organizer:{'@type':'Organization',name:'UFC',url:'https://www.ufc.com/'},competitor:[{'@type':'Person',name:a,url:`${SITE}/fighters/${bout.fighter_a_slug}`},{'@type':'Person',name:b,url:`${SITE}/fighters/${bout.fighter_b_slug}`}],...(location?{location}:{}),...(eventCanonical?{superEvent:{'@type':'SportsEvent',name:eventLabel,url:eventCanonical}}:{})};
+  const people=eventPeople(
+    {name:a,url:`${SITE}/fighters/${bout.fighter_a_slug}`},
+    {name:b,url:`${SITE}/fighters/${bout.fighter_b_slug}`}
+  )!;
+  const schema:any=location?{
+    '@context':'https://schema.org',
+    '@type':'SportsEvent',
+    name:`${a} vs ${b}`,
+    url:canonical,
+    description,
+    image:[`${SITE}/og.png`],
+    startDate:event?.starts_at||bout.starts_at||bout.event_date,
+    eventStatus:schemaStatus(event?.status||bout.status),
+    eventAttendanceMode:'https://schema.org/OfflineEventAttendanceMode',
+    sport:'Mixed Martial Arts',
+    organizer:{'@type':'Organization',name:'UFC',url:'https://www.ufc.com/'},
+    location,
+    competitor:people,
+    performer:people
+  }:{
+    '@context':'https://schema.org','@type':'WebPage',name:title,url:canonical,description,image:`${SITE}/og.png`
+  };
   const crumbs={'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:'CageMetrix',item:`${SITE}/`},{'@type':'ListItem',position:2,name:eventLabel,item:eventCanonical||`${SITE}/predictions.html`},{'@type':'ListItem',position:3,name:`${a} vs ${b}`,item:canonical}]};
   const eventHtml=eventCanonical?`<a href="${eventCanonical}">${esc(eventLabel)}</a>${event?.event_date?` · ${esc(prettyDate(event.event_date))}`:''}`:`${esc(eventLabel)}${event?.event_date?` · ${esc(prettyDate(event.event_date))}`:''}`;
   const probabilityHtml=`<p class="lede"><strong>${esc(a)} ${pct(prediction.fighter_a_probability)}</strong> · <strong>${esc(b)} ${pct(prediction.fighter_b_probability)}</strong></p><p class="muted">Locked Predictor ${esc(prediction.model_version)} win probabilities. Model estimates, not betting odds.</p>`;
