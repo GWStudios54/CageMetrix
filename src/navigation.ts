@@ -13,8 +13,7 @@ function publicBrandText(value:string){
 function publicBrandUrl(value:string){
   return value
     .replace(/^https?:\/\/(?:www\.)?cagemetrix\.com/i,SITE_ORIGIN)
-    .replace(/^https?:\/\/www\.mmascouts\.com/i,SITE_ORIGIN)
-    .replace(/\/og\.png$/i,'/og.svg');
+    .replace(/^https?:\/\/www\.mmascouts\.com/i,SITE_ORIGIN);
 }
 
 export async function normalizeNavigation(response:Response,request:Request,env:Env){
