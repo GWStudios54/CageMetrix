@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 import { execFileSync } from 'node:child_process';
 import { parseDelimited } from './lib/csv.mjs';
 import { STATS_URL, hash } from './lib/dataset.mjs';
-import { officialBouts, mirroredStats, sourceRow, nameKey } from './lib/recent-source.mjs';
+import { officialBouts, mirroredStats, sourceRow, nameKey, recentResultEvents } from './lib/recent-source.mjs';
 
 const cache = '.cache/recent';
 mkdirSync(cache, { recursive: true });
@@ -24,10 +24,7 @@ const cutoff = rows.map(dateOf).sort().at(-1);
 const names = new Map(rows.flatMap(r => [r.red_fighter_name, r.blue_fighter_name]).map(n => [nameKey(n), n]));
 const officialList = new JSDOM(await page('https://www.ufc.com/events')).window.document;
 const officialLinks = [...new Set([...officialList.querySelectorAll('a[href]')].map(a => new URL(a.href, 'https://www.ufc.com').href.split('#')[0]).filter(h => h.includes('/event/')))];
-const resultDoc = new JSDOM(await page('https://www.ufcalendar.com/results')).window.document;
-const list = [...resultDoc.querySelectorAll('script[type="application/ld+json"]')].map(s => JSON.parse(s.textContent)).find(x => x['@type'] === 'ItemList');
-if (!list) throw new Error('No recent result archive');
-const events = list.itemListElement.filter(e => /^UFC (?:\d|Fight Night)/.test(e.name)).filter(e => e.url.match(/\d{4}-\d{2}-\d{2}/)?.[0] > cutoff).reverse();
+const events = recentResultEvents(await page('https://www.ufcalendar.com/results'), cutoff);
 const archivePath = 'scripts/data/recent-bouts.json';
 const archive = existsSync(archivePath) ? JSON.parse(readFileSync(archivePath,'utf8')) : { events: [] };
 if (process.argv.includes('--remote')) {
@@ -44,10 +41,11 @@ for (const event of events) {
   if (archive.events.some(e => e.date === date) && !process.argv.includes('--fresh')) continue;
   const month = new Date(`${date}T12:00:00Z`).toLocaleString('en-US', { month: 'long', timeZone:'UTC' }).toLowerCase();
   const numbered = event.name.match(/^UFC (\d+)/)?.[1];
-  const officialUrl = numbered ? `https://www.ufc.com/event/ufc-${numbered}` : archive.events.find(e => e.date === date)?.official_url || officialLinks.find(h => h.endsWith(`${month}-${date.slice(8)}-${date.slice(0,4)}`));
+  const officialUrl = numbered ? `https://www.ufc.com/event/ufc-${numbered}` : archive.events.find(e => e.date === date)?.official_url || officialLinks.find(h => h.endsWith(`${month}-${Number(date.slice(8))}-${date.slice(0,4)}`) || h.endsWith(`${month}-${date.slice(8)}-${date.slice(0,4)}`));
   if (!officialUrl) throw new Error(`Official UFC event link missing for ${event.name}`);
   const official = officialBouts(await page(officialUrl));
   const doc = new JSDOM(await page(event.url)).window.document;
+  const pageName = doc.querySelector('h1')?.textContent?.replace(/\s*·\s*Results\s*$/i,'').replace(/\s+/g,' ').trim() || event.name;
   const eventPath = new URL(event.url).pathname;
   const links = [...new Set([...doc.querySelectorAll('a[href]')].map(a => new URL(a.href,event.url).href).filter(h => new URL(h).pathname.startsWith(eventPath + '/') && h.includes('-vs-')))];
   const imported = [];
@@ -58,13 +56,13 @@ for (const event of events) {
     const bout = official.find(b => [b.red,b.blue].every(n => statistics.names.some(m => nameKey(m) === nameKey(n))));
     if (!bout) continue;
     if (imported.some(r => r.official_bout_id === bout.officialId)) continue;
-    imported.push(sourceRow(bout, statistics, { name: event.name, date, officialUrl, boutUrl:url }, names));
+    imported.push(sourceRow(bout, statistics, { name: pageName, date, officialUrl, boutUrl:url }, names));
   }
-  if (imported.length !== official.length) throw new Error(`${event.name}: ${imported.length}/${official.length} bouts verified; refusing incomplete card. Missing: ${official.filter(b => !imported.some(r => r.official_bout_id === b.officialId)).map(b => `${b.red} vs ${b.blue}`).join(', ')}`);
+  if (imported.length !== official.length) throw new Error(`${pageName}: ${imported.length}/${official.length} bouts verified; refusing incomplete card. Missing: ${official.filter(b => !imported.some(r => r.official_bout_id === b.officialId)).map(b => `${b.red} vs ${b.blue}`).join(', ')}`);
   archive.events = archive.events.filter(e => e.date !== date);
-  archive.events.push({ date, name: event.name, official_url: officialUrl, statistics_source: event.url, rows: imported });
+  archive.events.push({ date, name: pageName, official_url: officialUrl, statistics_source: event.url, rows: imported });
   archive.events.sort((a,b) => a.date.localeCompare(b.date));
   writeFileSync(archivePath, JSON.stringify(archive, null, 2) + '\n');
-  console.log(`Verified ${event.name}: ${date}, ${imported.length} bouts.`);
+  console.log(`Verified ${pageName}: ${date}, ${imported.length} bouts.`);
 }
 console.log(`Recent-event coverage through ${archive.events.at(-1)?.date || cutoff}.`);
