@@ -7,6 +7,12 @@ import {augmentFighterProfileWithPreUfcHistory} from './fighter-history.ts';
 import {enhanceFightPage,enhanceFighterPage,sitemap} from './seo.ts';
 import {eventPage} from './event-page.ts';
 import {homePage,predictionsPage} from './static-seo.ts';
+import {
+  blockCommunityUser,communityEvent,communityHomePage,communityLeaderboard,communityProfilePage,
+  createDiscussionPost,discussion,enhanceEventCommunity,enhanceFightCommunity,getCommunityMe,
+  loginCommunity,logoutCommunity,reactCommunityPost,registerCommunity,reportCommunityPost,
+  saveCommunityPick,updateCommunityMe
+} from './community.ts';
 
 interface Env {
   DB:D1Database;
@@ -57,11 +63,51 @@ export default {
     if(request.method==='GET'&&url.pathname==='/')return homePage(request,env);
     if(request.method==='GET'&&url.pathname==='/predictions.html')return predictionsPage(request,env);
     if(request.method==='GET'&&url.pathname==='/sitemap.xml')return sitemap(env);
+    if(request.method==='GET'&&(url.pathname==='/community'||url.pathname==='/community/')){
+      if(url.pathname.endsWith('/')&&url.pathname!=='/')return Response.redirect(new URL('/community',request.url),308);
+      return communityHomePage(request,env);
+    }
+    const profileMatch=url.pathname.match(/^\/u\/([A-Za-z0-9_]{3,24})\/?$/);
+    if(request.method==='GET'&&profileMatch){
+      if(url.pathname.endsWith('/'))return Response.redirect(new URL(`/u/${profileMatch[1]}${url.search}`,request.url),308);
+      return communityProfilePage(request,env,profileMatch[1]);
+    }
     const eventMatch=url.pathname.match(/^\/events\/([a-z0-9-]{1,180})\/?$/);
     if(request.method==='GET'&&eventMatch){
       if(url.pathname.endsWith('/'))return Response.redirect(new URL(`/events/${eventMatch[1]}${url.search}`,request.url),308);
-      return eventPage(request,env,eventMatch[1]);
+      const response=await eventPage(request,env,eventMatch[1]);
+      return enhanceEventCommunity(response,env,eventMatch[1]);
     }
+
+    if(url.pathname==='/api/community/register'&&request.method==='POST')return registerCommunity(request,env);
+    if(url.pathname==='/api/community/login'&&request.method==='POST')return loginCommunity(request,env);
+    if(url.pathname==='/api/community/logout'&&request.method==='POST')return logoutCommunity(request,env);
+    if(url.pathname==='/api/community/me'){
+      if(request.method==='GET')return getCommunityMe(request,env);
+      if(request.method==='PATCH')return updateCommunityMe(request,env);
+      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+    }
+    if(url.pathname==='/api/community/leaderboard'&&request.method==='GET')return communityLeaderboard(request,env);
+    const communityEventMatch=url.pathname.match(/^\/api\/community\/events\/([a-z0-9-]{1,180})(?:\/picks\/([1-9]\d*))?$/);
+    if(communityEventMatch){
+      if(!communityEventMatch[2]&&request.method==='GET')return communityEvent(request,env,communityEventMatch[1]);
+      if(communityEventMatch[2]&&request.method==='PUT')return saveCommunityPick(request,env,communityEventMatch[1],communityEventMatch[2]);
+      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+    }
+    if(url.pathname==='/api/community/discussion'){
+      if(request.method==='GET')return discussion(request,env);
+      if(request.method==='POST')return createDiscussionPost(request,env);
+      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+    }
+    const reactMatch=url.pathname.match(/^\/api\/community\/posts\/([1-9]\d*)\/(react|report)$/);
+    if(reactMatch){
+      if(reactMatch[2]==='react'&&request.method==='PUT')return reactCommunityPost(request,env,reactMatch[1]);
+      if(reactMatch[2]==='report'&&request.method==='POST')return reportCommunityPost(request,env,reactMatch[1]);
+      return new Response(JSON.stringify({error:'method_not_allowed'}),{status:405,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+    }
+    const blockMatch=url.pathname.match(/^\/api\/community\/users\/([A-Za-z0-9_]{3,24})\/block$/);
+    if(blockMatch&&request.method==='PUT')return blockCommunityUser(request,env,blockMatch[1]);
+
     if(request.method==='GET'&&url.pathname==='/api/fans/record')return fanRecord(request,env);
     const notes=url.pathname.match(/^\/api\/fights\/([1-9]\d*)\/notes$/);
     if(notes){
@@ -104,8 +150,9 @@ export default {
     }
     const fightPath=url.pathname.match(/^\/fights\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&fightPath){
-      const response=await base.fetch(routed,env,context);
-      return enhanceFightPage(response,env,fightPath[1]);
+      let response=await base.fetch(routed,env,context);
+      response=await enhanceFightPage(response,env,fightPath[1]);
+      return enhanceFightCommunity(response,env,fightPath[1]);
     }
     return base.fetch(routed,env,context);
   }
