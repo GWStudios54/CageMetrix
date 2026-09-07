@@ -64,7 +64,7 @@ export default {
     if(request.method==='GET'&&url.pathname==='/predictions.html')return predictionsPage(request,env);
     if(request.method==='GET'&&url.pathname==='/sitemap.xml')return sitemap(env);
     if(request.method==='GET'&&(url.pathname==='/community'||url.pathname==='/community/')){
-      if(url.pathname.endsWith('/')&&url.pathname!=='/')return Response.redirect(new URL('/community',request.url),308);
+      if(url.pathname.endsWith('/'))return Response.redirect(new URL('/community',request.url),308);
       return communityHomePage(request,env);
     }
     const profileMatch=url.pathname.match(/^\/u\/([A-Za-z0-9_]{3,24})\/?$/);
