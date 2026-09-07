@@ -1,0 +1,44 @@
+name: Diagnose legacy Cloudflare challenge
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/cloudflare-migration-diagnostics.yml'
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Inspect CageMetrix Cloudflare security configuration
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          api='https://api.cloudflare.com/client/v4'
+          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json')
+
+          zone_json=$(curl --silent --show-error "${auth[@]}" "$api/zones?name=cagemetrix.com&status=active")
+          echo "$zone_json" | jq '{success,errors,zones:[.result[]|{id,name,status,paused,type}]}'
+          zone_id=$(echo "$zone_json" | jq -r '.result[0].id // empty')
+          if [ -z "$zone_id" ]; then
+            echo 'No active cagemetrix.com zone visible to this token.'
+            exit 1
+          fi
+
+          echo '--- bot management ---'
+          curl --silent --show-error "${auth[@]}" "$api/zones/$zone_id/bot_management" | jq '{success,errors,result}' || true
+
+          for setting in security_level browser_check; do
+            echo "--- $setting ---"
+            curl --silent --show-error "${auth[@]}" "$api/zones/$zone_id/settings/$setting" | jq '{success,errors,result}' || true
+          done
+
+          echo '--- custom WAF entrypoint ---'
+          curl --silent --show-error "${auth[@]}" "$api/zones/$zone_id/rulesets/phases/http_request_firewall_custom/entrypoint" | jq '{success,errors,result:(.result|if type=="object" then {id,name,phase,rules:[.rules[]?|{id,description,action,expression,enabled}]} else . end)}' || true
