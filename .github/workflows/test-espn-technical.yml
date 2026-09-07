@@ -9,6 +9,7 @@ on:
       - 'scripts/lib/espn-mma.mjs'
       - 'scripts/sync-espn-mma-technical.mjs'
       - 'scripts/validate-espn-mma-live.mjs'
+      - 'scripts/diagnose-espn-mma-stat-sources.mjs'
       - 'tests/espn-mma.test.mjs'
       - '.github/workflows/test-espn-technical.yml'
   workflow_dispatch:
@@ -30,9 +31,12 @@ jobs:
           node --check scripts/lib/espn-mma.mjs
           node --check scripts/sync-espn-mma-technical.mjs
           node --check scripts/validate-espn-mma-live.mjs
+          node --check scripts/diagnose-espn-mma-stat-sources.mjs
           npm test
       - name: Validate migration on local D1
         run: npx wrangler d1 migrations apply cagemetrix --local
+      - name: Probe ESPN MMA alternate statistics surfaces
+        run: node scripts/diagnose-espn-mma-stat-sources.mjs
       - name: Read-only live ESPN coverage test against production target identities
         run: node scripts/validate-espn-mma-live.mjs
         env:
@@ -42,6 +46,8 @@ jobs:
         if: always()
         with:
           name: espn-technical-validation
-          path: .cache/espn-mma-validation/report.json
+          path: |
+            .cache/espn-mma-validation/report.json
+            .cache/espn-mma-validation/source-diagnostics.json
           if-no-files-found: ignore
           retention-days: 14
