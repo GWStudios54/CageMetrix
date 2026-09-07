@@ -73,6 +73,7 @@ export default {
       if(url.pathname.endsWith('/'))return Response.redirect(new URL('/community',request.url),308);
       return communityHomePage(request,env);
     }
+    if(request.method==='GET'&&(url.pathname==='/u/cagemetrix_owner54'||url.pathname==='/u/cagemetrix_owner54/'))return Response.redirect(new URL('/u/cagemetrix_desk',request.url),308);
     const profileMatch=url.pathname.match(/^\/u\/([A-Za-z0-9_]{3,24})\/?$/);
     if(request.method==='GET'&&profileMatch){
       if(url.pathname.endsWith('/'))return Response.redirect(new URL(`/u/${profileMatch[1]}${url.search}`,request.url),308);
@@ -95,7 +96,7 @@ export default {
     if(url.pathname==='/api/community/login'&&request.method==='POST'){
       let handle='';
       try{handle=String((await request.clone().json() as any)?.handle||'').trim().toLowerCase()}catch{}
-      if(handle==='cagemetrix_owner54')return ownerAdminLogin(request,env);
+      if(handle==='cagemetrix_desk')return ownerAdminLogin(request,env);
       return loginCommunity(request,env);
     }
     if(url.pathname==='/api/community/logout'&&request.method==='POST')return logoutCommunity(request,env);
