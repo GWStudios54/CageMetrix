@@ -29,17 +29,15 @@
     if(!r.ok){const e=new Error(j.error||'Request failed.');e.status=r.status;throw e}return j;
   }
   function placeSummary(root){
-    const oldList=$('[data-cm-pick-list]',root);if(oldList)oldList.hidden=true;
+    const oldList=$('[data-cm-pick-list]',root),oldHead=$('.cm-community-head',root),oldScore=$('[data-cm-event-score]',root);if(oldList)oldList.hidden=true;if(oldHead)oldHead.hidden=true;if(oldScore)oldScore.hidden=true;
     if($('.cm-event-summary'))return;
-    const head=$('.cm-community-head',root),score=$('[data-cm-event-score]',root),card=$('.event-card-seo');
-    const section=card?.closest('section');if(!head||!score||!section)return;
-    const summary=document.createElement('section');summary.className='cm-event-summary';
-    const h=$('h2',head),p=$('p:not(.eyebrow)',head);if(h)h.textContent='Your card vs CageMetrix';if(p)p.textContent='Make each pick as you scroll. Your choice sits directly under the model call.';
-    summary.append(head,score);section.before(summary);
+    const card=$('.event-card-seo'),section=card?.closest('section');if(!section)return;
+    const summary=document.createElement('section');summary.className='cm-event-summary';summary.innerHTML='<div class="cm-community-head"><div><p class="eyebrow">BEAT CAGEMETRIX</p><h2>Your card vs CageMetrix</h2><p>Make each pick as you scroll. Your choice sits directly under the model call.</p></div><a class="button secondary" href="/community">Season leaderboard →</a></div><div class="cm-event-score" data-cm-inline-summary-score>Loading pick’em…</div>';
+    section.before(summary);
   }
+  function summaryMarkup(c){return `<div class="cm-event-stat"><strong>${c.made||0}/${c.total||0}</strong><span>your card</span></div><div class="cm-event-stat"><strong>${c.community_picks||0}</strong><span>community picks</span></div><div class="cm-event-stat"><strong>${c.graded?`${c.user_correct}-${c.model_correct}`:'—'}</strong><span>you vs model</span></div><div class="cm-event-stat"><strong>${c.result==='user'?'YOU WIN':c.result==='model'?'MODEL WINS':c.result==='tie'?'TIE':payload.event?.locked?'LOCKED':'OPEN'}</strong><span>card status</span></div>`}
   function renderSummary(){
-    const score=$('[data-cm-event-score]');if(!score||!payload)return;const c=payload.card||{};
-    score.innerHTML=`<div class="cm-event-stat"><strong>${c.made||0}/${c.total||0}</strong><span>your card</span></div><div class="cm-event-stat"><strong>${c.community_picks||0}</strong><span>community picks</span></div><div class="cm-event-stat"><strong>${c.graded?`${c.user_correct}-${c.model_correct}`:'—'}</strong><span>you vs model</span></div><div class="cm-event-stat"><strong>${c.result==='user'?'YOU WIN':c.result==='model'?'MODEL WINS':c.result==='tie'?'TIE':payload.event?.locked?'LOCKED':'OPEN'}</strong><span>card status</span></div>`;
+    if(!payload)return;const html=summaryMarkup(payload.card||{}),score=$('[data-cm-event-score]'),top=$('[data-cm-inline-summary-score]');if(score)score.innerHTML=html;if(top)top.innerHTML=html;
   }
   function crowdText(b){
     const total=Number(b.community?.total||0);if(!total)return 'Crowd · no picks yet';
@@ -66,8 +64,7 @@
     catch(e){$$('[data-cm-inline-pick]').forEach(slot=>slot.innerHTML=`<small class="muted">${esc(e.message)}</small>`)}
   }
   function boot(){
-    const root=$('[data-cm-event]');if(!root)return;slug=root.dataset.cmEvent||'';if(!slug)return;placeSummary(root);load();
-    window.addEventListener('cm-auth-changed',load);
+    const root=$('[data-cm-event]');if(!root)return;slug=root.dataset.cmEvent||'';if(!slug)return;placeSummary(root);load();window.addEventListener('cm-auth-changed',load);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
