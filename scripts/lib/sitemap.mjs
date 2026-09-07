@@ -21,7 +21,7 @@ function entry(loc, lastmod = null) {
   return lines.join('\n');
 }
 
-export function sitemapXml({ fighters = [], fights = [], origin = SITEMAP_ORIGIN } = {}) {
+export function sitemapXml({ fighters = [], events = [], fights = [], origin = SITEMAP_ORIGIN } = {}) {
   const base = origin.replace(/\/$/, '');
   const urls = [
     entry(`${base}/`),
@@ -29,12 +29,15 @@ export function sitemapXml({ fighters = [], fights = [], origin = SITEMAP_ORIGIN
     entry(`${base}/validation.html`),
     entry(`${base}/community`),
     entry(`${base}/forum`),
-    ...fighters
+    ...events
       .filter(row => row?.slug)
-      .map(row => entry(`${base}/fighters/${encodeURIComponent(row.slug)}`, row.last_fight_date || row.updated_at)),
+      .map(row => entry(`${base}/events/${encodeURIComponent(row.slug)}`, row.event_date)),
     ...fights
       .filter(row => Number.isInteger(Number(row?.id)) && Number(row.id) > 0)
-      .map(row => entry(`${base}/fights/${Number(row.id)}`, row.updated_at || row.event_date))
+      .map(row => entry(`${base}/fights/${Number(row.id)}`, row.event_date || row.updated_at)),
+    ...fighters
+      .filter(row => row?.slug)
+      .map(row => entry(`${base}/fighters/${encodeURIComponent(row.slug)}`, row.last_fight_date || row.updated_at))
   ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
