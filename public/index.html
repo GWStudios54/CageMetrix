@@ -3,201 +3,217 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Explore UFC fighter rankings by division, striking, wrestling and the CageMetrix™ Rating (CMR™). See how the opposition changes every performance." />
-  <title>CageMetrix™ — Opponent-Adjusted MMA Analytics</title>
+  <meta name="description" content="MMA Scouts is the MMA research engine for fighter reports, matchup analysis, opponent-adjusted ratings, prospect discovery and grounded AI research." />
+  <title>MMA Scouts — The MMA Research Engine</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-  <meta property="og:title" content="CageMetrix™ — Opponent-Adjusted MMA Analytics" />
-  <meta property="og:description" content="Explore fighter rankings with the opposition factored in." />
+  <meta property="og:title" content="MMA Scouts — The MMA Research Engine" />
+  <meta property="og:description" content="Research any fighter. Understand any matchup." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://cagemetrix.com/" />
-  <meta property="og:image" content="https://cagemetrix.com/og.png" />
+  <meta property="og:url" content="https://mmascouts.com/" />
+  <meta property="og:image" content="https://mmascouts.com/og.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="CageMetrix™ — Opponent-Adjusted MMA Analytics" />
-  <meta name="twitter:description" content="Explore fighter rankings with the opposition factored in." />
-  <meta name="twitter:image" content="https://cagemetrix.com/og.png" />
+  <meta name="twitter:title" content="MMA Scouts — The MMA Research Engine" />
+  <meta name="twitter:description" content="Research any fighter. Understand any matchup." />
+  <meta name="twitter:image" content="https://mmascouts.com/og.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/explorer.css" />
+  <link rel="stylesheet" href="/home.css?v=1" />
 </head>
-<body>
-  <a class="skip-link" href="#rankings">Skip to rankings</a>
+<body class="home-page">
+  <a class="skip-link" href="#research">Skip to research</a>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="CageMetrix home">
+    <a class="brand" href="/" aria-label="MMA Scouts home">
       <img class="brand-mark" src="/logo.svg" alt="" width="44" height="44" />
-      <span>CageMetrix™</span>
+      <span>MMA Scouts</span>
     </a>
     <nav>
-      <a href="/predictions.html">Predictions</a>
+      <a href="/scout">Scout AI</a>
+      <a href="/predictions.html">Matchups</a>
       <a href="#rankings">Rankings</a>
-      <a href="#method">Method</a>
-      <a href="/validation.html">Track record</a>
     </nav>
   </header>
 
   <main>
-    <section class="hero">
-      <div class="eyebrow">OPPONENT-ADJUSTED MMA ANALYTICS</div>
-      <h1>Raw stats tell you <em>what</em> happened.<br />CageMetrix™ asks <em>against whom?</em></h1>
-      <p class="lede">Explore opponent-adjusted fighter ratings, upcoming win probabilities and a prediction record you can check.</p>
-      <div class="hero-actions">
-        <a class="button primary" href="#rankings">Explore the rankings</a>
-        <a class="button secondary" href="/predictions.html">Upcoming fight predictions</a>
+    <section class="hero" id="research">
+      <div class="home-hero-grid">
+        <div class="home-hero-copy">
+          <div class="eyebrow">THE MMA RESEARCH ENGINE</div>
+          <h1>Research any fighter.<br /><span>Understand any matchup.</span></h1>
+          <p class="lede">Search fighter dossiers, compare résumés, interrogate MMA history, discover prospects and ask research questions in plain English. MMA Scouts grounds the answer in recorded fight data first.</p>
+          <div class="home-proofline" aria-label="MMA Scouts research principles">
+            <span>Opponent-adjusted Scout Ratings</span>
+            <span>Evidence-linked Scout AI</span>
+            <span>UFC + regional career history</span>
+          </div>
+        </div>
+
+        <aside class="home-research-console" aria-label="Ask MMA Scouts">
+          <div class="home-console-head">
+            <strong>Ask MMA Scouts</strong>
+            <span>Grounded research</span>
+          </div>
+          <form class="home-research-form" id="home-research-form">
+            <div class="home-search-field">
+              <input id="home-research-input" type="search" maxlength="500" autocomplete="off" placeholder="Search a fighter or ask an MMA question…" aria-label="Search fighters or ask MMA Scouts" />
+              <button class="button primary" type="submit">Research →</button>
+            </div>
+            <div class="home-fighter-suggestions" id="home-fighter-suggestions" hidden></div>
+            <p class="home-search-hint">Type a fighter name for direct reports. Submit any question to Scout AI.</p>
+          </form>
+          <div class="home-prompts" id="home-dynamic-prompts" aria-label="Suggested research questions">
+            <button class="home-prompt" type="button" data-home-question="Which active lightweights have the strongest strength of schedule?">Strongest lightweight schedules</button>
+            <button class="home-prompt" type="button" data-home-question="Which regional prospects have faced the strongest opposition?">Best-tested regional prospects</button>
+            <button class="home-prompt" type="button" data-home-question="Who beat the most opponents before those opponents later reached the UFC?">Most future-UFC wins</button>
+          </div>
+        </aside>
       </div>
     </section>
 
-<section class="rankings" id="rankings">
-      <div class="section-heading">
+    <section class="home-section" aria-labelledby="products-title">
+      <div class="home-section-head">
         <div>
-          <div class="eyebrow">EXPLORE THE RATINGS</div>
-          <h2>Who is actually performing?</h2>
+          <div class="eyebrow">FIVE WAYS IN</div>
+          <h2 id="products-title">One research database. Different questions.</h2>
         </div>
-        <p>Switch the metric and see how the order changes when the model stops treating every opponent as equal.</p>
+        <p>MMA Scouts is built around research, comparison and discovery—not a feed, fantasy game or betting screen.</p>
       </div>
-      <div class="ranking-controls">
-        <label class="search-control">Find a fighter
-          <span class="search-field">
-            <input id="fighter-search" type="search" placeholder="Search by name…" maxlength="100" autocomplete="off" />
-            <button id="clear-search" type="button" aria-label="Clear fighter search" hidden>Clear</button>
-          </span>
-        </label>
-        <label>Metric
-          <select id="metric-select">
-            <option value="cmr">Overall CMR™</option>
-            <option value="striking_offense">Striking offense</option>
-            <option value="striking_defense">Striking defense</option>
-            <option value="wrestling_offense">Wrestling offense</option>
-            <option value="wrestling_defense">Wrestling defense</option>
-            <option value="grappling">Grappling</option>
-            <option value="strength_of_schedule">Strength of schedule</option>
-            <option value="technical">Technical rating</option>
-            <option value="resume">Résumé rating</option>
-            <option value="recent_form">Recent form</option>
-          </select>
-        </label>
-        <label>Division
-          <select id="division-select"><option value="">All active fighters</option></select>
-        </label>
+      <div class="home-products">
+        <a class="home-product" href="/scout">
+          <span class="home-product-number">01 · ASK</span>
+          <div><h3>Scout AI</h3><p>Ask natural-language questions across fighters, rankings, regional history and recorded fight relationships.</p></div>
+          <div class="home-product-footer"><span>Research assistant</span><b>→</b></div>
+        </a>
+        <a class="home-product" href="#rankings">
+          <span class="home-product-number">02 · RESEARCH</span>
+          <div><h3>Fighter Reports</h3><p>Open a fighter dossier with opponent-adjusted ratings, résumé context, recent bouts and career history.</p></div>
+          <div class="home-product-footer"><span>Search fighters</span><b>→</b></div>
+        </a>
+        <a class="home-product" href="/predictions.html">
+          <span class="home-product-number">03 · COMPARE</span>
+          <div><h3>Matchup Scout</h3><p>Study scheduled fights with model context, fighter profiles and matchup-specific evidence.</p></div>
+          <div class="home-product-footer"><span>Upcoming fights</span><b>→</b></div>
+        </a>
+        <a class="home-product" href="#rankings">
+          <span class="home-product-number">04 · RANK</span>
+          <div><h3>Scout Rankings</h3><p>Sort active fighters by overall Scout Rating, résumé, schedule strength, striking, wrestling and form.</p></div>
+          <div class="home-product-footer"><span>Explore ratings</span><b>→</b></div>
+        </a>
+        <a class="home-product" href="/scout?q=Find%20the%20best%20regional%20MMA%20prospects%20under%2025">
+          <span class="home-product-number">05 · DISCOVER</span>
+          <div><h3>Prospect Scout</h3><p>Find emerging fighters by age, record, division, opposition quality and pre-UFC résumé.</p></div>
+          <div class="home-product-footer"><span>Discover talent</span><b>→</b></div>
+        </a>
       </div>
-      <p class="model-note" id="division-status" hidden>Division options are unavailable. Reload to try again; all-fighter rankings remain available.</p>
-      <div class="ranking-summary">
-        <span id="results-status" role="status" aria-live="polite">Loading rankings…</span>
-        <span id="snapshot-label"></span>
-      </div>
-      <div class="ranking-column-head" aria-hidden="true"><span>Rank</span><span>Fighter</span><span>Sample strength</span><span>Score</span></div>
-      <div class="ranking-list" id="ranking-list" aria-busy="true">
-        <div class="ranking-loading">Loading CageMetrix ratings…</div>
-      </div>
-      <button class="button secondary" id="retry-rankings" type="button" hidden>Try again</button>
-      <nav class="pagination" aria-label="Ranking pages">
-        <button class="button secondary" id="previous-page" type="button" disabled>← Previous</button>
-        <span id="page-label"></span>
-        <button class="button secondary" id="next-page" type="button" disabled>Next →</button>
-      </nav>
-      <details class="score-guide">
-        <summary>How to read these scores</summary>
-        <p><strong>CMR™</strong> combines opponent-adjusted performance, results, schedule strength and recent form on a 0–100 scale. Category scores are normalized within each fighter’s division. All-division rankings compare those normalized scores.</p>
-        <p><strong>Sample strength</strong> is a 0–100 index based on bout count and cage time. It is not an accuracy probability or confidence interval. <strong>Provisional</strong> fighters have limited evidence; their profiles show performance CMR alongside the sample-adjusted ranked CMR.</p>
-        <p>Search keeps each fighter’s rank within the selected division and metric. “Data through” identifies the latest included event date. Active status is based on recent UFC activity and known retirement overrides. <a href="/validation.html">See model validation →</a></p>
-      </details>
-      <p class="model-note">Early CageMetrix ratings are a descriptive model and will change as the methodology, source coverage and active-roster verification improve.</p>
     </section>
 
-    <section class="method" id="method">
-      <div class="method-intro">
-        <div class="eyebrow">HOW THE MODEL THINKS</div>
-        <h2>Performance is only meaningful in context.</h2>
-        <p>CageMetrix starts with familiar fight statistics, but it does not reward the same number equally against every opponent. The model asks what each opponent normally produces and allows, then measures how far the fighter moved them away from that expectation.</p>
-      </div>
+    <section class="home-section home-matchup-section" id="home-matchup-slot" aria-label="Upcoming matchup research"></section>
 
-      <div class="method-steps">
-        <article class="method-step">
-          <span class="step-number">01</span>
+    <section class="home-section home-rankings-wrap">
+      <div class="rankings" id="rankings">
+        <div class="section-heading">
           <div>
-            <h3>Build the expectation</h3>
-            <p>For each bout, CageMetrix estimates the opponent's normal striking and wrestling production and what that opponent typically allows to others in the same division.</p>
+            <div class="eyebrow">SCOUT RANKINGS · FIGHTER DATABASE</div>
+            <h2>Find the fighter. Then inspect the evidence.</h2>
           </div>
-        </article>
-        <article class="method-step">
-          <span class="step-number">02</span>
-          <div>
-            <h3>Measure overperformance</h3>
-            <p>Landing five significant strikes per minute means more against a fighter who normally allows three than against one who normally allows six. Defense works the same way: suppression of a dangerous opponent is rewarded.</p>
-          </div>
-        </article>
-        <article class="method-step">
-          <span class="step-number">03</span>
-          <div>
-            <h3>Weight the evidence</h3>
-            <p>Recent bouts matter more than old ones, stronger opponents carry more weight, and current-division performances are compared against current-division baselines. Competitive results and schedule strength are tracked separately from technical output.</p>
-          </div>
-        </article>
-        <article class="method-step">
-          <span class="step-number">04</span>
-          <div>
-            <h3>Account for uncertainty</h3>
-            <p>A four-fight prospect can post elite underlying numbers without instantly outranking established contenders. Small samples are shrunk toward the middle and labeled provisional until the model has enough evidence.</p>
-          </div>
-        </article>
-      </div>
-
-      <div class="method-example">
-        <div class="example-copy">
-          <div class="eyebrow">ILLUSTRATIVE EXAMPLE</div>
-          <h2>Two fighters can post the same raw stat and earn very different credit.</h2>
-          <p>Imagine Fighter A and Fighter B each allow <strong>1.0 takedown per 15 minutes</strong>. Raw takedown defense makes them look similar. Their opposition tells a different story.</p>
-          <p class="example-note">This is a simplified example for explaining the adjustment, not a live fighter calculation.</p>
+          <p>Search the active UFC roster or change the metric to see how opponent quality, résumé and performance alter the order.</p>
         </div>
-        <div class="example-board">
-          <div class="example-fighter">
-            <div class="example-title"><strong>Fighter A</strong><span>vs. strong wrestlers</span></div>
-            <div class="example-stat"><span>Opponent normal TD production</span><strong>3.0 / 15</strong></div>
-            <div class="example-stat"><span>Actually allowed</span><strong>1.0 / 15</strong></div>
-            <div class="example-result positive"><span>Suppression vs expectation</span><strong>−67%</strong></div>
-          </div>
-          <div class="example-fighter">
-            <div class="example-title"><strong>Fighter B</strong><span>vs. low-output wrestlers</span></div>
-            <div class="example-stat"><span>Opponent normal TD production</span><strong>1.2 / 15</strong></div>
-            <div class="example-stat"><span>Actually allowed</span><strong>1.0 / 15</strong></div>
-            <div class="example-result"><span>Suppression vs expectation</span><strong>−17%</strong></div>
-          </div>
+        <div class="ranking-controls">
+          <label class="search-control">Find a fighter
+            <span class="search-field">
+              <input id="fighter-search" type="search" placeholder="Search by name…" maxlength="100" autocomplete="off" />
+              <button id="clear-search" type="button" aria-label="Clear fighter search" hidden>Clear</button>
+            </span>
+          </label>
+          <label>Metric
+            <select id="metric-select">
+              <option value="cmr">Overall Scout Rating</option>
+              <option value="striking_offense">Striking offense</option>
+              <option value="striking_defense">Striking defense</option>
+              <option value="wrestling_offense">Wrestling offense</option>
+              <option value="wrestling_defense">Wrestling defense</option>
+              <option value="grappling">Grappling</option>
+              <option value="strength_of_schedule">Strength of schedule</option>
+              <option value="technical">Technical rating</option>
+              <option value="resume">Résumé rating</option>
+              <option value="recent_form">Recent form</option>
+            </select>
+          </label>
+          <label>Division
+            <select id="division-select"><option value="">All active fighters</option></select>
+          </label>
         </div>
+        <p class="model-note" id="division-status" hidden>Division options are unavailable. Reload to try again; all-fighter rankings remain available.</p>
+        <div class="ranking-summary">
+          <span id="results-status" role="status" aria-live="polite">Loading rankings…</span>
+          <span id="snapshot-label"></span>
+        </div>
+        <div class="ranking-column-head" aria-hidden="true"><span>Rank</span><span>Fighter</span><span>Sample strength</span><span>Score</span></div>
+        <div class="ranking-list" id="ranking-list" aria-busy="true">
+          <div class="ranking-loading">Loading Scout Ratings…</div>
+        </div>
+        <button class="button secondary" id="retry-rankings" type="button" hidden>Try again</button>
+        <nav class="pagination" aria-label="Ranking pages">
+          <button class="button secondary" id="previous-page" type="button" disabled>← Previous</button>
+          <span id="page-label"></span>
+          <button class="button secondary" id="next-page" type="button" disabled>Next →</button>
+        </nav>
+        <details class="score-guide">
+          <summary>How to read Scout Ratings</summary>
+          <p><strong>Scout Rating</strong> combines opponent-adjusted performance, results, schedule strength and recent form on a 0–100 scale. Category scores are normalized within each fighter’s division.</p>
+          <p><strong>Sample strength</strong> is a 0–100 evidence index based on bout count and cage time. It is not a win probability. Fighters with limited evidence are labeled provisional.</p>
+          <p>Search preserves each fighter’s rank within the selected division and metric. “Data through” identifies the latest included event date. <a href="/validation.html">See model validation →</a></p>
+        </details>
       </div>
+    </section>
 
-      <div class="cmr-breakdown">
+    <section class="home-section" aria-labelledby="prospect-title">
+      <div class="home-section-head">
         <div>
-          <div class="eyebrow">FROM COMPONENTS TO CMR™</div>
-          <h2>One score, with the parts left visible.</h2>
+          <div class="eyebrow">PROSPECT SCOUT</div>
+          <h2 id="prospect-title">Look beyond the undefeated record.</h2>
         </div>
-        <div class="breakdown-grid">
-          <article><strong>Technical · 56%</strong><p>Opponent-adjusted striking and wrestling, plus grappling, pace and finishing measures.</p></article>
-          <article><strong>Résumé</strong><p>Competitive results and the quality of the fighters those results came against.</p></article>
-          <article><strong>Recent form</strong><p>More recent performances receive more influence than distant ones.</p></article>
-          <article><strong>Sample strength</strong><p>Bout count and cage-time exposure control sample penalties. This is not a win probability.</p></article>
-        </div>
+        <p>Regional records are more useful when you know who the wins came against and what those opponents became later.</p>
       </div>
+      <div class="home-prospect-grid">
+        <a class="home-prospect-card" href="/scout?q=Find%20undefeated%20regional%20fighters%20under%2025%20with%20at%20least%206%20wins">
+          <span>Age + record</span><h3>Young undefeated fighters</h3><p>Filter regional talent by age, division, wins and undefeated status.</p><b>Run the search →</b>
+        </a>
+        <a class="home-prospect-card" href="/scout?q=Which%20regional%20prospects%20have%20faced%20the%20strongest%20opposition%3F">
+          <span>Opponent quality</span><h3>Best-tested prospects</h3><p>Rank prospects by the eventual quality and experience of the opposition they actually faced.</p><b>Run the search →</b>
+        </a>
+        <a class="home-prospect-card" href="/scout?q=Who%20beat%20the%20most%20opponents%20before%20those%20opponents%20later%20reached%20the%20UFC%3F">
+          <span>Career context</span><h3>Wins that aged well</h3><p>Find fighters whose regional wins later became more meaningful when those opponents reached the UFC.</p><b>Run the search →</b>
+        </a>
+      </div>
+    </section>
 
-      <div class="performance-vs-ranked">
-        <div>
-          <span class="metric-kicker">WHY TWO CMR NUMBERS CAN APPEAR</span>
-          <h3>Performance CMR™ vs. Ranked CMR™</h3>
-        </div>
-        <p><strong>Performance CMR™</strong> shows the underlying output before sample penalties. <strong>Ranked CMR™</strong> applies bout-count and cage-time adjustments. The blend remains a descriptive model; <a href="/validation.html">historical testing</a> has not established an overall forecasting advantage over Elo.</p>
+    <section class="home-section home-trust" id="method">
+      <div class="home-trust-copy">
+        <div class="eyebrow">WHY TRUST THE OUTPUT?</div>
+        <h2>The AI does not get to invent the fight history.</h2>
+        <p>The language model interprets the question and explains the result. MMA Scouts retrieves the fighters, bouts, ratings and relationships from structured data first.</p>
+        <a class="button secondary" href="/validation.html">Model validation →</a>
+      </div>
+      <div class="home-principles">
+        <div class="home-principle"><span>01</span><strong>Retrieve first</strong><p>Scout AI plans a query, retrieves structured evidence, then synthesizes the answer.</p></div>
+        <div class="home-principle"><span>02</span><strong>Adjust the context</strong><p>Scout Ratings account for opponent quality rather than treating identical raw statistics as equally meaningful.</p></div>
+        <div class="home-principle"><span>03</span><strong>Expose uncertainty</strong><p>Small samples remain provisional, retrospective measures are labeled, and unsupported claims are supposed to be refused.</p></div>
+        <div class="home-principle"><span>04</span><strong>Show the trail</strong><p>Scout AI evidence cards and fighter pages let the user inspect the records behind the explanation.</p></div>
       </div>
     </section>
 
     <section class="status-panel">
-      <div>
-        <span class="status-dot" id="status-dot"></span>
-        <strong id="status-label">Checking API…</strong>
-      </div>
-      <span class="muted" id="database-label">CageMetrix model foundation</span>
+      <div><span class="status-dot" id="status-dot"></span><strong id="status-label">Checking research engine…</strong></div>
+      <span class="muted" id="database-label">MMA Scouts research database</span>
     </section>
   </main>
 
   <footer>
-    <span>CageMetrix™</span>
-    <span>Transparent, opponent-adjusted MMA analytics.</span>
+    <span>MMA Scouts</span>
+    <span>The MMA research engine.</span>
   </footer>
   <script src="/fighter-media.js?v=initials-1" defer></script>
-  <script src="/app.js?v=0.3.0" defer></script>
+  <script src="/app.js?v=home-1" defer></script>
+  <script src="/home.js?v=1" defer></script>
 </body>
 </html>
