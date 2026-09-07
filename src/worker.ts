@@ -33,6 +33,10 @@ function contributorCookie(request:Request){const raw=request.headers.get('cooki
 function withContributorCookie(request:Request){if(request.headers.get('authorization')?.match(/^Bearer cm_[A-Za-z0-9_-]{43}$/))return request;const token=contributorCookie(request);if(!token)return request;const headers=new Headers(request.headers);headers.set('authorization',`Bearer ${token}`);return new Request(request,{headers});}
 function withModelCacheKey(request:Request,modelVersion:string){if(request.method!=='GET'||!new URL(request.url).pathname.startsWith('/api/'))return request;const url=new URL(request.url);url.searchParams.set('_model_version',modelVersion);return new Request(url,request);}
 async function renderPage(response:Response|Promise<Response>,request:Request,env:Env){return normalizeNavigation(await response,request,env);}
+async function staticAsset(request:Request,env:Env,path:string){
+  const assetUrl=new URL(request.url);assetUrl.pathname=path;assetUrl.search='';
+  return env.ASSETS.fetch(new Request(assetUrl.toString(),{method:'GET',headers:request.headers}));
+}
 async function forecastsWithFans(_request:Request,env:Env){
   const response=await predictorForecasts(env);if(!response.ok)return response;const payload:any=await response.json();
   const rows=await env.DB.prepare(`SELECT fp.bout_id,COUNT(*) total,SUM(CASE WHEN fp.picked_fighter_id=b.fighter_a_id THEN 1 ELSE 0 END) a_votes,SUM(CASE WHEN fp.picked_fighter_id=b.fighter_b_id THEN 1 ELSE 0 END) b_votes FROM fan_predictions fp JOIN bouts b ON b.id=fp.bout_id GROUP BY fp.bout_id`).all<Record<string,any>>();
@@ -48,6 +52,10 @@ export default {
     const url=new URL(request.url);
 
     if(url.pathname==='/api/scout')return scoutAsk(request,env);
+    if(request.method==='GET'&&(url.pathname==='/scout'||url.pathname==='/scout/')){
+      if(url.pathname.endsWith('/'))return Response.redirect(new URL('/scout',request.url),308);
+      return renderPage(staticAsset(request,env,'/scout.html'),request,env);
+    }
     if(request.method==='GET'&&url.pathname==='/'){let response=await homePage(request,env);response=await enhanceHomeWatchlist(response,request,env);return renderPage(response,request,env);}
     if(request.method==='GET'&&url.pathname==='/predictions.html')return renderPage(predictionsPage(request,env),request,env);
     if(request.method==='GET'&&url.pathname==='/sitemap.xml')return publicSitemap(env);
