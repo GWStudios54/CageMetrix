@@ -66,8 +66,22 @@ export function promotionSlugForOrganization(organization, availableSlugs = null
   return null;
 }
 
-export function idFromRef(value, segment = null) {
+export function publicEspnRef(value) {
   const raw = typeof value === 'string' ? value : value?.$ref;
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.hostname === 'sports.core.api.espn.pvt') url.hostname = 'sports.core.api.espn.com';
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    url.protocol = 'https:';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function idFromRef(value, segment = null) {
+  const raw = publicEspnRef(value);
   if (!raw) return null;
   try {
     const url = new URL(raw);
@@ -103,10 +117,24 @@ export function espnCompetitionId(competition) {
   return String(competition?.id || idFromRef(competition, 'competitions') || '');
 }
 
+/** Competition participant id, not necessarily the athlete-profile id. */
 export function espnCompetitorId(competitor) {
   const direct = competitor?.id;
   if (direct !== undefined && direct !== null && String(direct)) return String(direct);
-  return String(idFromRef(competitor, 'competitors') || idFromRef(competitor, 'athletes') || '');
+  return String(idFromRef(competitor, 'competitors') || '');
+}
+
+/** ESPN MMA athlete ids must be resolved from the athlete ref when present. */
+export function espnAthleteIdFromCompetitor(competitor) {
+  return String(idFromRef(competitor?.athlete, 'athletes') || idFromRef(competitor, 'athletes') || competitor?.id || '');
+}
+
+export function espnCompetitorStatisticsRef(competitor) {
+  return publicEspnRef(competitor?.statistics);
+}
+
+export function espnCompetitorLinescoresRef(competitor) {
+  return publicEspnRef(competitor?.linescores);
 }
 
 export function espnEventDate(event) {
