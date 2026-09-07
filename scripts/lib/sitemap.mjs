@@ -27,6 +27,8 @@ export function sitemapXml({ fighters = [], fights = [], origin = SITEMAP_ORIGIN
     entry(`${base}/`),
     entry(`${base}/predictions.html`),
     entry(`${base}/validation.html`),
+    entry(`${base}/community`),
+    entry(`${base}/forum`),
     ...fighters
       .filter(row => row?.slug)
       .map(row => entry(`${base}/fighters/${encodeURIComponent(row.slug)}`, row.last_fight_date || row.updated_at)),
