@@ -11,7 +11,7 @@ const pageLabel = document.querySelector('#page-label');
 const retryButton = document.querySelector('#retry-rankings');
 const PAGE_SIZE = 25;
 const metricLabels = {
-  cmr: 'CMR™', striking_offense: 'Striking O', striking_defense: 'Striking D',
+  cmr: 'Scout Rating', striking_offense: 'Striking O', striking_defense: 'Striking D',
   wrestling_offense: 'Wrestling O', wrestling_defense: 'Wrestling D', grappling: 'Grappling',
   strength_of_schedule: 'SoS', technical: 'Technical', resume: 'Résumé', recent_form: 'Form'
 };
@@ -37,11 +37,11 @@ async function checkHealth() {
   const dot = document.querySelector('#status-dot');
   try {
     const data = await getJson('/api/health');
-    label.textContent = data.ok ? `CageMetrix API online · model v${data.model_version || '?'}` : 'API reachable · database not ready';
+    label.textContent = data.ok ? `MMA Scouts online · model v${data.model_version || '?'}` : 'Research engine reachable · database not ready';
     dot.classList.add(data.ok ? 'ok' : 'bad');
-    document.querySelector('#database-label').textContent = 'Opponent-adjusted UFC ratings database';
+    document.querySelector('#database-label').textContent = 'Opponent-adjusted MMA research database';
   } catch {
-    label.textContent = 'Service status unavailable';
+    label.textContent = 'Research engine status unavailable';
     dot.classList.add('bad');
   }
 }
@@ -94,7 +94,7 @@ function markLoading() {
   controller?.abort();
   requestId += 1;
   rankingList.setAttribute('aria-busy', 'true');
-  rankingList.innerHTML = '<div class="ranking-loading">Loading rankings…</div>';
+  rankingList.innerHTML = '<div class="ranking-loading">Loading Scout Rankings…</div>';
   resultsStatus.textContent = 'Loading rankings…';
   snapshotLabel.textContent = '';
   pageLabel.textContent = '';
@@ -116,8 +116,6 @@ async function loadRankings() {
   if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
   try {
     const [payload] = await Promise.all([getJson(`/api/rankings?${params}`, controller.signal), fighterMedia.ready]);
-    // An old response must not replace newer selections, even if abort arrives
-    // after the response has already started parsing.
     if (id !== requestId) return;
     const rows = payload.data || [];
     const total = Number(payload.meta?.total || 0);
@@ -148,7 +146,7 @@ divisionSelect.addEventListener('change', changeFilters);
 searchInput.addEventListener('input', () => {
   page = 1;
   clearTimeout(searchTimer);
-  markLoading(); // Invalidate old results during the debounce window too.
+  markLoading();
   searchTimer = setTimeout(loadRankings, 250);
 });
 clearSearch.addEventListener('click', () => {
