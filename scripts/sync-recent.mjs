@@ -61,7 +61,7 @@ if(!events.length){
 
 for (const event of events) {
   const eventId=Number(event.id);if(!Number.isInteger(eventId)||eventId<1)throw new Error(`Invalid CageMetrix event id for ${event.name}`);
-  const observation=d1Rows(`SELECT o.source_url FROM bout_result_observations o JOIN bouts b ON b.id=o.bout_id WHERE b.event_id=${eventId} AND o.source_url LIKE '${LIVE_FEED_BASE}/%.json' ORDER BY o.observed_at DESC LIMIT 1`)[0];
+  const observation=d1Rows(`SELECT o.source_url FROM bout_result_observations o JOIN bouts b ON b.id=o.bout_id WHERE b.event_id=${eventId} AND instr(o.source_url,'${LIVE_FEED_BASE}/')=1 AND substr(o.source_url,-5)='.json' ORDER BY o.observed_at DESC LIMIT 1`)[0];
   let feedUrl=String(observation?.source_url||''),feedEventId=officialFeedEventId(feedUrl);
   if(!feedEventId){
     const officialHtml=await page(event.source_url||event.sources.officialUrl);
