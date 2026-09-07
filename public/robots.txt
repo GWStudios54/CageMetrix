@@ -6,4 +6,4 @@ Disallow: /fight.html
 Disallow: /model-validation.json
 Disallow: /predictor-validation.json
 
-Sitemap: https://cagemetrix.com/sitemap.xml
+Sitemap: https://mmascouts.com/sitemap.xml

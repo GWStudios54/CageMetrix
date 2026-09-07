@@ -6,7 +6,7 @@ import {freshDb,seed,d1,token} from './helpers/fight-fixture.mjs';
 globalThis.caches={default:{match:async()=>undefined,put:async()=>{}}};
 function setup(){
   const db=freshDb();seed(db);const env={DB:d1(db),MODEL_VERSION:'0.3.0'};
-  const request=(path,init={})=>worker.fetch(new Request(`https://cagemetrix.com${path}`,init),env,{waitUntil(){}});
+  const request=(path,init={})=>worker.fetch(new Request(`https://mmascouts.com${path}`,init),env,{waitUntil(){}});
   return {db,request};
 }
 
@@ -24,7 +24,7 @@ test('a contributor can remember a trusted phone, rename their public byline, pu
   const me=await request('/api/contributors/me',{headers:{cookie}});
   assert.equal(me.status,200);assert.equal((await me.json()).id,1);
 
-  const renamed=await request('/api/contributors/me',{method:'PATCH',headers:{cookie,origin:'https://cagemetrix.com','content-type':'application/json'},body:JSON.stringify({display_name:'Southpaw Ledger'})});
+  const renamed=await request('/api/contributors/me',{method:'PATCH',headers:{cookie,origin:'https://mmascouts.com','content-type':'application/json'},body:JSON.stringify({display_name:'Southpaw Ledger'})});
   assert.equal(renamed.status,200);assert.equal((await renamed.json()).display_name,'Southpaw Ledger');
   assert.equal(db.prepare('SELECT display_name FROM contributors WHERE id=1').get().display_name,'Southpaw Ledger');
 

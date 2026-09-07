@@ -1,4 +1,6 @@
-const SITE='https://cagemetrix.com';
+import {SITE_ORIGIN} from './brand.ts';
+
+const SITE=SITE_ORIGIN;
 
 export function normalizeForumSeo(response:Response,pathname:string,indexable:boolean){
   if(!response.ok||!response.headers.get('content-type')?.includes('text/html'))return response;

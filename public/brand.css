@@ -1,0 +1,209 @@
+:root{
+  color-scheme:dark;
+  --bg:#080a0b;
+  --panel:#0f1214;
+  --panel-2:#14181b;
+  --panel-3:#191e22;
+  --text:#f4f3ef;
+  --muted:#9aa1a6;
+  --muted-2:#727a80;
+  --line:#252b2f;
+  --line-strong:#343b40;
+  --accent:#d8b76f;
+  --accent-2:#f0d597;
+  --accent-soft:rgba(216,183,111,.10);
+  --max:1440px;
+  --radius:6px;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+html{background:var(--bg)}
+body{
+  background:
+    radial-gradient(circle at 82% 4%,rgba(216,183,111,.055),transparent 24rem),
+    linear-gradient(180deg,#090b0c 0%,#080a0b 55%,#0a0d0f 100%);
+  color:var(--text);
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.16;
+  background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(to bottom,black,transparent 70%);
+}
+a{transition:color .16s ease,border-color .16s ease,background .16s ease,opacity .16s ease}
+.topbar{
+  width:min(calc(100% - 48px),var(--max));
+  min-height:76px;
+  border-bottom:1px solid var(--line);
+  position:relative;
+  z-index:10;
+}
+.brand{gap:14px;text-transform:uppercase;font-weight:800;letter-spacing:.045em}
+.brand-mark{
+  width:42px!important;
+  height:42px!important;
+  object-fit:contain;
+  border:0!important;
+  background:transparent!important;
+}
+.brand span{display:grid;font-size:18px;line-height:1.05;letter-spacing:.065em}
+.brand span::after{
+  content:"THE MMA RESEARCH ENGINE";
+  color:var(--muted-2);
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.26em;
+  margin-top:5px;
+  white-space:nowrap;
+}
+nav,.global-nav{color:#c2c6c9}
+nav a,.global-nav a{font-size:13px;font-weight:550}
+nav a:hover,.global-nav a:hover{color:var(--accent-2)}
+main{width:min(calc(100% - 48px),var(--max))}
+.hero{
+  max-width:none;
+  padding:72px 0 48px;
+  position:relative;
+  border-bottom:1px solid var(--line);
+}
+.hero::after{
+  content:"FIGHTERS  ·  MATCHUPS  ·  PROSPECTS  ·  RANKINGS  ·  HISTORY";
+  position:absolute;
+  right:0;
+  bottom:52px;
+  max-width:310px;
+  color:#737a7f;
+  text-align:right;
+  font-size:9px;
+  line-height:2;
+  letter-spacing:.24em;
+}
+.hero .eyebrow,.eyebrow{
+  color:var(--accent);
+  font-size:10px;
+  font-weight:750;
+  letter-spacing:.28em;
+}
+.hero h1{
+  max-width:830px;
+  margin:18px 0 18px;
+  font-size:clamp(48px,6.2vw,92px);
+  line-height:.94;
+  letter-spacing:-.055em;
+  text-transform:uppercase;
+}
+.hero h1 em{color:var(--accent-2)}
+.hero .lede,.lede{max-width:680px;color:#aeb4b8;font-size:17px;line-height:1.55}
+.hero-actions{margin-top:26px}
+.button{
+  border-radius:var(--radius);
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 18px;
+  border:1px solid var(--line-strong);
+  font-weight:700;
+  letter-spacing:.01em;
+}
+.button.primary{background:var(--accent);border-color:var(--accent);color:#11100d}
+.button.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.button.secondary{background:#101315;border-color:var(--line-strong)}
+.button.secondary:hover{border-color:#596168;background:#15191c}
+.metric-card,.ranking-controls,.ranking-list,.method-steps,.method-example,.breakdown-grid article,.example-fighter{
+  border-color:var(--line);
+  border-radius:var(--radius);
+}
+.metric-card,.ranking-list,.method-steps,.breakdown-grid article{background:linear-gradient(180deg,#111518,#0e1113)}
+.ranking-controls{background:#0e1113;padding:16px}
+select,input,textarea{
+  border-color:var(--line-strong)!important;
+  background:#0a0c0e!important;
+  color:var(--text)!important;
+  border-radius:4px;
+}
+input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);outline-offset:1px}
+.ranking-row{border-bottom-color:var(--line)}
+.ranking-row:hover{background:#15191c}
+.rank-score strong,.score,.mini-score,.step-number,.example-result.positive strong{color:var(--accent)}
+.section-heading p,.metric-card p,.method-intro p,.method-step p,.breakdown-grid p,.performance-vs-ranked p,.model-note{color:var(--muted)}
+.method{border-top-color:var(--line)}
+.method-example{background:linear-gradient(135deg,#101416,#0b0d0f)}
+.status-panel,footer{border-color:var(--line)}
+footer{color:#737b80}
+
+/* Homepage research entry */
+.home-research-entry{margin:0 auto 32px;padding:22px 0 0}
+.home-ask-shell{
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);
+  gap:18px;
+  padding:20px;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:linear-gradient(115deg,#111519,#0d1012);
+}
+.home-ask-copy{display:flex;flex-direction:column;justify-content:center}
+.home-ask-copy strong{font-size:16px}
+.home-ask-copy small{color:var(--muted);margin-top:6px;line-height:1.5}
+.home-ask-form{display:flex;align-items:center;gap:8px}
+.home-ask-form input{width:100%;min-height:48px;padding:0 15px;font:inherit}
+.home-ask-form .button{min-width:110px}
+.home-sample-links{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 18px;color:#888f94;font-size:11px}
+.home-sample-links a:hover{color:var(--accent-2)}
+.home-tool-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.home-tool-card{
+  min-height:116px;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  background:#0e1113;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.home-tool-card:hover{border-color:#555e64;background:#121619}
+.home-tool-icon{color:var(--accent);font-size:20px;line-height:1}
+.home-tool-card strong{font-size:14px}
+.home-tool-card small{display:block;color:#7f878c;font-size:11px;line-height:1.4;margin-top:4px}
+.home-tool-card b{font-size:15px;font-weight:400;color:#b9bec1;align-self:flex-end}
+
+/* Fight-week dashboard: flatter, editorial, less app-like */
+.home-fightweek{max-width:none!important;margin:20px auto 72px!important;padding:0!important}
+.home-fightweek-shell{border-radius:var(--radius)!important;background:#0e1113!important}
+.home-fightweek-head,.home-fightweek-panel+.home-fightweek-panel,.home-fightweek-grid{border-color:var(--line)!important}
+.home-fightweek-head h2{letter-spacing:-.045em;text-transform:uppercase}
+.home-fightweek-stat{background:#0d1012!important}
+.home-fightweek-stat strong{color:var(--accent-2)}
+.home-user-card,.home-disagreement{border-radius:4px!important;background:#101416!important;border-color:var(--line)!important}
+.home-disagreement-top b{color:var(--accent)!important}
+
+@media(max-width:980px){
+  .hero::after{display:none}
+  .home-tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .home-tool-card:last-child{grid-column:1/-1}
+  .home-ask-shell{grid-template-columns:1fr}
+  .home-sample-links{grid-column:auto}
+}
+@media(max-width:760px){
+  .topbar,main,footer{width:min(calc(100% - 30px),var(--max))}
+  .brand-mark{width:34px!important;height:34px!important}
+  .brand span{font-size:16px}
+  .brand span::after{font-size:7px;letter-spacing:.19em}
+  .hero{padding:46px 0 34px}
+  .hero h1{font-size:clamp(40px,12vw,64px)}
+  .hero .lede{font-size:15px}
+  .home-ask-shell{padding:15px}
+  .home-ask-form{display:grid}
+  .home-ask-form .button{width:100%}
+  .home-tool-grid{grid-template-columns:1fr}
+  .home-tool-card:last-child{grid-column:auto}
+}
