@@ -16,10 +16,11 @@ export function primaryNavigation(admin=false){
 
 export async function normalizeNavigation(response:Response,request:Request,env:Env){
   if(!response.headers.get('content-type')?.includes('text/html'))return response;
-  const admin=await isAdmin(request,env.DB);
+  const admin=await isAdmin(request,env.DB),nav=`<nav class="global-nav" aria-label="Primary">${primaryNavigation(admin)}</nav>`;
   const transformed=new HTMLRewriter()
     .on('head',{element(el){el.append('<link rel="stylesheet" href="/navigation.css?v=global-nav-1">',{html:true});}})
-    .on('.topbar nav',{element(el){el.setAttribute('class','global-nav');el.setAttribute('aria-label','Primary');el.setInnerContent(primaryNavigation(admin),{html:true});}})
+    .on('.topbar nav',{element(el){el.remove();}})
+    .on('.topbar',{element(el){el.append(nav,{html:true});}})
     .transform(response);
   if(!admin)return transformed;
   const out=new Response(transformed.body,transformed);out.headers.set('cache-control','private, no-store');out.headers.append('vary','Cookie');return out;
