@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">MMA Scouts</title>
+  <desc id="desc">MMA Scouts — The MMA research engine.</desc>
+  <rect width="1200" height="630" fill="#080A0B"/>
+  <g opacity=".22" stroke="#252B2F">
+    <path d="M0 90H1200M0 180H1200M0 270H1200M0 360H1200M0 450H1200M0 540H1200"/>
+    <path d="M120 0V630M240 0V630M360 0V630M480 0V630M600 0V630M720 0V630M840 0V630M960 0V630M1080 0V630"/>
+  </g>
+  <g transform="translate(74 188) scale(1.75)">
+    <path d="M15 68 38 28h18L33 68H15Z" fill="#D8B76F"/>
+    <path d="M42 68 65 28h18L60 68H42Z" fill="#F0D597"/>
+  </g>
+  <text x="330" y="280" fill="#F4F3EF" font-family="Arial,Helvetica,sans-serif" font-size="72" font-weight="700" letter-spacing="3">MMA SCOUTS</text>
+  <text x="334" y="330" fill="#D8B76F" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" letter-spacing="7">THE MMA RESEARCH ENGINE</text>
+  <text x="334" y="395" fill="#9AA1A6" font-family="Arial,Helvetica,sans-serif" font-size="27">Research any fighter. Understand any matchup.</text>
+  <line x1="334" y1="436" x2="1035" y2="436" stroke="#252B2F"/>
+  <text x="334" y="484" fill="#727A80" font-family="Arial,Helvetica,sans-serif" font-size="17" letter-spacing="3">DATA  ·  INSIGHT  ·  CONTEXT</text>
+</svg>
