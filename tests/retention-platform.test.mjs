@@ -11,7 +11,7 @@ test('fighter watchlists are persistent, personalized, and wired into fighter pa
   assert.match(migration,/CREATE TABLE IF NOT EXISTS community_fighter_follows/);
   assert.match(migration,/PRIMARY KEY\(account_id,fighter_id\)/);
   assert.match(worker,/url\.pathname==='\/watchlist'/);
-  assert.match(worker,/\/api\/community\\\/fighters/);
+  assert.match(worker,/api\/community\/fighters/);
   assert.match(worker,/enhanceFighterFollow/);
   assert.match(worker,/enhanceHomeWatchlist/);
   assert.match(watch,/model_probability/);
@@ -23,8 +23,8 @@ test('admin panel covers both fight-night and standalone forum reports',()=>{
   const worker=read('src/worker.ts');
   const admin=read('src/admin-v2.ts');
   assert.match(worker,/adminDashboardPage/);
-  assert.match(worker,/\/api\/admin\\\/forum\\\/posts/);
-  assert.match(worker,/\/api\/admin\\\/forum\\\/reports/);
+  assert.match(worker,/api\/admin\/forum\/posts/);
+  assert.match(worker,/api\/admin\/forum\/reports/);
   assert.match(admin,/forum_reports/);
   assert.match(admin,/Fight & event reports/);
   assert.match(admin,/Forum reports/);
