@@ -7,7 +7,8 @@ const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 test('featured UFC card uses dedicated mobile-safe layout and readable CTA',()=>{
   const seo=read('src/static-seo.ts');
   assert.match(seo,/class=\"event-spotlight\"/);
-  assert.match(seo,/event-spotlight \.button\.primary\{color:#fff/);
+  assert.match(seo,/class=\"button primary\"/);
+  assert.match(seo,/@media\(max-width:760px\)\{\.event-spotlight\{display:grid\}\.event-spotlight \.button\{width:100%;text-align:center\}/);
   assert.doesNotMatch(seo,/class=\"status-panel\" aria-label=\"Featured upcoming UFC predictions\"/);
   assert.doesNotMatch(seo,/class=\"status-dot\"/);
 });

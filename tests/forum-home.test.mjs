@@ -17,8 +17,9 @@ test('forum is a first-class destination with category and scoped thread routes'
 
 test('fight and event pages send discussion to the forum instead of embedding it visibly',()=>{
   const source=fs.readFileSync('src/discussion-links.ts','utf8');
-  assert.match(source,/Discuss this fight/);
-  assert.match(source,/Discuss the card/);
+  assert.match(source,/\/forum\/event\//);
+  assert.match(source,/\/forum\/fight\//);
+  assert.match(source,/scope==='event'\?'the card':'this fight'/);
   assert.match(source,/hidden/);
 });
 
