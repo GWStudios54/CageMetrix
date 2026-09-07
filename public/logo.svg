@@ -1,7 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
-  <title>CageMetrix CM octagon</title>
-  <path d="M29 5H67L91 29V67L67 91H29L5 67V29Z" fill="#111418" stroke="#e43b34" stroke-width="5"/>
-  <path d="M30 14H64L82 32" stroke="#e43b34" stroke-opacity=".35" stroke-width="2"/>
-  <path d="M42 32H24L17 39V57L24 64H42V55H28V41H42Z" fill="#f3f5f7"/>
-  <path d="M48 64V32H57L65 44L73 32H82V64H72V49L65 59L58 49V64Z" fill="#f3f5f7"/>
+  <title>MMA Scouts mark</title>
+  <path d="M15 68 38 28h18L33 68H15Z" fill="#D8B76F"/>
+  <path d="M42 68 65 28h18L60 68H42Z" fill="#F0D597"/>
 </svg>
