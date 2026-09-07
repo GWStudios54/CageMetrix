@@ -3,7 +3,6 @@ import {getFight} from './fights.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 type Row=Record<string,any>;
 const SITE='https://cagemetrix.com';
-const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]!));
 const jsonLd=(v:unknown)=>JSON.stringify(v).replace(/</g,'\\u003c');
 const pct=(v:unknown)=>`${(Number(v||0)*100).toFixed(1)}%`;
 const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).slice(0,10):null;
@@ -68,7 +67,7 @@ export async function enhanceFightSearchSnippet(response:Response,env:Env,id:str
     .on('meta[name="twitter:description"]',{element(el){el.setAttribute('content',description);}})
     .on('meta[name="twitter:card"]',{element(el){el.setAttribute('content','summary_large_image');}})
     .on('script[type="application/ld+json"]',{element(el){el.remove();}})
-    .on('head',{element(el){el.append(`<meta property="og:site_name" content="CageMetrix"><meta property="og:locale" content="en_US"><script type="application/ld+json">${esc(jsonLd(structured))}</script>`,{html:true});}})
+    .on('head',{element(el){el.append(`<meta property="og:site_name" content="CageMetrix"><meta property="og:locale" content="en_US"><script type="application/ld+json">${jsonLd(structured)}</script>`,{html:true});}})
     .transform(response);
   const out=new Response(transformed.body,transformed);
   out.headers.set('Link',`<${canonical}>; rel="canonical"`);
