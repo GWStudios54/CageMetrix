@@ -3,7 +3,7 @@ type Row=Record<string,any>;
 
 const SESSION_COOKIE='cm_session';
 const SESSION_DAYS=90;
-const OWNER_HANDLE='cagemetrix_owner54';
+const OWNER_HANDLE='cagemetrix_desk';
 
 async function hash(value:string){
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
