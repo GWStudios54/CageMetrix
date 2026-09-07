@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Ask MMA Scouts research questions about fighters, matchups, prospects and rankings using grounded MMA data." />
-  <title>Scout AI 0.2 Preview — MMA Scouts</title>
+  <meta name="description" content="Ask MMA Scouts research questions about fighters, matchups, prospects and MMA history using grounded MMA data." />
+  <title>Scout AI 0.3 Preview — MMA Scouts</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml" />
   <meta name="robots" content="noindex,follow" />
   <link rel="stylesheet" href="/styles.css" />
@@ -30,25 +30,27 @@
       <div class="scout-ai-shell">
         <div class="scout-ai-heading">
           <div>
-            <span class="scout-ai-badge">Scout AI 0.2</span>
+            <span class="scout-ai-badge">Scout AI 0.3</span>
             <h2 id="scout-ai-title">What do you want to know?</h2>
           </div>
-          <p>Answers can use current UFC data, opponent-adjusted ratings, documented pre-UFC history and a materialized regional-fighter research index. Every result can expose the evidence Scout AI used.</p>
+          <p>Answers can use current UFC data, opponent-adjusted ratings, documented pre-UFC history, regional fighter records and indexed fighter-to-fighter relationships. Every result can expose the evidence Scout AI used.</p>
         </div>
 
         <form class="scout-ai-form" id="scout-ai-form">
           <label class="sr-only" for="scout-ai-question">Ask Scout AI an MMA research question</label>
-          <textarea id="scout-ai-question" name="question" maxlength="500" required placeholder="Find undefeated regional featherweights under 25 with at least 6 wins"></textarea>
+          <textarea id="scout-ai-question" name="question" maxlength="500" required placeholder="Who beat the most opponents before those opponents later reached the UFC?"></textarea>
           <button class="button primary" id="scout-ai-submit" type="submit">Ask Scout AI</button>
         </form>
 
         <div class="scout-ai-samples" aria-label="Example research questions">
+          <button class="scout-ai-sample" type="button" data-scout-question="Who beat the most opponents before those opponents later reached the UFC?">Most future-UFC wins</button>
+          <button class="scout-ai-sample" type="button" data-scout-question="Which regional prospects have faced the strongest opposition?">Strongest regional opposition</button>
+          <button class="scout-ai-sample" type="button" data-scout-question="What is the shortest recorded fight chain between Fedor Emelianenko and Jon Jones?">Fedor → Jon Jones chain</button>
           <button class="scout-ai-sample" type="button" data-scout-question="Find undefeated regional featherweights under 25 with at least 6 wins">Regional prospects under 25</button>
           <button class="scout-ai-sample" type="button" data-scout-question="Which active lightweights had the strongest documented pre-UFC resumes?">Best pre-UFC lightweight résumés</button>
           <button class="scout-ai-sample" type="button" data-scout-question="Which fighters are statistically similar to Ilia Topuria?">Fighters similar to Topuria</button>
           <button class="scout-ai-sample" type="button" data-scout-question="Compare Max Holloway and Alexander Volkanovski">Compare Holloway and Volkanovski</button>
           <button class="scout-ai-sample" type="button" data-scout-question="Who has the strongest strength of schedule at lightweight?">Strongest lightweight schedule</button>
-          <button class="scout-ai-sample" type="button" data-scout-question="What does the data say about Islam Makhachev?">Research Islam Makhachev</button>
         </div>
 
         <div class="scout-ai-result" id="scout-ai-result" aria-live="polite" hidden>
@@ -62,7 +64,7 @@
           <div class="scout-ai-sources" id="scout-ai-sources" aria-label="Supporting fighter pages"></div>
         </div>
       </div>
-      <p class="scout-ai-note">Scout AI 0.2 supports fighter research, matchup comparisons, Scout rankings, regional prospect filters, rating-profile similarity and documented pre-UFC résumé research. Regional results are discovery candidates, not predictions that a fighter will reach the UFC.</p>
+      <p class="scout-ai-note">Scout AI 0.3 adds future-UFC win research, retrospective opponent-quality analysis and recorded fight-chain searches up to three hops. Opponent quality uses eventual indexed career results, so it is a retrospective research measure rather than a claim about exact fight-night strength.</p>
     </section>
   </main>
 
@@ -70,6 +72,6 @@
     <span>MMA Scouts</span>
     <span>The MMA research engine.</span>
   </footer>
-  <script src="/scout-ai.js?v=preview-2" defer></script>
+  <script src="/scout-ai.js?v=preview-3" defer></script>
 </body>
 </html>
