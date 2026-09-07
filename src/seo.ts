@@ -9,7 +9,7 @@ const pct=(v:unknown)=>`${(Number(v||0)*100).toFixed(1)}%`;
 const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).slice(0,10):null;
 const prettyDate=(v:unknown)=>{const d=dateOnly(v);return d?new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(`${d}T12:00:00Z`)):'';};
 
-function eventSeoName(event:Row){
+export function eventSeoName(event:Row){
   if(event.slug==='ufc-fight-night-september-05-2026')return 'UFC Paris';
   return String(event.name||'UFC event').replace(/\s*:\s*[^:]+\s+vs\s+[^:]+$/i,'').trim()||'UFC event';
 }
