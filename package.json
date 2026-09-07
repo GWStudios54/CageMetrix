@@ -2,6 +2,7 @@
   "name": "cagemetrix",
   "version": "0.3.0",
   "private": true,
+  "type": "module",
   "description": "Opponent-adjusted MMA analytics",
   "scripts": {
     "dev": "wrangler dev",
