@@ -20,7 +20,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/predictions.html", "/api/*", "/fighters/*", "/fights/*", "/events/*", "/sitemap.xml"]
+    "run_worker_first": ["/", "/scout", "/scout/", "/predictions.html", "/api/*", "/fighters/*", "/fights/*", "/events/*", "/sitemap.xml"]
   },
   "ai": {
     "binding": "AI"
