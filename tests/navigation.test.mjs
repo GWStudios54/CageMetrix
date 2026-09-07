@@ -4,12 +4,15 @@ import fs from 'node:fs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
-test('one canonical top menu is used across rendered pages',()=>{
+test('one canonical research-first top menu is used across rendered pages',()=>{
   const nav=read('src/navigation.ts');
   const session=read('src/admin-session.ts');
   const worker=read('src/worker.ts');
-  for(const href of ['/predictions.html','/#rankings','/forum','/watchlist','/community'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
+  for(const href of ['/scout','/predictions.html','/#rankings','/watchlist'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
+  assert.ok(nav.includes('Find%20the%20best%20regional%20MMA%20prospects'),'prospect research link missing');
   assert.ok(nav.includes('href=\"/admin\"'),'admin link missing');
+  assert.ok(!nav.includes('href=\"/community\"'),'community should not be primary navigation');
+  assert.ok(!nav.includes('href=\"/forum\"'),'forum should not be primary navigation');
   assert.ok(nav.includes('adminAccount(request,env.DB)'),'navigation must ask the shared session layer for admin status');
   assert.ok(session.includes("a.role='admin'"),'shared session lookup must role-gate the admin tab');
   assert.ok(worker.includes("import {normalizeNavigation} from './navigation.ts'"));
