@@ -2,7 +2,7 @@
   let me=null,authDialog=null,authMode='claim';
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
   const pct=v=>v==null?'—':`${Math.round(Number(v)*100)}%`;
-  const escText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const escText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const escAttr=escText;
   const modelRank=v=>v==='0.2.1'?0:v==='0.2.0'?1:v==='0.1.0'?2:3;
   function normalizeEventPayload(payload){
