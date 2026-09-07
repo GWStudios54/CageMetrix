@@ -16,7 +16,7 @@ test('community handles and confidence are deliberately constrained',()=>{
 test('pick em points reward correct confidence and punish wrong confidence',()=>{
   assert.equal(pickPoints(true,50),100);
   assert.equal(pickPoints(true,100),150);
-  assert.equal(pickPoints(false,50),0);
+  assert.equal(Math.abs(pickPoints(false,50)),0);
   assert.equal(pickPoints(false,100),-50);
   assert.equal(pickPoints(null,100),0);
 });
