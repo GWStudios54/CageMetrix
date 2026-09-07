@@ -25,6 +25,24 @@
   "ai": {
     "binding": "AI"
   },
+  "ratelimits": [
+    {
+      "name": "SCOUT_BURST_LIMITER",
+      "namespace_id": "87421362",
+      "simple": {
+        "limit": 2,
+        "period": 10
+      }
+    },
+    {
+      "name": "SCOUT_MINUTE_LIMITER",
+      "namespace_id": "87421363",
+      "simple": {
+        "limit": 6,
+        "period": 60
+      }
+    }
+  ],
   "vars": {
     "MODEL_VERSION": "0.3.2"
   },
