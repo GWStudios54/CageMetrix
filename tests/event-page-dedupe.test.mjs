@@ -21,3 +21,17 @@ test('community hero CTA is a single mobile-safe flex box',()=>{
   assert.match(css,/\.cm-community-hero>\.button\{display:inline-flex/);
   assert.match(css,/@media\(max-width:760px\)[\s\S]*\.cm-community-hero>\.button\{display:flex;width:100%/);
 });
+
+test('event Pick em controls are distributed inside each fight card',()=>{
+  const page=fs.readFileSync('src/event-page.ts','utf8');
+  const client=fs.readFileSync('public/event-picks-inline.js','utf8');
+  const css=fs.readFileSync('public/community.css','utf8');
+  assert.match(page,/data-cm-inline-pick/);
+  assert.match(page,/event-picks-inline\.js/);
+  assert.match(client,/YOUR PICK/);
+  assert.match(client,/data-inline-side/);
+  assert.match(client,/Your card vs CageMetrix/);
+  assert.match(client,/function dedupe/);
+  assert.match(css,/\.cm-inline-pick-slot/);
+  assert.match(css,/\.cm-inline-pick-actions/);
+});
