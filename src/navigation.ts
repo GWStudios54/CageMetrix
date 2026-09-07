@@ -4,7 +4,7 @@ import {BRAND_NAME,SITE_ORIGIN} from './brand.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 
 export function primaryNavigation(admin=false){
-  return `<a href="/scout">Scout AI</a><a href="/predictions.html">Predictions</a><a href="/#rankings">Rankings</a><a href="/forum">Forum</a><a href="/watchlist">Watchlist</a><a href="/community">Community</a>${admin?'<a href="/admin" class="admin-link">Admin</a>':''}`;
+  return `<a href="/scout">Scout AI</a><a href="/predictions.html">Matchups</a><a href="/#rankings">Rankings</a><a href="/forum">Forum</a><a href="/watchlist">Watchlist</a><a href="/community">Community</a>${admin?'<a href="/admin" class="admin-link">Admin</a>':''}`;
 }
 
 function publicBrandText(value:string){
@@ -19,7 +19,7 @@ export async function normalizeNavigation(response:Response,request:Request,env:
   const admin=!!await adminAccount(request,env.DB);
   const nav=`<nav class="global-nav" aria-label="Primary">${primaryNavigation(admin)}</nav>`;
   const transformed=new HTMLRewriter()
-    .on('head',{element(el){el.append('<link rel="stylesheet" href="/navigation.css?v=global-nav-1">',{html:true});}})
+    .on('head',{element(el){el.append('<link rel="stylesheet" href="/brand.css?v=identity-1"><link rel="stylesheet" href="/navigation.css?v=identity-1">',{html:true});}})
     .on('title',{text(text){if(text.text)text.replace(publicBrandText(text.text));}})
     .on('meta[name="description"]',{element(el){const value=el.getAttribute('content');if(value)el.setAttribute('content',publicBrandText(value));}})
     .on('meta[property="og:title"]',{element(el){const value=el.getAttribute('content');if(value)el.setAttribute('content',publicBrandText(value));}})
@@ -31,7 +31,7 @@ export async function normalizeNavigation(response:Response,request:Request,env:
     .on('meta[name="twitter:image"]',{element(el){const value=el.getAttribute('content');if(value)el.setAttribute('content',publicBrandUrl(value));}})
     .on('link[rel="canonical"]',{element(el){const value=el.getAttribute('href');if(value)el.setAttribute('href',publicBrandUrl(value));}})
     .on('.brand',{element(el){el.setAttribute('aria-label',`${BRAND_NAME} home`);}})
-    .on('.brand .brand-mark',{element(el){el.remove();}})
+    .on('.brand .brand-mark',{element(el){el.setAttribute('src','/logo.svg');el.setAttribute('alt','');el.setAttribute('width','42');el.setAttribute('height','42');}})
     .on('.brand span',{element(el){el.setInnerContent(BRAND_NAME);}})
     .on('footer span:first-child',{element(el){el.setInnerContent(BRAND_NAME);}})
     .on('.topbar nav',{element(el){el.remove();}})
