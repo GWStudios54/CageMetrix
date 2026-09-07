@@ -65,3 +65,24 @@ test('production deployment includes domain-route changes and verifies the cutov
   assert.match(smoke,/test "\$code" = "308"/);
   assert.match(smoke,/https:\/\/mmascouts\.com\/\?from=legacy/);
 });
+
+test('MMA Scouts visual identity is independent from the old CageMetrix mark',()=>{
+  const logo=read('public/logo.svg');
+  const visual=read('public/brand.css');
+  const navigation=read('src/navigation.ts');
+  const home=read('public/home-dashboard.js');
+  assert.match(logo,/MMA Scouts mark/);
+  assert.match(logo,/#D8B76F/);
+  assert.doesNotMatch(logo,/CageMetrix|octagon|#e43b34/i);
+  assert.match(visual,/--accent:#d8b76f/);
+  assert.match(visual,/THE MMA RESEARCH ENGINE/);
+  assert.match(navigation,/\/brand\.css\?v=identity-1/);
+  assert.doesNotMatch(navigation,/\.brand \.brand-mark'[\s\S]*el\.remove\(\)/);
+  assert.match(home,/Fighter Reports/);
+  assert.match(home,/Matchup Scout/);
+  assert.match(home,/Prospect Scout/);
+  assert.equal(fs.existsSync('public/favicon.ico'),false);
+  assert.equal(fs.existsSync('public/favicon-48.png'),false);
+  assert.equal(fs.existsSync('public/og.png'),false);
+  assert.equal(fs.existsSync('public/og.svg'),true);
+});
