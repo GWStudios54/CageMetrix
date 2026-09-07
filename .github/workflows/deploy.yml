@@ -1,4 +1,4 @@
-name: Deploy CageMetrix
+name: Deploy MMA Scouts
 
 on:
   push:
@@ -24,7 +24,6 @@ on:
       - 'scripts/benchmark-warehouse-models.mjs'
       - 'scripts/validate-predictor-v02-common.mjs'
       - 'tests/warehouse-history.test.mjs'
-      - 'wrangler.jsonc'
       - '.github/workflows/mma-master-sync.yml'
       - '.github/workflows/warehouse-model-benchmark.yml'
       - '.github/workflows/predictor-v02-common-validation.yml'
