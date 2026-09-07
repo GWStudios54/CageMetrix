@@ -7,6 +7,7 @@ import {augmentFighterProfileWithPreUfcHistory} from './fighter-history.ts';
 import {enhanceFightPage,enhanceFighterPage,sitemap} from './seo.ts';
 import {eventPage} from './event-page.ts';
 import {homePage,predictionsPage} from './static-seo.ts';
+import {adminModeratePost,adminOverview,adminPage,adminResolveReports} from './admin.ts';
 import {
   blockCommunityUser,communityEvent,communityHomePage,communityLeaderboard,communityProfilePage,
   createDiscussionPost,discussion,enhanceEventCommunity,enhanceFightCommunity,getCommunityMe,
@@ -63,6 +64,10 @@ export default {
     if(request.method==='GET'&&url.pathname==='/')return homePage(request,env);
     if(request.method==='GET'&&url.pathname==='/predictions.html')return predictionsPage(request,env);
     if(request.method==='GET'&&url.pathname==='/sitemap.xml')return sitemap(env);
+    if(request.method==='GET'&&(url.pathname==='/admin'||url.pathname==='/admin/')){
+      if(url.pathname.endsWith('/'))return Response.redirect(new URL('/admin',request.url),308);
+      return adminPage(request,env);
+    }
     if(request.method==='GET'&&(url.pathname==='/community'||url.pathname==='/community/')){
       if(url.pathname.endsWith('/'))return Response.redirect(new URL('/community',request.url),308);
       return communityHomePage(request,env);
@@ -78,6 +83,12 @@ export default {
       const response=await eventPage(request,env,eventMatch[1]);
       return enhanceEventCommunity(response,env,eventMatch[1]);
     }
+
+    if(url.pathname==='/api/admin'&&request.method==='GET')return adminOverview(request,env);
+    const adminPostMatch=url.pathname.match(/^\/api\/admin\/posts\/([1-9]\d*)$/);
+    if(adminPostMatch&&request.method==='PUT')return adminModeratePost(request,env,adminPostMatch[1]);
+    const adminReportMatch=url.pathname.match(/^\/api\/admin\/reports\/([1-9]\d*)$/);
+    if(adminReportMatch&&request.method==='PUT')return adminResolveReports(request,env,adminReportMatch[1]);
 
     if(url.pathname==='/api/community/register'&&request.method==='POST')return registerCommunity(request,env);
     if(url.pathname==='/api/community/login'&&request.method==='POST')return loginCommunity(request,env);
