@@ -8,6 +8,7 @@ const text = el => el?.textContent.replace(/\s+/g, ' ').trim() || '';
 const DATE_RE=/^20\d{2}-\d{2}-\d{2}$/;
 const MONTHS=['january','february','march','april','may','june','july','august','september','october','november','december'];
 const slug = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/ł/gi,'l').replace(/đ/gi,'d').replace(/ø/gi,'o').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const LIVE_FEED_HOST='d29dxerjsp82wz.cloudfront.net';
 
 export function resultSourcesForEvent(name,date){
   const eventName=String(name||'').replace(/\s+/g,' ').trim();
@@ -33,23 +34,22 @@ export function boutSourceUrls(eventUrl,bout){
   return [...new Set([`${base}/${red}-vs-${blue}`,`${base}/${blue}-vs-${red}`])];
 }
 
-export function officialBouts(html) {
-  const dom = new JSDOM(html);
-  const cards = [...dom.window.document.querySelectorAll('.c-listing-fight')];
-  const bouts = cards.map(card => {
-    const name = side => text(card.querySelector(`.c-listing-fight__corner-name--${side}`));
-    const red = name('red'), blue = name('blue');
-    const outcome = side => {
-      const corner = card.querySelector(`.c-listing-fight__corner--${side}`);
-      return corner?.querySelector('.c-listing-fight__outcome--win') ? 'W' : corner?.querySelector('.c-listing-fight__outcome--loss') ? 'L' : '';
-    };
-    const values = new Map([...card.querySelectorAll('.c-listing-fight__result')].map(el => [text(el.querySelector('.c-listing-fight__result-label')), text(el.querySelector('.c-listing-fight__result-text'))]));
-    const sourceSlug = side => card.querySelector(`.c-listing-fight__corner-name--${side} a`)?.href.split('/').at(-1)?.split('?')[0];
-    return { red, blue, redSlug:sourceSlug('red'), blueSlug:sourceSlug('blue'), redResult: outcome('red'), blueResult: outcome('blue'), method: values.get('Method'), round: values.get('Round'), time: values.get('Time'), division: text(card.querySelector('.c-listing-fight__class-text')), officialId: card.dataset.fmid };
-  }).filter(b => b.red && b.blue && b.method && b.round && b.time && (b.redResult==='W'||b.blueResult==='W'));
+export function officialFeedEventId(url){
+  try{
+    const parsed=new URL(String(url));
+    if(parsed.protocol!=='https:'||parsed.hostname!==LIVE_FEED_HOST)return null;
+    return parsed.pathname.match(/^\/api\/v3\/event\/live\/(\d+)\.json$/)?.[1]||null;
+  }catch{return null;}
+}
+
+export function eventIdFromOfficialPage(html){
+  const dom=new JSDOM(String(html||''));
+  const raw=dom.window.document.querySelector('script[data-drupal-selector="drupal-settings-json"]')?.textContent||'';
   dom.window.close();
-  if (!bouts.length) throw new Error('Official UFC card has no completed results');
-  return bouts;
+  try{
+    const value=JSON.parse(raw)?.eventLiveStats?.event_fmid;
+    return /^\d+$/.test(String(value))?String(value):null;
+  }catch{return null;}
 }
 
 const normalizeStatValue=value=>String(value||'').trim().replace(/^(\d+)\s*\/\s*(\d+)$/,'$1 of $2');
@@ -77,7 +77,7 @@ export function sourceRow(bout, stats, event, existingNames) {
   if (!winner || nameKey(stats.winner) !== nameKey(winner)) throw new Error(`Unverified or conflicting result: ${bout.red}/${bout.blue}`);
   const row = { event_date: event.date, event_name: event.name, bout_type: bout.division, method: bout.method,
     round: bout.round, time: bout.time, time_format: `5 Rnd (5-5-5-5-5)`, fight_outcome: bout.redResult === 'W' ? 'red_win' : 'blue_win',
-    source_name: 'UFC / UFCalendar (UFCStats mirror)', source_url: event.boutUrl, official_source_url: event.officialUrl, official_bout_id: bout.officialId };
+    source_name: 'UFC LiveStats / UFCalendar (UFCStats mirror)', source_url: event.boutUrl, official_source_url: event.officialUrl, official_bout_id: bout.officialId };
   for (const [i, side] of ['red','blue'].entries()) {
     const name = bout[side];
     row[`${side}_fighter_name`] = existingNames.get(nameKey(name)) || displayName(name);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boutSourceUrls, mirroredStats, resultSourcesForEvent } from '../scripts/lib/recent-source.mjs';
+import { boutSourceUrls, eventIdFromOfficialPage, mirroredStats, officialFeedEventId, resultSourcesForEvent } from '../scripts/lib/recent-source.mjs';
 
 test('completed UFC cards map deterministically to official and statistics sources',()=>{
   assert.deepEqual(resultSourcesForEvent('UFC Fight Night: Hooker vs Parnasse','2026-09-05'),{
@@ -15,6 +15,14 @@ test('completed UFC cards map deterministically to official and statistics sourc
   });
   assert.equal(resultSourcesForEvent("Dana White's Contender Series 90",'2026-09-01'),null);
   assert.equal(resultSourcesForEvent('UFC Fight Night: Bad Date','September 5'),null);
+});
+
+test('official UFC LiveStats source ids are accepted only from the expected endpoint',()=>{
+  const url='https://d29dxerjsp82wz.cloudfront.net/api/v3/event/live/1326.json';
+  assert.equal(officialFeedEventId(url),'1326');
+  assert.equal(officialFeedEventId('https://example.com/api/v3/event/live/1326.json'),null);
+  assert.equal(eventIdFromOfficialPage(`<script data-drupal-selector="drupal-settings-json">${JSON.stringify({eventLiveStats:{event_fmid:1326}})}</script>`),'1326');
+  assert.equal(eventIdFromOfficialPage('<html></html>'),null);
 });
 
 test('bout result URLs use canonical UFC fighter slugs and retain a reversed fallback',()=>{
