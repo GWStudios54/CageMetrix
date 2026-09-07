@@ -1,4 +1,4 @@
-export const SITEMAP_ORIGIN = 'https://cagemetrix.com';
+export const SITEMAP_ORIGIN = 'https://mmascouts.com';
 
 const xmlEscape = value => String(value).replace(/[&<>"']/g, ch => ({
   '&': '&amp;',
