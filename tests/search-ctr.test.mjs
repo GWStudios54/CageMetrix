@@ -4,14 +4,16 @@ import fs from 'node:fs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
-test('alternate CageMetrix hosts permanently collapse to https non-www',()=>{
+test('alternate CageMetrix hosts permanently collapse to https non-www before routing',()=>{
   const source=read('src/search-ctr.ts');
-  const nav=read('src/navigation.ts');
+  const entry=read('src/canonical-worker.ts');
+  const config=read('wrangler.jsonc');
   assert.match(source,/host==='www\.cagemetrix\.com'/);
   assert.match(source,/host==='cagemetrix\.com'&&url\.protocol==='http:'/);
   assert.match(source,/status:308/);
   assert.match(source,/url\.hostname='cagemetrix\.com'/);
-  assert.match(nav,/canonicalRedirect\(request\)/);
+  assert.match(entry,/canonicalRedirect\(request\)/);
+  assert.match(config,/"main": "src\/canonical-worker\.ts"/);
 });
 
 test('fight pages expose click-oriented matchup metadata without pretending probabilities are odds',()=>{
@@ -26,6 +28,7 @@ test('fight pages expose click-oriented matchup metadata without pretending prob
 
 test('fight structured data connects canonical page, matchup, fighters and parent event',()=>{
   const source=read('src/search-ctr.ts');
+  assert.match(source,/'@type':'WebSite'/);
   assert.match(source,/'@type':'WebPage'/);
   assert.match(source,/'@type':'SportsEvent'/);
   assert.match(source,/'@type':'BreadcrumbList'/);
