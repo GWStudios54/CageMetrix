@@ -1,4 +1,5 @@
 import {adminAccount} from './admin-session.ts';
+import {BRAND_NAME} from './brand.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 
@@ -12,6 +13,9 @@ export async function normalizeNavigation(response:Response,request:Request,env:
   const nav=`<nav class="global-nav" aria-label="Primary">${primaryNavigation(admin)}</nav>`;
   const transformed=new HTMLRewriter()
     .on('head',{element(el){el.append('<link rel="stylesheet" href="/navigation.css?v=global-nav-1">',{html:true});}})
+    .on('.brand',{element(el){el.setAttribute('aria-label',`${BRAND_NAME} home`);}})
+    .on('.brand .brand-mark',{element(el){el.remove();}})
+    .on('.brand span',{element(el){el.setInnerContent(BRAND_NAME);}})
     .on('.topbar nav',{element(el){el.remove();}})
     .on('.topbar',{element(el){el.append(nav,{html:true});}})
     .transform(response);
