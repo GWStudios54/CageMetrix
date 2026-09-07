@@ -9,24 +9,38 @@ const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).s
 const prettyDate=(v:unknown)=>{const d=dateOnly(v);return d?new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(`${d}T12:00:00Z`)):'';};
 const eventSeoName=(event:Row)=>event.slug==='ufc-fight-night-september-05-2026'?'UFC Paris':String(event.name||'UFC event').replace(/\s*:\s*[^:]+\s+vs\s+[^:]+$/i,'').trim()||'UFC event';
 const initials=(name:unknown)=>String(name||'?').trim().split(/\s+/).map(v=>v[0]).slice(0,2).join('').toUpperCase();
+const publicModelRank=(version:unknown)=>version==='0.2.1'?0:version==='0.2.0'?1:version==='0.1.0'?2:3;
 function schemaStatus(status:unknown){return status==='completed'?'https://schema.org/EventCompleted':status==='cancelled'?'https://schema.org/EventCancelled':'https://schema.org/EventScheduled';}
 function schemaLocation(event:Row){const address=[event.city,event.region,event.country].filter(Boolean).join(', ');if(!event.venue&&!address)return undefined;return {'@type':'Place',...(event.venue?{name:event.venue}:{}),...(address?{address:{'@type':'PostalAddress',addressLocality:event.city||undefined,addressRegion:event.region||undefined,addressCountry:event.country||undefined}}:{})};}
 function portrait(name:unknown,slug:unknown){return `<span class="portrait event-portrait" data-event-portrait data-name="${esc(name)}" data-slug="${esc(slug)}" aria-hidden="true"><span class="portrait-initials">${esc(initials(name))}</span></span>`;}
 function fighter(b:Row,side:'a'|'b',has:boolean,pick:boolean){const name=b[`fighter_${side}_name`],slug=b[`fighter_${side}_slug`],prob=b[`fighter_${side}_probability`];return `<a class="forecast-fighter" href="/fighters/${encodeURIComponent(String(slug||''))}">${portrait(name,slug)}<span><strong>${esc(name)}</strong>${has?`<b>${pct(prob)}</b>`:''}${pick?'<small class="event-pick">MODEL PICK</small>':''}</span></a>`;}
+
+export function dedupeEventBouts(input:Row[]){
+  const byMatchup=new Map<string,Row>();
+  for(const row of input){
+    const ids=[Number(row.fighter_a_id),Number(row.fighter_b_id)].sort((a,b)=>a-b);
+    const key=ids.every(Number.isFinite)?`${ids[0]}:${ids[1]}`:`bout:${row.id}`;
+    const current=byMatchup.get(key);
+    if(!current){byMatchup.set(key,row);continue;}
+    const nextRank=publicModelRank(row.model_version),currentRank=publicModelRank(current.model_version);
+    if(nextRank<currentRank||(nextRank===currentRank&&Number(row.id)>Number(current.id)))byMatchup.set(key,row);
+  }
+  return [...byMatchup.values()].sort((a,b)=>Number(a.bout_order??999)-Number(b.bout_order??999)||Number(a.id)-Number(b.id));
+}
 
 export async function eventPage(_request:Request,env:Env,slug:string){
   if(!/^[a-z0-9-]{1,180}$/.test(slug))return new Response('Not found',{status:404});
   const event=await env.DB.prepare(`SELECT id,promotion,slug,name,event_date,starts_at,venue,city,region,country,status,source_url FROM events WHERE slug=? LIMIT 1`).bind(slug).first<Row>();
   if(!event)return new Response('<!doctype html><html lang="en"><head><meta name="robots" content="noindex"><title>Event not found — CageMetrix</title></head><body><h1>Event not found</h1></body></html>',{status:404,headers:{'content-type':'text/html; charset=utf-8'}});
   const rows=await env.DB.prepare(`WITH picks AS (
-      SELECT p.*,mv.version model_version,ROW_NUMBER() OVER(PARTITION BY p.bout_id ORDER BY mv.version DESC,p.id DESC) rn
+      SELECT p.*,mv.version model_version,ROW_NUMBER() OVER(PARTITION BY p.bout_id ORDER BY CASE mv.version WHEN '0.2.1' THEN 0 WHEN '0.2.0' THEN 1 WHEN '0.1.0' THEN 2 ELSE 3 END,p.id DESC) rn
       FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id WHERE mv.name=?
     ) SELECT b.id,b.bout_order,b.weight_class,b.status,b.winner_id,
       a.id fighter_a_id,a.name fighter_a_name,a.slug fighter_a_slug,z.id fighter_b_id,z.name fighter_b_name,z.slug fighter_b_slug,
       p.fighter_a_probability,p.fighter_b_probability,p.picked_fighter_id,p.model_version
       FROM bouts b JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id
       LEFT JOIN picks p ON p.bout_id=b.id AND p.rn=1 WHERE b.event_id=? ORDER BY b.bout_order,b.id`).bind(PREDICTOR_NAME,event.id).all<Row>();
-  const bouts=rows.results||[],main=bouts[0],label=eventSeoName(event);
+  const bouts=dedupeEventBouts(rows.results||[]),main=bouts[0],label=eventSeoName(event);
   const matchup=main?`${main.fighter_a_name} vs ${main.fighter_b_name}`:String(event.name||label);
   const canonical=`${SITE}/events/${encodeURIComponent(slug)}`;
   const title=`${label} Predictions: ${matchup} Picks & Win Probabilities | CageMetrix`;
