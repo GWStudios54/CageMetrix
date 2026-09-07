@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Ask MMA Scouts research questions about fighters, matchups and rankings using grounded data from the MMA Scouts database." />
+  <title>Scout AI Preview — MMA Scouts</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+  <meta name="robots" content="noindex,follow" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/scout-ai.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="MMA Scouts home">
+      <img class="brand-mark" src="/logo.svg" alt="" width="44" height="44" />
+      <span>MMA Scouts</span>
+    </a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">MMA SCOUTS · RESEARCH PREVIEW</div>
+      <h1>Ask MMA Scouts.</h1>
+      <p class="lede">Research fighters, compare matchups and interrogate the ratings in plain English. Scout AI retrieves structured MMA data first, then explains what the evidence supports.</p>
+    </section>
+
+    <section class="scout-ai" aria-labelledby="scout-ai-title">
+      <div class="scout-ai-shell">
+        <div class="scout-ai-heading">
+          <div>
+            <span class="scout-ai-badge">Scout AI Preview</span>
+            <h2 id="scout-ai-title">What do you want to know?</h2>
+          </div>
+          <p>Answers are grounded in the current fighter database, opponent-adjusted ratings, official UFC fight statistics and available pre-UFC history. If the data cannot establish something, Scout AI should say so.</p>
+        </div>
+
+        <form class="scout-ai-form" id="scout-ai-form">
+          <label class="sr-only" for="scout-ai-question">Ask Scout AI an MMA research question</label>
+          <textarea id="scout-ai-question" name="question" maxlength="500" required placeholder="Who has the strongest strength of schedule at lightweight?"></textarea>
+          <button class="button primary" id="scout-ai-submit" type="submit">Ask Scout AI</button>
+        </form>
+
+        <div class="scout-ai-samples" aria-label="Example research questions">
+          <button class="scout-ai-sample" type="button" data-scout-question="Compare Max Holloway and Alexander Volkanovski">Compare Holloway and Volkanovski</button>
+          <button class="scout-ai-sample" type="button" data-scout-question="Who has the strongest strength of schedule at lightweight?">Strongest lightweight schedule</button>
+          <button class="scout-ai-sample" type="button" data-scout-question="What does the data say about Islam Makhachev?">Research Islam Makhachev</button>
+        </div>
+
+        <div class="scout-ai-result" id="scout-ai-result" aria-live="polite" hidden>
+          <div class="scout-ai-meta" id="scout-ai-meta"></div>
+          <p class="scout-ai-answer" id="scout-ai-answer"></p>
+          <ul class="scout-ai-caveats" id="scout-ai-caveats"></ul>
+          <div class="scout-ai-sources" id="scout-ai-sources" aria-label="Supporting fighter pages"></div>
+        </div>
+      </div>
+      <p class="scout-ai-note">Preview scope: named fighter research, two-fighter comparisons and ranking questions. The model is used to interpret and explain retrieved data; it is not treated as a source of fight facts.</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>MMA Scouts</span>
+    <span>The MMA research engine.</span>
+  </footer>
+  <script src="/scout-ai.js?v=preview-1" defer></script>
+</body>
+</html>
