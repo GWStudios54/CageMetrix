@@ -1,3 +1,5 @@
+import {canonicalRedirect,enhanceFightSearchSnippet} from './search-ctr.ts';
+
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 type Row=Record<string,any>;
 const SESSION_COOKIE='cm_session';
@@ -15,7 +17,10 @@ export function primaryNavigation(admin=false){
 }
 
 export async function normalizeNavigation(response:Response,request:Request,env:Env){
+  const redirect=canonicalRedirect(request);if(redirect)return redirect;
   if(!response.headers.get('content-type')?.includes('text/html'))return response;
+  const fight=request.method==='GET'?new URL(request.url).pathname.match(/^\/fights\/([1-9]\d*)\/?$/):null;
+  if(fight)response=await enhanceFightSearchSnippet(response,env,fight[1]);
   const admin=await isAdmin(request,env.DB),nav=`<nav class="global-nav" aria-label="Primary">${primaryNavigation(admin)}</nav>`;
   const transformed=new HTMLRewriter()
     .on('head',{element(el){el.append('<link rel="stylesheet" href="/navigation.css?v=global-nav-1">',{html:true});}})
