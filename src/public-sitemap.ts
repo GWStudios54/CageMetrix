@@ -16,10 +16,11 @@ export async function publicSitemap(env:Env){
   ]);
   const urls:SitemapEntry[]=[
     [`${SITE}/`,null,'daily','1.0'],
+    [`${SITE}/scout`,null,'daily','0.95'],
     [`${SITE}/predictions.html`,null,'hourly','0.9'],
     [`${SITE}/validation.html`,null,'weekly','0.6'],
-    [`${SITE}/community`,null,'daily','0.8'],
-    [`${SITE}/forum`,null,'hourly','0.8']
+    [`${SITE}/community`,null,'daily','0.5'],
+    [`${SITE}/forum`,null,'hourly','0.5']
   ];
   for(const row of events.results||[])urls.push([`${SITE}/events/${encodeURIComponent(String(row.slug))}`,dateOnly(row.event_date),'daily','0.9']);
   for(const row of fights.results||[])urls.push([`${SITE}/fights/${row.id}`,dateOnly(row.event_date),'daily','0.8']);

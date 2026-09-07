@@ -74,7 +74,7 @@ test('Scout AI 0.3 labels retrospective quality and bounds graph searches', () =
   assert.match(source, /first recorded UFC bout/);
 });
 
-test('Scout AI preview renders model text and evidence as text, not HTML', () => {
+test('Scout AI product surface renders model text and evidence as text, not HTML', () => {
   const html = read('public/scout.html');
   const client = read('public/scout-ai.js');
 
@@ -82,10 +82,10 @@ test('Scout AI preview renders model text and evidence as text, not HTML', () =>
   assert.match(html, /id="scout-ai-question"/);
   assert.match(html, /id="scout-ai-evidence"/);
   assert.match(html, /data-scout-question=/);
-  assert.match(html, /Scout AI 0\.3/);
-  assert.match(html, /future-UFC win research/);
-  assert.match(html, /fight-chain searches/);
-  assert.match(html, /name="robots" content="noindex,follow"/);
+  assert.match(html, /SCOUT AI · GROUNDED MMA RESEARCH/);
+  assert.match(html, /future-UFC wins/);
+  assert.match(html, /recorded fight chains/);
+  assert.match(html, /name="robots" content="index,follow,max-image-preview:large"/);
   assert.match(client, /fetch\('\/api\/scout'/);
   assert.match(client, /answer\.textContent/);
   assert.match(client, /li\.textContent = fact/);
