@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boutSourceUrls, eventIdFromOfficialPage, mirroredStats, officialFeedEventId, resultSourcesForEvent } from '../scripts/lib/recent-source.mjs';
+import { boutSourceUrls, eventIdFromOfficialPage, mirroredStats, officialFeedEventId, officialFightStats, resultSourcesForEvent } from '../scripts/lib/recent-source.mjs';
 
 test('completed UFC cards map deterministically to official and statistics sources',()=>{
   assert.deepEqual(resultSourcesForEvent('UFC Fight Night: Hooker vs Parnasse','2026-09-05'),{
@@ -42,4 +42,20 @@ test('current UFCalendar fight totals markup is normalized to warehouse stat for
   assert.deepEqual(parsed.values.get('Significant strikes'),['12 of 28','8 of 29']);
   assert.deepEqual(parsed.values.get('Takedowns'),['0 of 2','2 of 3']);
   assert.equal(parsed.winner,'Michael Page');
+});
+
+test('official UFC per-fight LiveStats totals map directly into the CMR stat row shape',()=>{
+  const stat=(FighterId,values)=>({FighterId,Knockdowns:0,SigStrikesLanded:12,SigStrikesAttempted:28,TakedownsLanded:0,TakedownsAttempted:2,SubmissionsAttempted:1,Reversals:0,ControlTime:'1:06',TotalStrikesLanded:49,TotalStrikesAttempted:66,SigHeadStrikesLanded:6,SigHeadStrikesAttempted:14,SigBodyStrikesLanded:4,SigBodyStrikesAttempted:8,SigLegStrikesLanded:2,SigLegStrikesAttempted:6,SigDistanceStrikesLanded:10,SigDistanceStrikesAttempted:24,SigClinchStrikesLanded:1,SigClinchStrikesAttempted:2,SigGroundStrikesLanded:1,SigGroundStrikesAttempted:2,...values});
+  const payload={LiveFightDetail:{FightId:12947,Fighters:[
+    {FighterId:1,Corner:'Red',Name:{FirstName:'Michael',LastName:'Page'},Outcome:{Outcome:'Win'}},
+    {FighterId:2,Corner:'Blue',Name:{FirstName:'Nursulton',LastName:'Ruziboev'},Outcome:{Outcome:'Loss'}}
+  ],FightStats:[stat(1,{}),stat(2,{SigStrikesLanded:8,SigStrikesAttempted:29,TotalStrikesLanded:21,TotalStrikesAttempted:42,TakedownsLanded:2,TakedownsAttempted:3,SubmissionsAttempted:0,ControlTime:'5:28'})]}};
+  const parsed=officialFightStats(payload,'12947');
+  assert.deepEqual(parsed.names,['Michael Page','Nursulton Ruziboev']);
+  assert.deepEqual(parsed.values.get('Significant strikes'),['12 of 28','8 of 29']);
+  assert.deepEqual(parsed.values.get('Total strikes'),['49 of 66','21 of 42']);
+  assert.deepEqual(parsed.values.get('Takedowns'),['0 of 2','2 of 3']);
+  assert.deepEqual(parsed.values.get('Control time'),['1:06','5:28']);
+  assert.equal(parsed.winner,'Michael Page');
+  assert.throws(()=>officialFightStats(payload,'99999'),/fight mismatch/);
 });

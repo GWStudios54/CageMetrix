@@ -3,10 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { parseDelimited } from './lib/csv.mjs';
 import { STATS_URL, hash } from './lib/dataset.mjs';
 import { liveFeedBouts } from '../src/live-results.ts';
-import { boutSourceUrls, eventIdFromOfficialPage, mirroredStats, nameKey, officialFeedEventId, resultSourcesForEvent, sourceRow } from './lib/recent-source.mjs';
+import { eventIdFromOfficialPage, nameKey, officialFeedEventId, officialFightStats, resultSourcesForEvent, sourceRow } from './lib/recent-source.mjs';
 
 const cache = '.cache/recent';
 const LIVE_FEED_BASE='https://d29dxerjsp82wz.cloudfront.net/api/v3/event/live';
+const LIVE_FIGHT_BASE='https://d29dxerjsp82wz.cloudfront.net/api/v3/fight/live';
 mkdirSync(cache, { recursive: true });
 mkdirSync('scripts/data', { recursive: true });
 
@@ -18,12 +19,6 @@ async function page(url) {
   const html = await response.text();
   writeFileSync(file, html);
   return html;
-}
-async function optionalPage(url){
-  try{return await page(url)}catch(error){
-    if(String(error?.message||error).startsWith('Failed source 404:'))return null;
-    throw error;
-  }
 }
 async function jsonSource(url){
   const response=await fetch(url,{signal:AbortSignal.timeout(30000),headers:{accept:'application/json','cache-control':'no-cache','user-agent':'CageMetrix data refresh/1.0'}});
@@ -61,7 +56,7 @@ if(!events.length){
 
 for (const event of events) {
   const eventId=Number(event.id);if(!Number.isInteger(eventId)||eventId<1)throw new Error(`Invalid CageMetrix event id for ${event.name}`);
-  const observation=d1Rows(`SELECT o.source_url FROM bout_result_observations o JOIN bouts b ON b.id=o.bout_id WHERE b.event_id=${eventId} AND instr(o.source_url,'${LIVE_FEED_BASE}/')=1 AND substr(o.source_url,-5)='.json' ORDER BY o.observed_at DESC LIMIT 1`)[0];
+  const observation=d1Rows(`SELECT o.source_url FROM bout_result_observations o JOIN bouts b ON b.id=o.bout_id WHERE b.event_id=${eventId} AND substr(o.source_url,1,${LIVE_FEED_BASE.length})='${LIVE_FEED_BASE}' ORDER BY o.observed_at DESC LIMIT 1`)[0];
   let feedUrl=String(observation?.source_url||''),feedEventId=officialFeedEventId(feedUrl);
   if(!feedEventId){
     const officialHtml=await page(event.source_url||event.sources.officialUrl);
@@ -83,23 +78,17 @@ for (const event of events) {
     if(!method||!/^[1-5]$/.test(round)||!/^\d:[0-5]\d$/.test(time)||!redResult||!blueResult)throw new Error(`Unsupported or incomplete official Final result for ${bout.red} vs ${bout.blue}`);
     return {officialId:bout.officialId,red:bout.red,blue:bout.blue,redSlug:bout.redSlug,blueSlug:bout.blueSlug,redResult,blueResult,method,round,time,division:String(storedBout.weight_class||'')};
   });
-  const imported = [];
-  for (const bout of official) {
-    let verified=false;
-    for(const url of boutSourceUrls(event.sources.statisticsUrl,bout)){
-      const html=await optionalPage(url);if(!html)continue;
-      const statistics=mirroredStats(html);if(!statistics)continue;
-      if(![bout.red,bout.blue].every(n=>statistics.names.some(m=>nameKey(m)===nameKey(n))))continue;
-      imported.push(sourceRow(bout,statistics,{name:event.sources.name,date:event.sources.date,officialUrl:feedUrl,boutUrl:url},names));
-      verified=true;break;
-    }
-    if(!verified)console.warn(`Could not verify statistics page for ${bout.red} vs ${bout.blue}.`);
+  const imported=[];
+  for(const bout of official){
+    const statsUrl=`${LIVE_FIGHT_BASE}/${bout.officialId}.json`;
+    const statistics=officialFightStats(await jsonSource(statsUrl),bout.officialId);
+    imported.push(sourceRow(bout,statistics,{name:event.sources.name,date:event.sources.date,officialUrl:feedUrl,boutUrl:statsUrl,sourceName:'UFC LiveStats'},names));
   }
-  if (imported.length !== official.length) throw new Error(`${event.sources.name}: ${imported.length}/${official.length} completed bouts verified; refusing incomplete card. Missing: ${official.filter(b => !imported.some(r => r.official_bout_id === b.officialId)).map(b => `${b.red} vs ${b.blue}`).join(', ')}`);
-  archive.events = archive.events.filter(e => e.date !== event.sources.date);
-  archive.events.push({ date:event.sources.date, name:event.sources.name, official_url:feedUrl, statistics_source:event.sources.statisticsUrl, rows: imported });
-  archive.events.sort((a,b) => a.date.localeCompare(b.date));
-  writeFileSync(archivePath, JSON.stringify(archive, null, 2) + '\n');
-  console.log(`Verified ${event.sources.name}: ${event.sources.date}, ${imported.length} bouts against UFC LiveStats.`);
+  if(imported.length!==official.length)throw new Error(`${event.sources.name}: ${imported.length}/${official.length} completed bouts verified; refusing incomplete card.`);
+  archive.events=archive.events.filter(e=>e.date!==event.sources.date);
+  archive.events.push({date:event.sources.date,name:event.sources.name,official_url:feedUrl,statistics_source:LIVE_FIGHT_BASE,rows:imported});
+  archive.events.sort((a,b)=>a.date.localeCompare(b.date));
+  writeFileSync(archivePath,JSON.stringify(archive,null,2)+'\n');
+  console.log(`Verified ${event.sources.name}: ${event.sources.date}, ${imported.length} bouts with official UFC fight statistics.`);
 }
 console.log(`Recent-event coverage through ${archive.events.at(-1)?.date || cutoff}.`);

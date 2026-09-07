@@ -53,6 +53,47 @@ export function eventIdFromOfficialPage(html){
 }
 
 const normalizeStatValue=value=>String(value||'').trim().replace(/^(\d+)\s*\/\s*(\d+)$/,'$1 of $2');
+const fighterName=fighter=>`${fighter?.Name?.FirstName||''} ${fighter?.Name?.LastName||''}`.replace(/\s+/g,' ').trim();
+const integerStat=(line,key,label)=>{
+  const value=line?.[key];
+  if(!Number.isInteger(value)||value<0)throw new Error(`Missing or invalid UFC LiveStats ${label}: ${value}`);
+  return value;
+};
+
+export function officialFightStats(payload,expectedFightId){
+  const fight=payload?.LiveFightDetail;
+  if(String(fight?.FightId)!==String(expectedFightId))throw new Error(`UFC LiveStats fight mismatch: expected ${expectedFightId}`);
+  if(!Array.isArray(fight?.Fighters)||fight.Fighters.length!==2)throw new Error('UFC LiveStats fight does not contain exactly two fighters');
+  const red=fight.Fighters.find(f=>f?.Corner==='Red'),blue=fight.Fighters.find(f=>f?.Corner==='Blue');
+  if(!red||!blue||!fighterName(red)||!fighterName(blue))throw new Error('UFC LiveStats fighter identity unavailable');
+  if(!Array.isArray(fight.FightStats)||fight.FightStats.length<2)throw new Error('UFC LiveStats fight totals unavailable');
+  const ordered=[red,blue];
+  const lines=ordered.map(f=>fight.FightStats.find(line=>String(line?.FighterId)===String(f.FighterId)));
+  if(lines.some(line=>!line))throw new Error('UFC LiveStats totals do not match fight competitors');
+  const pairs=(landed,attempted,label)=>lines.map(line=>{
+    const l=integerStat(line,landed,`${label} landed`),a=integerStat(line,attempted,`${label} attempted`);
+    if(l>a)throw new Error(`Invalid UFC LiveStats ${label}: ${l}/${a}`);
+    return `${l} of ${a}`;
+  });
+  const control=lines.map(line=>{
+    const value=String(line?.ControlTime||'').trim();
+    if(!/^\d+:[0-5]\d$/.test(value))throw new Error(`Invalid UFC LiveStats control time: ${value}`);
+    return value;
+  });
+  const values=new Map([
+    ['Knockdowns',lines.map(line=>String(integerStat(line,'Knockdowns','knockdowns')))],
+    ['Significant strikes',pairs('SigStrikesLanded','SigStrikesAttempted','significant strikes')],
+    ['Total strikes',pairs('TotalStrikesLanded','TotalStrikesAttempted','total strikes')],
+    ['Takedowns',pairs('TakedownsLanded','TakedownsAttempted','takedowns')],
+    ['Submission attempts',lines.map(line=>String(integerStat(line,'SubmissionsAttempted','submission attempts')))],
+    ['Control time',control]
+  ]);
+  const outcome=value=>String(value?.Outcome?.Outcome||'').trim().toLowerCase();
+  const redOutcome=outcome(red),blueOutcome=outcome(blue);
+  const winner=redOutcome==='win'&&blueOutcome==='loss'?fighterName(red):blueOutcome==='win'&&redOutcome==='loss'?fighterName(blue):null;
+  if(!winner)throw new Error(`UFC LiveStats does not contain a decisive final outcome for ${fighterName(red)} vs ${fighterName(blue)}`);
+  return {names:[fighterName(red),fighterName(blue)],values,winner};
+}
 
 export function mirroredStats(html) {
   const dom = new JSDOM(html);
@@ -77,7 +118,7 @@ export function sourceRow(bout, stats, event, existingNames) {
   if (!winner || nameKey(stats.winner) !== nameKey(winner)) throw new Error(`Unverified or conflicting result: ${bout.red}/${bout.blue}`);
   const row = { event_date: event.date, event_name: event.name, bout_type: bout.division, method: bout.method,
     round: bout.round, time: bout.time, time_format: `5 Rnd (5-5-5-5-5)`, fight_outcome: bout.redResult === 'W' ? 'red_win' : 'blue_win',
-    source_name: 'UFC LiveStats / UFCalendar (UFCStats mirror)', source_url: event.boutUrl, official_source_url: event.officialUrl, official_bout_id: bout.officialId };
+    source_name: event.sourceName || 'UFC LiveStats', source_url: event.boutUrl, official_source_url: event.officialUrl, official_bout_id: bout.officialId };
   for (const [i, side] of ['red','blue'].entries()) {
     const name = bout[side];
     row[`${side}_fighter_name`] = existingNames.get(nameKey(name)) || displayName(name);
