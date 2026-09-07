@@ -1,539 +1,135 @@
 interface ScoutAiBinding {
-  run(model: string, input: unknown, options?: unknown): Promise<unknown>;
+  run(model:string,input:unknown,options?:unknown):Promise<unknown>;
 }
-
+interface RateLimiter { limit(input:{key:string}):Promise<{success:boolean}>; }
 interface ScoutAiEnv {
-  DB: D1Database;
-  AI?: ScoutAiBinding;
-  MODEL_VERSION: string;
+  DB:D1Database;
+  AI?:ScoutAiBinding;
+  MODEL_VERSION:string;
+  SCOUT_BURST_LIMITER?:RateLimiter;
+  SCOUT_MINUTE_LIMITER?:RateLimiter;
 }
 
-type ScoutMetric =
-  | 'cmr'
-  | 'strength_of_schedule'
-  | 'recent_form'
-  | 'technical'
-  | 'resume'
-  | 'striking_offense'
-  | 'striking_defense'
-  | 'wrestling_offense'
-  | 'wrestling_defense'
-  | 'grappling'
-  | 'pace'
-  | 'finishing';
-
-type ScoutIntent = 'fighter_profile' | 'compare_fighters' | 'rankings' | 'help';
-
+type ScoutMetric='cmr'|'strength_of_schedule'|'recent_form'|'technical'|'resume'|'striking_offense'|'striking_defense'|'wrestling_offense'|'wrestling_defense'|'grappling'|'pace'|'finishing';
+type ScoutIntent='fighter_profile'|'compare_fighters'|'rankings'|'prospect_search'|'similar_fighters'|'pre_ufc_rankings'|'help';
+type PreMetric='resume'|'wins'|'major_org_bouts'|'finishes'|'bouts';
 interface ScoutPlan {
-  intent: ScoutIntent;
-  fighters: string[];
-  division: string;
-  metric: ScoutMetric;
-  limit: number;
-  active_only: boolean;
+  intent:ScoutIntent;
+  fighters:string[];
+  division:string;
+  metric:ScoutMetric;
+  limit:number;
+  active_only:boolean;
+  age_under:number;
+  min_wins:number;
+  undefeated:boolean;
+  outside_ufc:boolean;
+  recent_days:number;
+  pre_metric:PreMetric;
 }
+type Row=Record<string,any>;
+type EvidenceCard={id:string;title:string;kind:string;facts:string[];href?:string|null};
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
-const RATING_MODEL_NAME = 'CageMetrix Opponent-Adjusted Rating';
-const JSON_HEADERS = {
-  'content-type': 'application/json; charset=utf-8',
-  'cache-control': 'no-store',
-};
-
-const METRIC_SQL: Record<ScoutMetric, string> = {
-  cmr: 'rh.cmr',
-  strength_of_schedule: 'rh.strength_of_schedule',
-  recent_form: 'rh.recent_form',
-  technical: 'rh.technical_rating',
-  resume: 'rh.resume_rating',
-  striking_offense: 'rh.striking_offense',
-  striking_defense: 'rh.striking_defense',
-  wrestling_offense: 'rh.wrestling_offense',
-  wrestling_defense: 'rh.wrestling_defense',
-  grappling: 'rh.grappling',
-  pace: 'rh.pace',
-  finishing: 'rh.finishing',
-};
-
-const METRIC_LABEL: Record<ScoutMetric, string> = {
-  cmr: 'Scout Rating',
-  strength_of_schedule: 'strength of schedule',
-  recent_form: 'recent form',
-  technical: 'technical rating',
-  resume: 'resume rating',
-  striking_offense: 'striking offense',
-  striking_defense: 'striking defense',
-  wrestling_offense: 'wrestling offense',
-  wrestling_defense: 'wrestling defense',
-  grappling: 'grappling',
-  pace: 'pace',
-  finishing: 'finishing',
-};
-
-const DIVISIONS = new Map<string, string>([
-  ['heavyweight', 'Heavyweight'],
-  ['light heavyweight', 'Light Heavyweight'],
-  ['light-heavyweight', 'Light Heavyweight'],
-  ['middleweight', 'Middleweight'],
-  ['welterweight', 'Welterweight'],
-  ['lightweight', 'Lightweight'],
-  ['featherweight', 'Featherweight'],
-  ['bantamweight', 'Bantamweight'],
-  ['flyweight', 'Flyweight'],
-  ["women's bantamweight", "Women's Bantamweight"],
-  ['womens bantamweight', "Women's Bantamweight"],
-  ["women's flyweight", "Women's Flyweight"],
-  ['womens flyweight', "Women's Flyweight"],
-  ["women's strawweight", "Women's Strawweight"],
-  ['womens strawweight', "Women's Strawweight"],
-  ['strawweight', "Women's Strawweight"],
+const MODEL='@cf/meta/llama-3.1-8b-instruct-fast';
+const RATING_MODEL_NAME='CageMetrix Opponent-Adjusted Rating';
+const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'};
+const METRIC_SQL:Record<ScoutMetric,string>={cmr:'rh.cmr',strength_of_schedule:'rh.strength_of_schedule',recent_form:'rh.recent_form',technical:'rh.technical_rating',resume:'rh.resume_rating',striking_offense:'rh.striking_offense',striking_defense:'rh.striking_defense',wrestling_offense:'rh.wrestling_offense',wrestling_defense:'rh.wrestling_defense',grappling:'rh.grappling',pace:'rh.pace',finishing:'rh.finishing'};
+const METRIC_LABEL:Record<ScoutMetric,string>={cmr:'Scout Rating',strength_of_schedule:'strength of schedule',recent_form:'recent form',technical:'technical rating',resume:'resume rating',striking_offense:'striking offense',striking_defense:'striking defense',wrestling_offense:'wrestling offense',wrestling_defense:'wrestling defense',grappling:'grappling',pace:'pace',finishing:'finishing'};
+const VECTOR_FIELDS=['striking_offense','striking_defense','wrestling_offense','wrestling_defense','grappling','pace','finishing','strength_of_schedule'] as const;
+const DIVISIONS=new Map<string,string>([
+  ['heavyweight','Heavyweight'],['light heavyweight','Light Heavyweight'],['light-heavyweight','Light Heavyweight'],['middleweight','Middleweight'],['welterweight','Welterweight'],['lightweight','Lightweight'],['featherweight','Featherweight'],['bantamweight','Bantamweight'],['flyweight','Flyweight'],
+  ["women's bantamweight","Women's Bantamweight"],['womens bantamweight',"Women's Bantamweight"],["women's flyweight","Women's Flyweight"],['womens flyweight',"Women's Flyweight"],["women's strawweight","Women's Strawweight"],['womens strawweight',"Women's Strawweight"],['strawweight',"Women's Strawweight"]
 ]);
 
-function response(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data, null, 2), { status, headers: JSON_HEADERS });
+function response(data:unknown,status=200,extra:Record<string,string>={}){return new Response(JSON.stringify(data,null,2),{status,headers:{...JSON_HEADERS,...extra}});}
+function cookie(request:Request,name:string){return (request.headers.get('cookie')||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(`${name}=`))?.slice(name.length+1)||'';}
+async function hash(value:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
+function sameOrigin(request:Request){const origin=request.headers.get('origin');return !origin||origin===new URL(request.url).origin;}
+async function enforceRateLimit(request:Request,env:ScoutAiEnv){
+  const session=cookie(request,'cm_session'),fan=cookie(request,'cm_fan_id');
+  const actor=session?`session:${session}`:fan?`fan:${fan}`:`ip:${request.headers.get('cf-connecting-ip')||request.headers.get('user-agent')||'unknown'}`;
+  const key=`scout:${(await hash(actor)).slice(0,32)}`;
+  if(env.SCOUT_BURST_LIMITER){const r=await env.SCOUT_BURST_LIMITER.limit({key});if(!r.success)return response({error:'rate_limited',message:'Scout AI is receiving too many questions from this session. Try again shortly.'},429,{'retry-after':'10'});}
+  if(env.SCOUT_MINUTE_LIMITER){const r=await env.SCOUT_MINUTE_LIMITER.limit({key});if(!r.success)return response({error:'rate_limited',message:'Scout AI minute limit reached. Try again in about a minute.'},429,{'retry-after':'60'});}
+  return null;
+}
+function slugify(value:string){return value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+function normalizeDivision(value:unknown){const key=String(value||'').trim().toLowerCase().replace(/\s+/g,' ');return DIVISIONS.get(key)||'';}
+function clamp(value:unknown,min:number,max:number,fallback:number){const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,Math.trunc(n))):fallback;}
+function safeMetric(value:unknown):ScoutMetric{const metric=String(value||'cmr') as ScoutMetric;return metric in METRIC_SQL?metric:'cmr';}
+function extractAiPayload(value:unknown):any{const candidate=(value as any)?.response??value;if(typeof candidate==='string'){try{return JSON.parse(candidate)}catch{return candidate}}return candidate;}
+function ageFromDob(dob:unknown){if(typeof dob!=='string'||!/^\d{4}-\d{2}-\d{2}/.test(dob))return null;const born=new Date(`${dob.slice(0,10)}T00:00:00Z`);if(!Number.isFinite(born.getTime()))return null;const now=new Date();let age=now.getUTCFullYear()-born.getUTCFullYear();if(now.getUTCMonth()<born.getUTCMonth()||(now.getUTCMonth()===born.getUTCMonth()&&now.getUTCDate()<born.getUTCDate()))age--;return age;}
+
+function fallbackPlan(question:string):ScoutPlan{
+  const lower=question.toLowerCase();let metric:ScoutMetric='cmr';
+  if(/strength of schedule|toughest schedule|hardest schedule|opponent quality/.test(lower))metric='strength_of_schedule';else if(/recent form|hottest|form/.test(lower))metric='recent_form';else if(/wrestling defense|takedown defense/.test(lower))metric='wrestling_defense';else if(/wrestling|takedown/.test(lower))metric='wrestling_offense';else if(/striking defense/.test(lower))metric='striking_defense';else if(/striking/.test(lower))metric='striking_offense';else if(/grappl/.test(lower))metric='grappling';else if(/resume|résumé/.test(lower))metric='resume';else if(/finish/.test(lower))metric='finishing';
+  const division=[...DIVISIONS.entries()].find(([key])=>lower.includes(key))?.[1]||'';
+  let intent:ScoutIntent=/best|top|rank|highest|strongest|toughest|hardest/.test(lower)?'rankings':'help';
+  if(/similar|resembl|lookalike/.test(lower))intent='similar_fighters';else if(/pre[- ]ufc|before .*ufc|regional (?:resume|résumé)/.test(lower))intent='pre_ufc_rankings';else if(/prospect|regional|outside .*ufc|undefeated|under\s+\d{2}/.test(lower))intent='prospect_search';
+  const ageMatch=lower.match(/under\s+(\d{2})/),minWinMatch=lower.match(/(?:at least|min(?:imum)?(?: of)?)\s+(\d+)\s+wins?/);
+  return {intent,fighters:[],division,metric,limit:5,active_only:true,age_under:ageMatch?Number(ageMatch[1]):0,min_wins:minWinMatch?Number(minWinMatch[1]):0,undefeated:/undefeated/.test(lower),outside_ufc:/regional|outside .*ufc/.test(lower),recent_days:1095,pre_metric:/major/.test(lower)?'major_org_bouts':/finish/.test(lower)?'finishes':/wins?/.test(lower)?'wins':'resume'};
 }
 
-function slugify(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+async function planQuestion(question:string,env:ScoutAiEnv):Promise<ScoutPlan>{
+  const fallback=fallbackPlan(question);if(!env.AI)return fallback;
+  try{
+    const result=await env.AI.run(MODEL,{messages:[
+      {role:'system',content:'You are the query planner for MMA Scouts. Convert the user question into one safe research plan. Use fighter names only when the user actually names them; never invent fighters. fighter_profile is one named UFC fighter. compare_fighters is two named UFC fighters. rankings is top/best/rank questions using MMA Scouts ratings. prospect_search is regional/prospect discovery, age/record filters, or fighters outside the UFC. similar_fighters finds UFC fighters with a similar MMA Scouts rating profile to one named fighter. pre_ufc_rankings compares current UFC fighters by documented pre-UFC history. help is unsupported. age_under is 0 when unspecified. outside_ufc is true when the user specifically wants regional/non-UFC candidates. Use an empty division when unspecified.'},
+      {role:'user',content:question}
+    ],temperature:0,max_tokens:320,response_format:{type:'json_schema',json_schema:{type:'object',properties:{intent:{type:'string',enum:['fighter_profile','compare_fighters','rankings','prospect_search','similar_fighters','pre_ufc_rankings','help']},fighters:{type:'array',items:{type:'string'},maxItems:2},division:{type:'string'},metric:{type:'string',enum:['cmr','strength_of_schedule','recent_form','technical','resume','striking_offense','striking_defense','wrestling_offense','wrestling_defense','grappling','pace','finishing']},limit:{type:'integer',minimum:1,maximum:10},active_only:{type:'boolean'},age_under:{type:'integer',minimum:0,maximum:60},min_wins:{type:'integer',minimum:0,maximum:100},undefeated:{type:'boolean'},outside_ufc:{type:'boolean'},recent_days:{type:'integer',minimum:90,maximum:3650},pre_metric:{type:'string',enum:['resume','wins','major_org_bouts','finishes','bouts']}},required:['intent','fighters','division','metric','limit','active_only','age_under','min_wins','undefeated','outside_ufc','recent_days','pre_metric']}}});
+    const p=extractAiPayload(result);if(!p||typeof p!=='object')return fallback;
+    const intents:ScoutIntent[]=['fighter_profile','compare_fighters','rankings','prospect_search','similar_fighters','pre_ufc_rankings','help'];
+    const fighters=Array.isArray(p.fighters)?p.fighters.map((v:unknown)=>String(v||'').trim()).filter(Boolean).slice(0,2):[];
+    return {intent:intents.includes(p.intent)?p.intent:'help',fighters,division:normalizeDivision(p.division),metric:safeMetric(p.metric),limit:clamp(p.limit,1,10,5),active_only:p.active_only!==false,age_under:clamp(p.age_under,0,60,0),min_wins:clamp(p.min_wins,0,100,0),undefeated:Boolean(p.undefeated),outside_ufc:Boolean(p.outside_ufc),recent_days:clamp(p.recent_days,90,3650,1095),pre_metric:['resume','wins','major_org_bouts','finishes','bouts'].includes(p.pre_metric)?p.pre_metric:'resume'};
+  }catch(error){console.error('Scout AI planner failed',error);return fallback;}
 }
 
-function normalizeDivision(value: string): string {
-  const key = String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  return DIVISIONS.get(key) || '';
+async function resolveFighter(candidate:string,env:ScoutAiEnv){const name=String(candidate||'').trim();if(!name)return null;const slug=slugify(name);const exact=await env.DB.prepare(`SELECT id,slug,name,dob,height_cm,reach_cm,stance,nationality,current_weight_class,active,roster_status,last_fight_date,ufc_bouts FROM fighters WHERE lower(name)=lower(?1) OR slug=?2 ORDER BY CASE WHEN lower(name)=lower(?1) THEN 0 ELSE 1 END,active DESC,ufc_bouts DESC LIMIT 1`).bind(name,slug).first<Row>();if(exact)return exact;return env.DB.prepare(`SELECT id,slug,name,dob,height_cm,reach_cm,stance,nationality,current_weight_class,active,roster_status,last_fight_date,ufc_bouts FROM fighters WHERE lower(name) LIKE lower(?1) OR slug LIKE ?2 ORDER BY active DESC,ufc_bouts DESC,name COLLATE NOCASE LIMIT 1`).bind(`%${name}%`,`%${slug}%`).first<Row>();}
+
+async function loadFighterEvidence(fighter:Row,env:ScoutAiEnv){
+  const id=Number(fighter.id);
+  const rating=await env.DB.prepare(`SELECT rh.as_of_date,rh.weight_class,rh.cmr,rh.technical_rating,rh.resume_rating,rh.striking_offense,rh.striking_defense,rh.wrestling_offense,rh.wrestling_defense,rh.grappling,rh.pace,rh.finishing,rh.strength_of_schedule,rh.recent_form,rh.confidence,rh.sample_bouts,rh.sample_minutes FROM ratings_history rh JOIN model_versions mv ON mv.id=rh.model_version_id WHERE rh.fighter_id=?1 AND mv.name=?2 AND mv.version=?3 ORDER BY rh.as_of_date DESC,rh.id DESC LIMIT 1`).bind(id,RATING_MODEL_NAME,env.MODEL_VERSION).first<Row>();
+  const raw=await env.DB.prepare(`SELECT COUNT(*) bouts,ROUND(SUM(duration_seconds)/60.0,2) minutes,CASE WHEN SUM(duration_seconds)>0 THEN ROUND(60.0*SUM(sig_strikes_landed)/SUM(duration_seconds),2) END slpm,CASE WHEN SUM(duration_seconds)>0 THEN ROUND(60.0*SUM(sig_strikes_absorbed)/SUM(duration_seconds),2) END sapm,CASE WHEN SUM(sig_strikes_attempted)>0 THEN ROUND(100.0*SUM(sig_strikes_landed)/SUM(sig_strikes_attempted),1) END strike_accuracy,CASE WHEN SUM(sig_strikes_faced)>0 THEN ROUND(100.0*(1.0-1.0*SUM(sig_strikes_absorbed)/SUM(sig_strikes_faced)),1) END strike_defense,CASE WHEN SUM(duration_seconds)>0 THEN ROUND(900.0*SUM(takedowns_landed)/SUM(duration_seconds),2) END td15,CASE WHEN SUM(takedowns_attempted)>0 THEN ROUND(100.0*SUM(takedowns_landed)/SUM(takedowns_attempted),1) END td_accuracy,CASE WHEN SUM(takedowns_faced)>0 THEN ROUND(100.0*(1.0-1.0*SUM(takedowns_allowed)/SUM(takedowns_faced)),1) END td_defense FROM bout_totals WHERE fighter_id=?1`).bind(id).first<Row>();
+  const recent=await env.DB.prepare(`SELECT bt.event_date,bt.weight_class,bt.won,bt.result,bt.finish,bt.sig_strikes_landed,bt.sig_strikes_absorbed,bt.takedowns_landed,bt.takedowns_allowed,bt.control_seconds,opp.name opponent_name,opp.slug opponent_slug FROM bout_totals bt JOIN fighters opp ON opp.id=bt.opponent_id WHERE bt.fighter_id=?1 ORDER BY bt.event_date DESC,bt.id DESC LIMIT 8`).bind(id).all<Row>();
+  let preUfc:unknown[]=[];try{const rows=await env.DB.prepare(`SELECT h.event_date,h.organization,h.event_name,h.weight_class,h.method_normalized,h.result,h.opponent_name FROM ufc_warehouse_career_rows h JOIN mma_source_registry r ON r.source_key=h.source_key AND r.active_snapshot_id=h.snapshot_id WHERE h.fighter_id=?1 ORDER BY h.event_date DESC,h.source_fight_id DESC LIMIT 12`).bind(id).all<Row>();preUfc=rows.results||[]}catch(error){console.error('Scout AI pre-UFC evidence unavailable',error)}
+  return {fighter:{...fighter,age:ageFromDob(fighter.dob)},rating,official_ufc_aggregate:raw,recent_ufc_bouts:recent.results||[],pre_ufc_history:preUfc};
 }
 
-function clampLimit(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(1, Math.min(10, Math.trunc(parsed))) : 5;
+async function loadRankings(plan:ScoutPlan,env:ScoutAiEnv){const sort=METRIC_SQL[plan.metric];const clauses=['mv.name=?1','mv.version=?2',`rh.id=(SELECT x.id FROM ratings_history x WHERE x.fighter_id=rh.fighter_id AND x.model_version_id=rh.model_version_id ORDER BY x.as_of_date DESC,x.id DESC LIMIT 1)`,'rh.sample_bouts>=1'];const binds:any[]=[RATING_MODEL_NAME,env.MODEL_VERSION];if(plan.active_only)clauses.push('f.active=1');if(plan.division){binds.push(plan.division);clauses.push(`f.current_weight_class=?${binds.length}`);}binds.push(plan.limit);const rows=await env.DB.prepare(`SELECT f.slug,f.name,f.dob,f.current_weight_class,f.ufc_bouts,rh.cmr,rh.technical_rating,rh.resume_rating,rh.strength_of_schedule,rh.recent_form,rh.striking_offense,rh.striking_defense,rh.wrestling_offense,rh.wrestling_defense,rh.grappling,rh.pace,rh.finishing,rh.confidence,rh.sample_bouts,rh.as_of_date,${sort} metric_value FROM fighters f JOIN ratings_history rh ON rh.fighter_id=f.id JOIN model_versions mv ON mv.id=rh.model_version_id WHERE ${clauses.join(' AND ')} ORDER BY ${sort} DESC,rh.confidence DESC,f.name COLLATE NOCASE LIMIT ?${binds.length}`).bind(...binds).all<Row>();return (rows.results||[]).map((r,i)=>({rank:i+1,...r,age:ageFromDob(r.dob)}));}
+async function upcomingMatchup(a:number,b:number,env:ScoutAiEnv){try{return env.DB.prepare(`SELECT b.id bout_id,b.weight_class,e.name event_name,e.event_date,p.fighter_a_probability,p.fighter_b_probability,p.sample_strength,p.notes,fa.id fighter_a_id,fa.name fighter_a_name,fb.id fighter_b_id,fb.name fighter_b_name FROM bouts b JOIN events e ON e.id=b.event_id JOIN fighters fa ON fa.id=b.fighter_a_id JOIN fighters fb ON fb.id=b.fighter_b_id LEFT JOIN predictions p ON p.bout_id=b.id WHERE b.status='scheduled' AND ((b.fighter_a_id=?1 AND b.fighter_b_id=?2) OR (b.fighter_a_id=?2 AND b.fighter_b_id=?1)) ORDER BY e.event_date ASC,p.created_at DESC LIMIT 1`).bind(a,b).first<Row>()}catch{return null}}
+
+async function prospectResearch(plan:ScoutPlan,env:ScoutAiEnv){const clauses=[`s.last_fight_date>=DATE('now',?1)`],binds:any[]=[`-${plan.recent_days} days`];if(plan.division){binds.push(plan.division);clauses.push(`lower(COALESCE(s.last_weight_class,''))=lower(?${binds.length})`);}if(plan.min_wins){binds.push(plan.min_wins);clauses.push(`s.career_wins>=?${binds.length}`);}if(plan.undefeated)clauses.push('s.career_losses=0');if(plan.outside_ufc)clauses.push(`NOT EXISTS (SELECT 1 FROM mma_identity_links l JOIN fighters nf ON nf.id=CAST(l.cagemetrix_fighter_id AS INTEGER) WHERE l.source_key=s.source_key AND l.source_fighter_id=s.source_fighter_id AND l.confidence>=0.90 AND nf.active=1)`);const rows=await env.DB.prepare(`SELECT s.* FROM scout_fighter_index s WHERE ${clauses.join(' AND ')} ORDER BY s.recent_wins_730d DESC,s.career_wins DESC,s.career_major_org_bouts DESC,s.last_fight_date DESC LIMIT 200`).bind(...binds).all<Row>();return (rows.results||[]).map(r=>({...r,age:ageFromDob(r.dob)})).filter(r=>!plan.age_under||(r.age!==null&&r.age<plan.age_under)).slice(0,plan.limit);}
+
+async function similarResearch(plan:ScoutPlan,env:ScoutAiEnv){const fighter=await resolveFighter(plan.fighters[0]||'',env);if(!fighter)return {error:plan.fighters[0]?`I could not match “${plan.fighters[0]}” to a UFC fighter in the current database.`:'Name the fighter you want Scout AI to compare statistically.'};const target=await env.DB.prepare(`SELECT rh.* FROM ratings_history rh JOIN model_versions mv ON mv.id=rh.model_version_id WHERE rh.fighter_id=?1 AND mv.name=?2 AND mv.version=?3 ORDER BY rh.as_of_date DESC,rh.id DESC LIMIT 1`).bind(fighter.id,RATING_MODEL_NAME,env.MODEL_VERSION).first<Row>();if(!target)return {error:`${fighter.name} does not have a current Scout rating vector yet.`};const rows=await env.DB.prepare(`SELECT f.id,f.slug,f.name,f.current_weight_class,rh.cmr,rh.striking_offense,rh.striking_defense,rh.wrestling_offense,rh.wrestling_defense,rh.grappling,rh.pace,rh.finishing,rh.strength_of_schedule FROM fighters f JOIN ratings_history rh ON rh.fighter_id=f.id JOIN model_versions mv ON mv.id=rh.model_version_id WHERE f.active=1 AND f.id<>?1 AND f.current_weight_class=?2 AND mv.name=?3 AND mv.version=?4 AND rh.id=(SELECT x.id FROM ratings_history x WHERE x.fighter_id=rh.fighter_id AND x.model_version_id=rh.model_version_id ORDER BY x.as_of_date DESC,x.id DESC LIMIT 1) LIMIT 120`).bind(fighter.id,fighter.current_weight_class,RATING_MODEL_NAME,env.MODEL_VERSION).all<Row>();const scored=(rows.results||[]).map(r=>{let total=0,n=0;for(const field of VECTOR_FIELDS){const a=Number(target[field]),b=Number(r[field]);if(Number.isFinite(a)&&Number.isFinite(b)){total+=Math.abs(a-b);n++;}}return {...r,shared_metrics:n,similarity:n?Math.max(0,Math.round((100-total/n)*10)/10):0};}).filter(r=>r.shared_metrics>=5).sort((a,b)=>b.similarity-a.similarity).slice(0,plan.limit);return {fighter,target,rows:scored};}
+
+async function preUfcResearch(plan:ScoutPlan,env:ScoutAiEnv){const order:Record<PreMetric,string>={resume:'h.pre_ufc_major_org_bouts DESC,h.pre_ufc_wins DESC,h.pre_ufc_finishes DESC,h.pre_ufc_bouts DESC',wins:'h.pre_ufc_wins DESC,h.pre_ufc_major_org_bouts DESC',major_org_bouts:'h.pre_ufc_major_org_bouts DESC,h.pre_ufc_wins DESC',finishes:'h.pre_ufc_finishes DESC,h.pre_ufc_wins DESC',bouts:'h.pre_ufc_bouts DESC,h.pre_ufc_wins DESC'};const clauses=['f.active=1','h.pre_ufc_bouts>0'],binds:any[]=[];if(plan.division){binds.push(plan.division);clauses.push(`f.current_weight_class=?${binds.length}`);}binds.push(plan.limit);const rows=await env.DB.prepare(`SELECT f.slug,f.name,f.current_weight_class,h.first_ufc_date,h.pre_ufc_bouts,h.pre_ufc_wins,h.pre_ufc_losses,h.pre_ufc_draws,h.pre_ufc_finishes,h.pre_ufc_ko_tko_wins,h.pre_ufc_submission_wins,h.pre_ufc_decision_wins,h.pre_ufc_major_org_bouts,h.pre_ufc_distinct_opponents FROM ufc_fighter_history_summary h JOIN fighters f ON f.id=h.fighter_id WHERE ${clauses.join(' AND ')} ORDER BY ${order[plan.pre_metric]} LIMIT ?${binds.length}`).bind(...binds).all<Row>();return rows.results||[];}
+
+async function gatherEvidence(plan:ScoutPlan,env:ScoutAiEnv):Promise<{evidence:any;sources:any[];cards:EvidenceCard[];error?:string}>{
+  if(plan.intent==='rankings'){const rows=await loadRankings(plan,env);const cards=rows.map((r:any,i:number)=>({id:`E${i+1}`,title:r.name,kind:'rating_rank',href:`/fighters/${r.slug}`,facts:[`${METRIC_LABEL[plan.metric]}: ${Number(r.metric_value).toFixed(1)}`,`Scout Rating: ${Number(r.cmr).toFixed(1)}`,`Division: ${r.current_weight_class}`,`Sample: ${r.sample_bouts} UFC bouts`]}));return {evidence:{kind:'rankings',metric:plan.metric,metric_label:METRIC_LABEL[plan.metric],division:plan.division||'All active UFC divisions',rows},sources:cards.map(c=>({label:c.title,href:c.href})),cards};}
+  if(plan.intent==='prospect_search'){const rows=await prospectResearch(plan,env);const cards:EvidenceCard[]=rows.map((r:any,i:number)=>({id:`E${i+1}`,title:r.fighter_name,kind:'regional_fighter',facts:[`${r.career_wins}-${r.career_losses}-${r.career_draws} in ${r.career_bouts} recorded bouts`,`${r.career_finishes} recorded wins by non-decision finish`,`${r.recent_wins_730d} wins in the last 730 days of indexed data`,r.age===null?'Age unavailable':`Age ${r.age}`,`Last recorded fight: ${r.last_fight_date||'unknown'} · ${r.last_organization||'organization unknown'} · ${r.last_weight_class||'weight class unknown'}`]}));return {evidence:{kind:'prospect_search',filters:{division:plan.division||null,age_under:plan.age_under||null,min_wins:plan.min_wins,undefeated:plan.undefeated,outside_ufc:plan.outside_ufc,recent_days:plan.recent_days},rows},sources:[],cards};}
+  if(plan.intent==='similar_fighters'){const data:any=await similarResearch(plan,env);if(data.error)return {evidence:null,sources:[],cards:[],error:data.error};const cards:EvidenceCard[]=[{id:'E0',title:data.fighter.name,kind:'target_fighter',href:`/fighters/${data.fighter.slug}`,facts:[`Scout Rating ${Number(data.target.cmr).toFixed(1)}`,`Division: ${data.fighter.current_weight_class||'unknown'}`]}];for(const [i,r] of data.rows.entries())cards.push({id:`E${i+1}`,title:r.name,kind:'similar_fighter',href:`/fighters/${r.slug}`,facts:[`${r.similarity}% rating-profile similarity across ${r.shared_metrics} shared Scout metrics`,`Scout Rating ${Number(r.cmr).toFixed(1)}`,`Division: ${r.current_weight_class}`]});return {evidence:{kind:'similar_fighters',target:data.fighter,rows:data.rows},sources:cards.filter(c=>c.href).map(c=>({label:c.title,href:c.href})),cards};}
+  if(plan.intent==='pre_ufc_rankings'){const rows=await preUfcResearch(plan,env);const cards:EvidenceCard[]=rows.map((r:any,i:number)=>({id:`E${i+1}`,title:r.name,kind:'pre_ufc_history',href:`/fighters/${r.slug}`,facts:[`${r.pre_ufc_wins}-${r.pre_ufc_losses}-${r.pre_ufc_draws} across ${r.pre_ufc_bouts} documented pre-UFC bouts`,`${r.pre_ufc_major_org_bouts} major-organization bouts before UFC debut`,`${r.pre_ufc_finishes} pre-UFC finishes`,`${r.pre_ufc_distinct_opponents} distinct documented pre-UFC opponents`,`UFC debut date in current data: ${r.first_ufc_date||'unknown'}`]}));return {evidence:{kind:'pre_ufc_rankings',metric:plan.pre_metric,division:plan.division||null,rows},sources:cards.map(c=>({label:c.title,href:c.href})),cards};}
+  if(plan.intent==='fighter_profile'||plan.intent==='compare_fighters'){const needed=plan.intent==='compare_fighters'?2:1,requested=plan.fighters.slice(0,needed);if(requested.length<needed)return {evidence:null,sources:[],cards:[],error:needed===2?'Name both fighters you want to compare.':'I need the fighter name to research that question.'};const resolved:Row[]=[];for(const name of requested){const f=await resolveFighter(name,env);if(!f)return {evidence:null,sources:[],cards:[],error:`I could not match “${name}” to a fighter in the current database.`};resolved.push(f)}const fighters=[];for(const f of resolved)fighters.push(await loadFighterEvidence(f,env));const matchup=resolved.length===2?await upcomingMatchup(Number(resolved[0].id),Number(resolved[1].id),env):null;const cards:EvidenceCard[]=fighters.map((item:any,i:number)=>({id:`E${i+1}`,title:item.fighter.name,kind:'fighter_profile',href:`/fighters/${item.fighter.slug}`,facts:[item.rating?`Scout Rating ${Number(item.rating.cmr).toFixed(1)} · schedule ${Number(item.rating.strength_of_schedule).toFixed(1)} · résumé ${Number(item.rating.resume_rating).toFixed(1)}`:'No current Scout rating',item.official_ufc_aggregate?`Official UFC aggregate: ${item.official_ufc_aggregate.bouts} bouts · ${item.official_ufc_aggregate.slpm??'—'} SLpM · ${item.official_ufc_aggregate.td_defense??'—'}% takedown defense`:'No UFC aggregate',`${item.recent_ufc_bouts.length} recent UFC bouts loaded`,`${item.pre_ufc_history.length} pre-UFC history rows loaded`]}));return {evidence:{kind:resolved.length===2?'fighter_comparison':'fighter_profile',fighters,upcoming_matchup:matchup},sources:cards.map(c=>({label:c.title,href:c.href})),cards};}
+  return {evidence:null,sources:[],cards:[],error:'Scout AI 0.2 handles fighter research, comparisons, Scout rankings, regional prospect searches, statistical similarity and pre-UFC history rankings.'};
 }
 
-function safeMetric(value: unknown): ScoutMetric {
-  const metric = String(value || 'cmr') as ScoutMetric;
-  return metric in METRIC_SQL ? metric : 'cmr';
+function validCitationAnswer(answer:string,cards:EvidenceCard[]){const ids=new Set(cards.map(c=>c.id));return String(answer||'').replace(/\[(E\d+)\]/g,(all,id)=>ids.has(id)?all:'').replace(/\s{2,}/g,' ').trim();}
+async function synthesize(question:string,evidence:any,cards:EvidenceCard[],env:ScoutAiEnv){
+  if(!env.AI)return {answer:`Scout AI retrieved ${cards.length} evidence records, but natural-language synthesis is unavailable in this environment.`,confidence:'low',caveats:['Review the evidence cards directly.']};
+  const result=await env.AI.run(MODEL,{messages:[
+    {role:'system',content:'You are Scout AI, the research assistant for MMA Scouts. Answer ONLY from the supplied structured evidence and evidence cards. Never invent a fight, opponent, statistic, ranking, injury, result, organization, age, or biographical fact. If the evidence cannot establish something, say so plainly. Cite factual claims with supplied evidence IDs like [E1]; never cite an ID that is not supplied. Distinguish official UFC aggregate statistics from MMA Scouts opponent-adjusted ratings. Do not claim a Scout rating is an official UFC ranking. Prospect results are indexed candidates, not guarantees of UFC potential. Similarity is similarity in the site rating profile, not proof of identical fighting style. Broad pre-UFC résumé ordering is based on documented counts and major-organization exposure, not a complete opponent-quality model. If an upcoming model probability is present, describe it as the site model, not certainty. Avoid betting advice. No markdown tables.'},
+    {role:'user',content:`Question: ${question}\n\nStructured evidence:\n${JSON.stringify(evidence)}\n\nEvidence cards:\n${JSON.stringify(cards)}`}
+  ],temperature:0.15,max_tokens:700,response_format:{type:'json_schema',json_schema:{type:'object',properties:{answer:{type:'string'},confidence:{type:'string',enum:['high','medium','low']},caveats:{type:'array',items:{type:'string'},maxItems:4}},required:['answer','confidence','caveats']}}});
+  const out=extractAiPayload(result);if(out&&typeof out==='object'&&typeof out.answer==='string')return {...out,answer:validCitationAnswer(out.answer,cards)};return {answer:typeof out==='string'?validCitationAnswer(out,cards):'Scout AI could not format an answer from the retrieved evidence.',confidence:'low',caveats:['The evidence retrieval completed, but synthesis was incomplete.']};
 }
 
-function extractAiPayload(value: unknown): any {
-  const candidate = (value as any)?.response ?? value;
-  if (typeof candidate === 'string') {
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      return candidate;
-    }
-  }
-  return candidate;
-}
-
-function fallbackPlan(question: string): ScoutPlan {
-  const lower = question.toLowerCase();
-  let metric: ScoutMetric = 'cmr';
-  if (/strength of schedule|toughest schedule|hardest schedule|opponent quality/.test(lower)) metric = 'strength_of_schedule';
-  else if (/recent form|hottest|form/.test(lower)) metric = 'recent_form';
-  else if (/wrestling defense|takedown defense/.test(lower)) metric = 'wrestling_defense';
-  else if (/wrestling|takedown/.test(lower)) metric = 'wrestling_offense';
-  else if (/striking defense/.test(lower)) metric = 'striking_defense';
-  else if (/striking/.test(lower)) metric = 'striking_offense';
-  else if (/grappl/.test(lower)) metric = 'grappling';
-  else if (/resume|résumé/.test(lower)) metric = 'resume';
-  else if (/finish/.test(lower)) metric = 'finishing';
-
-  const division = [...DIVISIONS.entries()].find(([key]) => lower.includes(key))?.[1] || '';
-  const rankingIntent = /best|top|rank|highest|strongest|toughest|hardest/.test(lower);
-  return {
-    intent: rankingIntent ? 'rankings' : 'help',
-    fighters: [],
-    division,
-    metric,
-    limit: 5,
-    active_only: true,
-  };
-}
-
-async function planQuestion(question: string, env: ScoutAiEnv): Promise<ScoutPlan> {
-  if (!env.AI) return fallbackPlan(question);
-
-  try {
-    const result = await env.AI.run(MODEL, {
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are the query planner for MMA Scouts. Convert the user question into a small safe research plan. ' +
-            'Use fighter names only when the user actually names them. Never invent fighters. ' +
-            'fighter_profile is for one named fighter, compare_fighters is for two named fighters, rankings is for top/best/rank questions, and help is for anything outside the supported MVP. ' +
-            'Use an empty string when no division is specified.',
-        },
-        { role: 'user', content: question },
-      ],
-      temperature: 0,
-      max_tokens: 220,
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          type: 'object',
-          properties: {
-            intent: { type: 'string', enum: ['fighter_profile', 'compare_fighters', 'rankings', 'help'] },
-            fighters: { type: 'array', items: { type: 'string' }, maxItems: 2 },
-            division: { type: 'string' },
-            metric: {
-              type: 'string',
-              enum: [
-                'cmr', 'strength_of_schedule', 'recent_form', 'technical', 'resume',
-                'striking_offense', 'striking_defense', 'wrestling_offense',
-                'wrestling_defense', 'grappling', 'pace', 'finishing',
-              ],
-            },
-            limit: { type: 'integer', minimum: 1, maximum: 10 },
-            active_only: { type: 'boolean' },
-          },
-          required: ['intent', 'fighters', 'division', 'metric', 'limit', 'active_only'],
-        },
-      },
-    });
-
-    const raw = extractAiPayload(result);
-    if (!raw || typeof raw !== 'object') return fallbackPlan(question);
-    const intent: ScoutIntent = ['fighter_profile', 'compare_fighters', 'rankings', 'help'].includes(raw.intent)
-      ? raw.intent
-      : 'help';
-    const fighters = Array.isArray(raw.fighters)
-      ? raw.fighters.map((v: unknown) => String(v || '').trim()).filter(Boolean).slice(0, 2)
-      : [];
-
-    return {
-      intent,
-      fighters,
-      division: normalizeDivision(String(raw.division || '')),
-      metric: safeMetric(raw.metric),
-      limit: clampLimit(raw.limit),
-      active_only: raw.active_only !== false,
-    };
-  } catch (error) {
-    console.error('Scout AI planner failed', error);
-    return fallbackPlan(question);
-  }
-}
-
-async function resolveFighter(candidate: string, env: ScoutAiEnv): Promise<any | null> {
-  const name = String(candidate || '').trim();
-  if (!name) return null;
-  const slug = slugify(name);
-
-  const exact = await env.DB.prepare(`
-    SELECT id, slug, name, dob, height_cm, reach_cm, stance, nationality,
-           current_weight_class, active, roster_status, last_fight_date, ufc_bouts
-    FROM fighters
-    WHERE lower(name) = lower(?1) OR slug = ?2
-    ORDER BY CASE WHEN lower(name) = lower(?1) THEN 0 ELSE 1 END, name COLLATE NOCASE
-    LIMIT 1
-  `).bind(name, slug).first();
-  if (exact) return exact;
-
-  return env.DB.prepare(`
-    SELECT id, slug, name, dob, height_cm, reach_cm, stance, nationality,
-           current_weight_class, active, roster_status, last_fight_date, ufc_bouts
-    FROM fighters
-    WHERE lower(name) LIKE lower(?1) OR slug LIKE ?2
-    ORDER BY active DESC, ufc_bouts DESC, name COLLATE NOCASE
-    LIMIT 1
-  `).bind(`%${name}%`, `%${slug}%`).first();
-}
-
-function ageFromDob(dob: unknown): number | null {
-  if (typeof dob !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(dob)) return null;
-  const born = new Date(`${dob.slice(0, 10)}T00:00:00Z`);
-  if (!Number.isFinite(born.getTime())) return null;
-  const now = new Date();
-  let age = now.getUTCFullYear() - born.getUTCFullYear();
-  const beforeBirthday =
-    now.getUTCMonth() < born.getUTCMonth() ||
-    (now.getUTCMonth() === born.getUTCMonth() && now.getUTCDate() < born.getUTCDate());
-  if (beforeBirthday) age -= 1;
-  return age;
-}
-
-async function loadFighterEvidence(fighter: any, env: ScoutAiEnv): Promise<any> {
-  const fighterId = Number(fighter.id);
-  const rating = await env.DB.prepare(`
-    SELECT rh.as_of_date, rh.weight_class, rh.cmr, rh.technical_rating, rh.resume_rating,
-           rh.striking_offense, rh.striking_defense, rh.wrestling_offense, rh.wrestling_defense,
-           rh.grappling, rh.pace, rh.finishing, rh.strength_of_schedule, rh.recent_form,
-           rh.confidence, rh.sample_bouts, rh.sample_minutes
-    FROM ratings_history rh
-    JOIN model_versions mv ON mv.id = rh.model_version_id
-    WHERE rh.fighter_id = ?1 AND mv.name = ?2 AND mv.version = ?3
-    ORDER BY rh.as_of_date DESC, rh.id DESC
-    LIMIT 1
-  `).bind(fighterId, RATING_MODEL_NAME, env.MODEL_VERSION).first();
-
-  const raw = await env.DB.prepare(`
-    SELECT COUNT(*) AS bouts,
-      ROUND(SUM(duration_seconds) / 60.0, 2) AS minutes,
-      CASE WHEN SUM(duration_seconds) > 0 THEN ROUND(60.0 * SUM(sig_strikes_landed) / SUM(duration_seconds), 2) END AS slpm,
-      CASE WHEN SUM(duration_seconds) > 0 THEN ROUND(60.0 * SUM(sig_strikes_absorbed) / SUM(duration_seconds), 2) END AS sapm,
-      CASE WHEN SUM(sig_strikes_attempted) > 0 THEN ROUND(100.0 * SUM(sig_strikes_landed) / SUM(sig_strikes_attempted), 1) END AS strike_accuracy,
-      CASE WHEN SUM(sig_strikes_faced) > 0 THEN ROUND(100.0 * (1.0 - (1.0 * SUM(sig_strikes_absorbed) / SUM(sig_strikes_faced))), 1) END AS strike_defense,
-      CASE WHEN SUM(duration_seconds) > 0 THEN ROUND(900.0 * SUM(takedowns_landed) / SUM(duration_seconds), 2) END AS td15,
-      CASE WHEN SUM(takedowns_attempted) > 0 THEN ROUND(100.0 * SUM(takedowns_landed) / SUM(takedowns_attempted), 1) END AS td_accuracy,
-      CASE WHEN SUM(takedowns_faced) > 0 THEN ROUND(100.0 * (1.0 - (1.0 * SUM(takedowns_allowed) / SUM(takedowns_faced))), 1) END AS td_defense
-    FROM bout_totals
-    WHERE fighter_id = ?1
-  `).bind(fighterId).first();
-
-  const recent = await env.DB.prepare(`
-    SELECT bt.event_date, bt.weight_class, bt.won, bt.result, bt.finish,
-           bt.sig_strikes_landed, bt.sig_strikes_absorbed,
-           bt.takedowns_landed, bt.takedowns_allowed, bt.control_seconds,
-           opp.name AS opponent_name, opp.slug AS opponent_slug
-    FROM bout_totals bt
-    JOIN fighters opp ON opp.id = bt.opponent_id
-    WHERE bt.fighter_id = ?1
-    ORDER BY bt.event_date DESC, bt.id DESC
-    LIMIT 8
-  `).bind(fighterId).all();
-
-  let preUfc: unknown[] = [];
-  try {
-    const rows = await env.DB.prepare(`
-      SELECT h.event_date, h.organization, h.event_name, h.weight_class,
-             h.method_normalized, h.result, h.opponent_name
-      FROM ufc_warehouse_career_rows h
-      JOIN mma_source_registry r
-        ON r.source_key = h.source_key AND r.active_snapshot_id = h.snapshot_id
-      WHERE h.fighter_id = ?1
-      ORDER BY h.event_date DESC, h.source_fight_id DESC
-      LIMIT 12
-    `).bind(fighterId).all();
-    preUfc = rows.results || [];
-  } catch (error) {
-    console.error('Scout AI pre-UFC evidence unavailable', error);
-  }
-
-  return {
-    fighter: { ...fighter, age: ageFromDob(fighter.dob) },
-    rating,
-    official_ufc_aggregate: raw,
-    recent_ufc_bouts: recent.results || [],
-    pre_ufc_history: preUfc,
-  };
-}
-
-async function loadRankings(plan: ScoutPlan, env: ScoutAiEnv): Promise<any[]> {
-  const sortColumn = METRIC_SQL[plan.metric];
-  const clauses = [
-    'mv.name = ?1',
-    'mv.version = ?2',
-    `rh.id = (SELECT newest.id FROM ratings_history newest
-      WHERE newest.fighter_id = rh.fighter_id AND newest.model_version_id = rh.model_version_id
-      ORDER BY newest.as_of_date DESC, newest.id DESC LIMIT 1)`,
-    'rh.sample_bouts >= 1',
-  ];
-  const bindings: unknown[] = [RATING_MODEL_NAME, env.MODEL_VERSION];
-  if (plan.active_only) clauses.push('f.active = 1');
-  if (plan.division) {
-    bindings.push(plan.division);
-    clauses.push(`f.current_weight_class = ?${bindings.length}`);
-  }
-  bindings.push(plan.limit);
-
-  const rows = await env.DB.prepare(`
-    SELECT f.slug, f.name, f.dob, f.current_weight_class, f.ufc_bouts,
-           rh.cmr, rh.technical_rating, rh.resume_rating, rh.strength_of_schedule,
-           rh.recent_form, rh.striking_offense, rh.striking_defense,
-           rh.wrestling_offense, rh.wrestling_defense, rh.grappling, rh.pace,
-           rh.finishing, rh.confidence, rh.sample_bouts, rh.as_of_date,
-           ${sortColumn} AS metric_value
-    FROM fighters f
-    JOIN ratings_history rh ON rh.fighter_id = f.id
-    JOIN model_versions mv ON mv.id = rh.model_version_id
-    WHERE ${clauses.join(' AND ')}
-    ORDER BY ${sortColumn} DESC, rh.confidence DESC, f.name COLLATE NOCASE
-    LIMIT ?${bindings.length}
-  `).bind(...bindings).all();
-
-  return (rows.results || []).map((row: any, index: number) => ({
-    rank: index + 1,
-    ...row,
-    age: ageFromDob(row.dob),
-  }));
-}
-
-async function upcomingMatchup(aId: number, bId: number, env: ScoutAiEnv): Promise<any | null> {
-  try {
-    return await env.DB.prepare(`
-      SELECT b.id AS bout_id, b.weight_class, e.name AS event_name, e.event_date,
-             p.fighter_a_probability, p.fighter_b_probability, p.sample_strength, p.notes,
-             fa.id AS fighter_a_id, fa.name AS fighter_a_name,
-             fb.id AS fighter_b_id, fb.name AS fighter_b_name
-      FROM bouts b
-      JOIN events e ON e.id = b.event_id
-      JOIN fighters fa ON fa.id = b.fighter_a_id
-      JOIN fighters fb ON fb.id = b.fighter_b_id
-      LEFT JOIN predictions p ON p.bout_id = b.id
-      WHERE b.status = 'scheduled'
-        AND ((b.fighter_a_id = ?1 AND b.fighter_b_id = ?2) OR (b.fighter_a_id = ?2 AND b.fighter_b_id = ?1))
-      ORDER BY e.event_date ASC, p.created_at DESC
-      LIMIT 1
-    `).bind(aId, bId).first();
-  } catch {
-    return null;
-  }
-}
-
-async function gatherEvidence(plan: ScoutPlan, env: ScoutAiEnv): Promise<{ evidence: any; sources: any[]; error?: string }> {
-  if (plan.intent === 'rankings') {
-    const rows = await loadRankings(plan, env);
-    return {
-      evidence: {
-        kind: 'rankings',
-        metric: plan.metric,
-        metric_label: METRIC_LABEL[plan.metric],
-        division: plan.division || 'All active UFC divisions',
-        rows,
-      },
-      sources: rows.map((row: any) => ({ label: row.name, href: `/fighters/${row.slug}` })),
-    };
-  }
-
-  if (plan.intent === 'fighter_profile' || plan.intent === 'compare_fighters') {
-    const requested = plan.fighters.slice(0, plan.intent === 'compare_fighters' ? 2 : 1);
-    if (requested.length < (plan.intent === 'compare_fighters' ? 2 : 1)) {
-      return { evidence: null, sources: [], error: 'I need the fighter name to research that question.' };
-    }
-
-    const resolved = [];
-    for (const name of requested) {
-      const fighter = await resolveFighter(name, env);
-      if (!fighter) return { evidence: null, sources: [], error: `I could not match “${name}” to a fighter in the current database.` };
-      resolved.push(fighter);
-    }
-
-    const fighters = [];
-    for (const fighter of resolved) fighters.push(await loadFighterEvidence(fighter, env));
-    const matchup = resolved.length === 2
-      ? await upcomingMatchup(Number(resolved[0].id), Number(resolved[1].id), env)
-      : null;
-
-    return {
-      evidence: {
-        kind: resolved.length === 2 ? 'fighter_comparison' : 'fighter_profile',
-        fighters,
-        upcoming_matchup: matchup,
-      },
-      sources: resolved.map((fighter: any) => ({ label: fighter.name, href: `/fighters/${fighter.slug}` })),
-    };
-  }
-
-  return {
-    evidence: null,
-    sources: [],
-    error:
-      'Scout AI Preview currently handles named fighter research, two-fighter comparisons, and ranking questions. Try “Compare Max Holloway and Alexander Volkanovski” or “Who has the strongest schedule at lightweight?”',
-  };
-}
-
-async function synthesize(question: string, evidence: any, env: ScoutAiEnv): Promise<any> {
-  if (!env.AI) {
-    return {
-      answer: 'Scout AI is not connected to an AI binding in this environment yet.',
-      confidence: 'low',
-      caveats: ['The structured MMA evidence was retrieved successfully, but natural-language synthesis is unavailable.'],
-    };
-  }
-
-  const result = await env.AI.run(MODEL, {
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are Scout AI, the research assistant for MMA Scouts. Answer ONLY from the supplied structured evidence. ' +
-          'Never invent a fight, opponent, statistic, ranking, injury, result, or biographical fact. ' +
-          'If the evidence cannot establish something, say so plainly. Distinguish official UFC aggregate statistics from MMA Scouts opponent-adjusted ratings. ' +
-          'Do not claim that a rating is an official UFC ranking. If an upcoming model probability is present, describe it as the site model, not a certainty. ' +
-          'Write a concise analyst-style answer for an MMA fan. No markdown tables. Avoid betting advice.',
-      },
-      {
-        role: 'user',
-        content: `Question: ${question}\n\nStructured evidence:\n${JSON.stringify(evidence)}`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 650,
-    response_format: {
-      type: 'json_schema',
-      json_schema: {
-        type: 'object',
-        properties: {
-          answer: { type: 'string' },
-          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-          caveats: { type: 'array', items: { type: 'string' }, maxItems: 4 },
-        },
-        required: ['answer', 'confidence', 'caveats'],
-      },
-    },
-  });
-
-  const payload = extractAiPayload(result);
-  if (payload && typeof payload === 'object' && typeof payload.answer === 'string') return payload;
-  return {
-    answer: typeof payload === 'string' ? payload : 'Scout AI could not format an answer from the retrieved evidence.',
-    confidence: 'low',
-    caveats: ['The evidence retrieval completed, but the language model response was incomplete.'],
-  };
-}
-
-export async function scoutAsk(request: Request, env: ScoutAiEnv): Promise<Response> {
-  if (request.method !== 'POST') return response({ error: 'method_not_allowed' }, 405);
-
-  let payload: any;
-  try {
-    payload = await request.json();
-  } catch {
-    return response({ error: 'invalid_json' }, 400);
-  }
-
-  const question = String(payload?.question || '').replace(/\s+/g, ' ').trim();
-  if (question.length < 3) return response({ error: 'question_too_short' }, 400);
-  if (question.length > 500) return response({ error: 'question_too_long', max_chars: 500 }, 400);
-
-  const plan = await planQuestion(question, env);
-  const gathered = await gatherEvidence(plan, env);
-  if (gathered.error) {
-    return response({
-      question,
-      answer: gathered.error,
-      confidence: 'low',
-      caveats: [],
-      sources: gathered.sources,
-      meta: { intent: plan.intent, preview: true, model: env.AI ? MODEL : null },
-    });
-  }
-
-  try {
-    const answer = await synthesize(question, gathered.evidence, env);
-    return response({
-      question,
-      ...answer,
-      sources: gathered.sources,
-      meta: {
-        intent: plan.intent,
-        metric: plan.metric,
-        division: plan.division || null,
-        preview: true,
-        model: env.AI ? MODEL : null,
-        evidence_kind: gathered.evidence?.kind || null,
-      },
-    });
-  } catch (error) {
-    console.error('Scout AI synthesis failed', error);
-    return response({
-      error: 'scout_ai_unavailable',
-      message: 'The research data was retrieved, but Scout AI could not complete the answer.',
-    }, 503);
-  }
+export async function scoutAsk(request:Request,env:ScoutAiEnv):Promise<Response>{
+  if(request.method!=='POST')return response({error:'method_not_allowed'},405);
+  if(!sameOrigin(request))return response({error:'cross_origin_forbidden',message:'Scout AI only accepts same-origin browser requests.'},403);
+  const limited=await enforceRateLimit(request,env);if(limited)return limited;
+  let payload:any;try{payload=await request.json()}catch{return response({error:'invalid_json'},400)}
+  const question=String(payload?.question||'').replace(/\s+/g,' ').trim();if(question.length<3)return response({error:'question_too_short'},400);if(question.length>500)return response({error:'question_too_long',max_chars:500},400);
+  const plan=await planQuestion(question,env),gathered=await gatherEvidence(plan,env);
+  if(gathered.error)return response({question,answer:gathered.error,confidence:'low',caveats:[],sources:gathered.sources,evidence:gathered.cards,meta:{intent:plan.intent,preview:true,version:'0.2',model:env.AI?MODEL:null}});
+  try{const answer=await synthesize(question,gathered.evidence,gathered.cards,env);return response({question,...answer,sources:gathered.sources,evidence:gathered.cards,meta:{intent:plan.intent,metric:plan.metric,division:plan.division||null,preview:true,version:'0.2',model:env.AI?MODEL:null,evidence_kind:gathered.evidence?.kind||null}})}catch(error){console.error('Scout AI synthesis failed',error);return response({error:'scout_ai_unavailable',message:'The research data was retrieved, but Scout AI could not complete the answer.'},503)}
 }
