@@ -1,0 +1,60 @@
+name: Make legacy CageMetrix zone redirect-friendly
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/cloudflare-legacy-cutover.yml'
+  workflow_dispatch:
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Relax legacy zone checks and verify redirects
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          api='https://api.cloudflare.com/client/v4'
+          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H 'Content-Type: application/json')
+          zone_json=$(curl --silent --show-error "${auth[@]}" "$api/zones?name=cagemetrix.com&status=active")
+          zone_id=$(echo "$zone_json" | jq -r '.result[0].id // empty')
+          test -n "$zone_id"
+
+          update_setting() {
+            setting="$1"
+            value="$2"
+            echo "Updating $setting -> $value"
+            response=$(curl --silent --show-error -X PATCH "${auth[@]}" "$api/zones/$zone_id/settings/$setting" -d "{\"value\":\"$value\"}")
+            echo "$response" | jq '{success,errors,result:{id:.result.id,value:.result.value,editable:.result.editable}}'
+            test "$(echo "$response" | jq -r '.success')" = "true"
+          }
+
+          update_setting browser_check off
+          update_setting security_level essentially_off
+
+          echo 'Waiting briefly for edge settings to propagate...'
+          sleep 5
+
+          check_redirect() {
+            source="$1"
+            expected="$2"
+            headers=$(mktemp)
+            code=$(curl --silent --show-error --user-agent 'Mozilla/5.0 MMA-Scouts-Migration-Verify/1.0' --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
+            location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
+            mitigated=$(awk 'BEGIN{IGNORECASE=1} /^cf-mitigated:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
+            echo "$source -> $code $location cf-mitigated=${mitigated:-none}"
+            test "$code" = "308"
+            test "$location" = "$expected"
+          }
+
+          check_redirect 'https://cagemetrix.com/api/health?from=legacy' 'https://mmascouts.com/api/health?from=legacy'
+          check_redirect 'https://www.cagemetrix.com/fighters/example?from=legacy' 'https://mmascouts.com/fighters/example?from=legacy'
+          check_redirect 'https://cagemetrix.com/index.html?from=legacy' 'https://mmascouts.com/?from=legacy'
+          check_redirect 'https://www.mmascouts.com/predictions.html?from=www' 'https://mmascouts.com/predictions.html?from=www'
