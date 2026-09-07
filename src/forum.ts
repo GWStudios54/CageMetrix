@@ -1,0 +1,85 @@
+type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
+type Row=Record<string,any>;
+const SITE='https://cagemetrix.com';
+const SESSION_COOKIE='cm_session';
+const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+const cookieValue=(request:Request,name:string)=>{const raw=request.headers.get('cookie')||'';return raw.split(';').map(v=>v.trim()).find(v=>v.startsWith(`${name}=`))?.slice(name.length+1)||null;};
+async function hash(value:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}
+async function account(request:Request,db:D1Database){const raw=cookieValue(request,SESSION_COOKIE);if(!raw||raw.length<30)return null;return db.prepare(`SELECT a.id,a.handle,a.display_name FROM community_sessions s JOIN community_accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.expires_at>CURRENT_TIMESTAMP LIMIT 1`).bind(await hash(raw)).first<Row>();}
+function json(data:unknown,status=200){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});}
+function sameOrigin(request:Request){const origin=request.headers.get('origin');return !origin||origin===new URL(request.url).origin;}
+async function body(request:Request,max=8192){if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('content_type');const text=await request.text();if(new TextEncoder().encode(text).length>max)throw new Error('too_large');return JSON.parse(text);}
+function categoryLabel(v:string){return v==='cagemetrix'?'CageMetrix':v==='off-topic'?'Off Topic':'MMA';}
+function shell(title:string,description:string,content:string,scripts='<script src="/community.js" defer></script><script src="/forum.js" defer></script>'){
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="${SITE}/forum"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/community.css"><link rel="stylesheet" href="/forum.css"><link rel="icon" href="/logo.svg" type="image/svg+xml"></head><body><header class="topbar"><a class="brand" href="/"><img class="brand-mark" src="/logo.svg" width="44" height="44" alt=""><span>CageMetrix™</span></a><nav><a href="/predictions.html">Predictions</a><a href="/#rankings">Rankings</a><a href="/forum">Forum</a><button class="cm-nav-account" type="button" data-cm-account-button>Profile</button></nav></header>${content}<footer><span>CageMetrix™</span><span>Talk shit. Keep receipts.</span></footer>${scripts}</body></html>`;
+}
+
+async function automaticThreads(db:D1Database){
+  const events=await db.prepare(`SELECT e.id,e.slug,e.name,e.event_date,COUNT(p.id) replies,MAX(p.created_at) activity FROM events e LEFT JOIN community_posts p ON p.scope_type='event' AND p.scope_id=e.id AND p.deleted_at IS NULL WHERE e.slug IS NOT NULL AND e.event_date>=date('now','-30 day') GROUP BY e.id ORDER BY CASE WHEN e.event_date>=date('now') THEN 0 ELSE 1 END,e.event_date DESC LIMIT 8`).all<Row>();
+  const fights=await db.prepare(`SELECT b.id,a.name fighter_a,z.name fighter_b,e.slug event_slug,e.name event_name,COUNT(p.id) replies,MAX(p.created_at) activity FROM bouts b JOIN events e ON e.id=b.event_id JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id LEFT JOIN community_posts p ON p.scope_type='fight' AND p.scope_id=b.id AND p.deleted_at IS NULL WHERE e.event_date>=date('now','-14 day') GROUP BY b.id ORDER BY COALESCE(MAX(p.created_at),e.event_date) DESC LIMIT 8`).all<Row>();
+  return {events:events.results||[],fights:fights.results||[]};
+}
+async function customThreads(db:D1Database){return db.prepare(`SELECT t.id,t.category,t.title,t.created_at,t.updated_at,a.handle,a.display_name,COUNT(p.id) replies,MAX(p.created_at) activity FROM forum_threads t JOIN community_accounts a ON a.id=t.account_id LEFT JOIN forum_posts p ON p.thread_id=t.id AND p.deleted_at IS NULL WHERE t.deleted_at IS NULL GROUP BY t.id ORDER BY COALESCE(MAX(p.created_at),t.updated_at) DESC,t.id DESC LIMIT 40`).all<Row>();}
+function row(href:string,title:string,meta:string,replies:number){return `<a class="forum-thread-row" href="${esc(href)}"><span><strong>${esc(title)}</strong><small>${esc(meta)}</small></span><b>${Number(replies||0)}<small> posts</small></b></a>`;}
+
+export async function forumHomePage(request:Request,env:Env){
+  const [auto,custom]=await Promise.all([automaticThreads(env.DB),customThreads(env.DB)]),all=custom.results||[];
+  const fightRows=[...auto.events.map(r=>row(`/forum/event/${r.slug}`,r.name,`Event thread · ${String(r.event_date||'').slice(0,10)}`,Number(r.replies||0))),...auto.fights.slice(0,6).map(r=>row(`/forum/fight/${r.id}`,`${r.fighter_a} vs ${r.fighter_b}`,r.event_name||'Fight thread',Number(r.replies||0)))].join('');
+  const category=(key:string)=>all.filter(r=>r.category===key).slice(0,8).map(r=>row(`/forum/thread/${r.id}`,r.title,`${r.display_name} · @${r.handle}`,Number(r.replies||0))).join('')||'<div class="forum-empty">No threads yet. Start one.</div>';
+  const content=`<main class="forum-page" data-forum-index><section class="forum-hero"><p class="eyebrow">CAGEMETRIX FORUM</p><h1>Fight talk with receipts.</h1><p class="lede">Event threads, matchup arguments, model criticism, general MMA, and whatever else survives the group chat.</p></section><section class="forum-new-thread"><div><p class="eyebrow">START A THREAD</p><h2>Put it on the record</h2></div><form data-forum-new-thread><select name="category" aria-label="Category"><option value="cagemetrix">CageMetrix</option><option value="mma">MMA</option><option value="off-topic">Off Topic</option></select><input name="title" maxlength="120" minlength="5" required placeholder="Thread title"><textarea name="body" maxlength="2000" required placeholder="Make the case."></textarea><button class="button primary" type="submit">Post thread</button><p class="cm-error" data-forum-error></p></form></section><section class="forum-grid"><article class="forum-board forum-board-wide"><div class="forum-board-head"><span class="eyebrow">FIGHT NIGHT</span><h2>Events & matchups</h2><p>Automatic threads for cards and individual fights.</p></div><div class="forum-thread-list">${fightRows||'<div class="forum-empty">Fight threads will appear with upcoming cards.</div>'}</div></article><article class="forum-board"><div class="forum-board-head"><span class="eyebrow">CAGEMETRIX</span><h2>Model & rankings</h2></div><div class="forum-thread-list">${category('cagemetrix')}</div></article><article class="forum-board"><div class="forum-board-head"><span class="eyebrow">MMA</span><h2>General discussion</h2></div><div class="forum-thread-list">${category('mma')}</div></article><article class="forum-board"><div class="forum-board-head"><span class="eyebrow">OFF TOPIC</span><h2>Everything else</h2></div><div class="forum-thread-list">${category('off-topic')}</div></article></section></main>`;
+  return new Response(shell('CageMetrix Forum — MMA Discussion, Fight Threads & Picks','Discuss UFC fights, CageMetrix predictions, rankings and MMA with public pick receipts.',content),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=20'}});
+}
+
+export async function forumScopedThreadPage(_request:Request,env:Env,scope:'event'|'fight',key:string){
+  let target:Row|null=null,title='',back='';
+  if(scope==='event'){
+    target=await env.DB.prepare('SELECT id,slug,name FROM events WHERE slug=? LIMIT 1').bind(key).first<Row>();
+    if(target){title=String(target.name);back=`/events/${target.slug}`;}
+  }else{
+    const id=Number(key);if(Number.isInteger(id)&&id>0)target=await env.DB.prepare(`SELECT b.id,e.slug event_slug,a.name fighter_a,z.name fighter_b FROM bouts b JOIN events e ON e.id=b.event_id JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id WHERE b.id=? LIMIT 1`).bind(id).first<Row>();
+    if(target){title=`${target.fighter_a} vs ${target.fighter_b}`;back=`/fights/${target.id}`;}
+  }
+  if(!target)return new Response('Not found',{status:404});
+  const content=`<main class="forum-page forum-thread-page" data-cm-fight><div class="forum-thread-top"><a href="/forum">← Forum</a><a href="${esc(back)}">Back to ${scope==='event'?'event':'fight'} →</a></div><section class="forum-thread-title"><p class="eyebrow">FIGHT NIGHT</p><h1>${esc(title)}</h1></section><section class="cm-thread" data-cm-thread data-scope="${scope}" data-scope-id="${target.id}"><div class="cm-thread-head"><div><p class="eyebrow">DISCUSSION</p><h2>Put your take on the record</h2></div><p>Your pick receipt follows you into the thread when one exists.</p></div><div data-cm-posts>Loading discussion…</div><div data-cm-compose></div></section></main>`;
+  return new Response(shell(`${title} Discussion | CageMetrix Forum`,`Discuss ${title} on CageMetrix.`,content,'<script src="/community.js" defer></script>'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=15'}});
+}
+
+export async function forumThreadPage(_request:Request,env:Env,id:string){
+  const n=Number(id);if(!Number.isInteger(n)||n<1)return new Response('Not found',{status:404});
+  const thread=await env.DB.prepare(`SELECT t.id,t.category,t.title,t.locked,t.created_at,a.handle,a.display_name FROM forum_threads t JOIN community_accounts a ON a.id=t.account_id WHERE t.id=? AND t.deleted_at IS NULL LIMIT 1`).bind(n).first<Row>();
+  if(!thread)return new Response('Not found',{status:404});
+  const content=`<main class="forum-page forum-thread-page" data-forum-thread="${n}"><div class="forum-thread-top"><a href="/forum">← Forum</a><span>${esc(categoryLabel(thread.category))}</span></div><section class="forum-thread-title"><p class="eyebrow">${esc(categoryLabel(thread.category).toUpperCase())}</p><h1>${esc(thread.title)}</h1><p>Started by <a href="/u/${encodeURIComponent(String(thread.handle))}">${esc(thread.display_name)} · @${esc(thread.handle)}</a></p></section><section><div class="forum-posts" data-forum-posts>Loading thread…</div><form class="forum-compose" data-forum-compose><input type="hidden" name="parent_id"><label><strong data-forum-compose-label>Add to the thread</strong><textarea name="body" maxlength="2000" required placeholder="Make the case. Keep the receipts."></textarea></label><div><button class="button primary" type="submit">Post</button><button class="button secondary" type="button" data-forum-cancel-reply hidden>Cancel reply</button></div><p class="cm-error" data-forum-compose-error></p></form></section></main>`;
+  return new Response(shell(`${thread.title} | CageMetrix Forum`,`CageMetrix forum discussion: ${thread.title}`,content),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=10'}});
+}
+
+export async function createForumThread(request:Request,env:Env){
+  if(!sameOrigin(request))return json({error:'Cross-origin posting is not allowed.'},403);const who=await account(request,env.DB);if(!who)return json({error:'Sign in to start a thread.'},401);
+  let input:any;try{input=await body(request)}catch{return json({error:'Invalid request.'},400)}
+  const category=String(input?.category||''),title=String(input?.title||'').trim().replace(/\s+/g,' '),text=String(input?.body||'').trim();
+  if(!['cagemetrix','mma','off-topic'].includes(category))return json({error:'Choose a forum category.'},400);if(title.length<5||title.length>120)return json({error:'Thread titles must be 5–120 characters.'},400);if(!text||text.length>2000)return json({error:'Post must be 1–2000 characters.'},400);
+  const recent=await env.DB.prepare(`SELECT COUNT(*) n FROM forum_threads WHERE account_id=? AND created_at>=datetime('now','-1 hour')`).bind(who.id).first<Row>();if(Number(recent?.n||0)>=10)return json({error:'Thread limit reached. Try again later.'},429);
+  const result=await env.DB.prepare('INSERT INTO forum_threads(category,title,account_id) VALUES(?,?,?)').bind(category,title,who.id).run(),id=Number(result.meta.last_row_id);await env.DB.prepare('INSERT INTO forum_posts(thread_id,account_id,body) VALUES(?,?,?)').bind(id,who.id,text).run();return json({ok:true,id,url:`/forum/thread/${id}`},201);
+}
+
+export async function forumThread(request:Request,env:Env,id:string){
+  const n=Number(id);if(!Number.isInteger(n)||n<1)return json({error:'Thread not found.'},404);const who=await account(request,env.DB),viewer=Number(who?.id||0);
+  const thread=await env.DB.prepare(`SELECT t.id,t.category,t.title,t.locked,t.created_at,a.handle,a.display_name FROM forum_threads t JOIN community_accounts a ON a.id=t.account_id WHERE t.id=? AND t.deleted_at IS NULL LIMIT 1`).bind(n).first<Row>();if(!thread)return json({error:'Thread not found.'},404);
+  const rows=await env.DB.prepare(`SELECT p.id,p.parent_id,p.body,p.created_at,a.id author_id,a.handle,a.display_name,(SELECT COUNT(*) FROM forum_reactions r WHERE r.post_id=p.id) reactions,EXISTS(SELECT 1 FROM forum_reactions r WHERE r.post_id=p.id AND r.account_id=?) my_reacted FROM forum_posts p JOIN community_accounts a ON a.id=p.account_id WHERE p.thread_id=? AND p.deleted_at IS NULL AND NOT EXISTS(SELECT 1 FROM community_blocks b WHERE b.blocker_id=? AND b.blocked_id=p.account_id) ORDER BY p.created_at,p.id`).bind(viewer,n,viewer).all<Row>();
+  return json({thread:{id:n,category:thread.category,title:thread.title,locked:!!thread.locked},account:who?{id:Number(who.id),handle:who.handle,display_name:who.display_name}:null,posts:(rows.results||[]).map(p=>({id:Number(p.id),parent_id:p.parent_id==null?null:Number(p.parent_id),body:p.body,created_at:p.created_at,reactions:Number(p.reactions||0),my_reacted:!!p.my_reacted,author:{id:Number(p.author_id),handle:p.handle,display_name:p.display_name,profile_url:`/u/${encodeURIComponent(String(p.handle))}`}}))});
+}
+
+export async function createForumPost(request:Request,env:Env,id:string){
+  if(!sameOrigin(request))return json({error:'Cross-origin posting is not allowed.'},403);const who=await account(request,env.DB);if(!who)return json({error:'Sign in to post.'},401);const n=Number(id);if(!Number.isInteger(n)||n<1)return json({error:'Thread not found.'},404);
+  const thread=await env.DB.prepare('SELECT id,locked FROM forum_threads WHERE id=? AND deleted_at IS NULL LIMIT 1').bind(n).first<Row>();if(!thread)return json({error:'Thread not found.'},404);if(thread.locked)return json({error:'This thread is locked.'},423);
+  let input:any;try{input=await body(request)}catch{return json({error:'Invalid request.'},400)}const text=String(input?.body||'').trim(),parent=input?.parent_id?Number(input.parent_id):null;if(!text||text.length>2000)return json({error:'Post must be 1–2000 characters.'},400);
+  if(parent){const ok=await env.DB.prepare('SELECT 1 ok FROM forum_posts WHERE id=? AND thread_id=? AND deleted_at IS NULL LIMIT 1').bind(parent,n).first<Row>();if(!ok)return json({error:'Reply target not found.'},400);}
+  const recent=await env.DB.prepare(`SELECT COUNT(*) n FROM forum_posts WHERE account_id=? AND created_at>=datetime('now','-1 minute')`).bind(who.id).first<Row>();if(Number(recent?.n||0)>=8)return json({error:'Posting too quickly. Try again in a minute.'},429);
+  await env.DB.prepare('INSERT INTO forum_posts(thread_id,account_id,parent_id,body) VALUES(?,?,?,?)').bind(n,who.id,parent,text).run();await env.DB.prepare('UPDATE forum_threads SET updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(n).run();return forumThread(request,env,id);
+}
+
+export async function reactForumPost(request:Request,env:Env,id:string){
+  if(!sameOrigin(request))return json({error:'Cross-origin reactions are not allowed.'},403);const who=await account(request,env.DB);if(!who)return json({error:'Sign in to react.'},401);const post=Number(id);if(!Number.isInteger(post)||post<1)return json({error:'Post not found.'},404);let input:any;try{input=await body(request,2048)}catch{return json({error:'Invalid request.'},400)};if(input?.on===false)await env.DB.prepare('DELETE FROM forum_reactions WHERE post_id=? AND account_id=?').bind(post,who.id).run();else await env.DB.prepare('INSERT OR IGNORE INTO forum_reactions(post_id,account_id) VALUES(?,?)').bind(post,who.id).run();return json({ok:true});
+}
+export async function reportForumPost(request:Request,env:Env,id:string){
+  if(!sameOrigin(request))return json({error:'Cross-origin reports are not allowed.'},403);const who=await account(request,env.DB);if(!who)return json({error:'Sign in to report.'},401);const post=Number(id);if(!Number.isInteger(post)||post<1)return json({error:'Post not found.'},404);await env.DB.prepare('INSERT OR IGNORE INTO forum_reports(post_id,reporter_id,reason) VALUES(?,?,?)').bind(post,who.id,'user_report').run();return json({ok:true});
+}
