@@ -16,6 +16,7 @@ import {createForumPost,createForumThread,forumHomePage,forumScopedThreadPage,fo
 import {normalizeForumSeo} from './forum-seo.ts';
 import {enhanceFighterFollow,enhanceHomeWatchlist,fighterFollowStatus,getWatchlist,setFighterFollow,watchlistPage} from './watchlist.ts';
 import {normalizeNavigation} from './navigation.ts';
+import {scoutAsk} from './scout-ai.ts';
 import {
   blockCommunityUser,communityEvent,communityHomePage,communityLeaderboard,communityProfilePage,
   createDiscussionPost,discussion,enhanceEventCommunity,enhanceFightCommunity,getCommunityMe,
@@ -23,7 +24,7 @@ import {
   saveCommunityPick,updateCommunityMe
 } from './community.ts';
 
-interface Env {DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;}
+interface Env {DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};}
 
 const TOKEN_RE=/^cm_[A-Za-z0-9_-]{43}$/;
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
@@ -46,6 +47,7 @@ export default {
     const canonical=canonicalRedirect(request);if(canonical)return canonical;
     const url=new URL(request.url);
 
+    if(url.pathname==='/api/scout')return scoutAsk(request,env);
     if(request.method==='GET'&&url.pathname==='/'){let response=await homePage(request,env);response=await enhanceHomeWatchlist(response,request,env);return renderPage(response,request,env);}
     if(request.method==='GET'&&url.pathname==='/predictions.html')return renderPage(predictionsPage(request,env),request,env);
     if(request.method==='GET'&&url.pathname==='/sitemap.xml')return publicSitemap(env);
