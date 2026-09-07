@@ -8,6 +8,7 @@ import {enhanceFightPage,enhanceFighterPage,sitemap} from './seo.ts';
 import {eventPage} from './event-page.ts';
 import {homePage,predictionsPage} from './static-seo.ts';
 import {adminModeratePost,adminOverview,adminPage,adminResolveReports} from './admin.ts';
+import {ownerAdminLogin} from './admin-auth.ts';
 import {
   blockCommunityUser,communityEvent,communityHomePage,communityLeaderboard,communityProfilePage,
   createDiscussionPost,discussion,enhanceEventCommunity,enhanceFightCommunity,getCommunityMe,
@@ -91,7 +92,12 @@ export default {
     if(adminReportMatch&&request.method==='PUT')return adminResolveReports(request,env,adminReportMatch[1]);
 
     if(url.pathname==='/api/community/register'&&request.method==='POST')return registerCommunity(request,env);
-    if(url.pathname==='/api/community/login'&&request.method==='POST')return loginCommunity(request,env);
+    if(url.pathname==='/api/community/login'&&request.method==='POST'){
+      let handle='';
+      try{handle=String((await request.clone().json() as any)?.handle||'').trim().toLowerCase()}catch{}
+      if(handle==='cagemetrix_owner54')return ownerAdminLogin(request,env);
+      return loginCommunity(request,env);
+    }
     if(url.pathname==='/api/community/logout'&&request.method==='POST')return logoutCommunity(request,env);
     if(url.pathname==='/api/community/me'){
       if(request.method==='GET')return getCommunityMe(request,env);
