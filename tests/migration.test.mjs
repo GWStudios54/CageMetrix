@@ -83,8 +83,8 @@ test('MMA Scouts visual identity is independent from the old CageMetrix mark',()
   assert.match(home,/Fighter Reports/);
   assert.match(home,/Matchup Scout/);
   assert.match(home,/Prospect Scout/);
-  assert.equal(fs.existsSync('public/favicon.ico'),false);
-  assert.equal(fs.existsSync('public/favicon-48.png'),false);
-  assert.equal(fs.existsSync('public/og.png'),false);
-  assert.equal(fs.existsSync('public/og.svg'),true);
+  for(const asset of ['public/favicon.ico','public/favicon-48.png','public/og.png','public/og.svg']){
+    assert.equal(fs.existsSync(asset),true,`${asset} must exist`);
+    assert.ok(fs.statSync(asset).size>0,`${asset} must not be empty`);
+  }
 });
