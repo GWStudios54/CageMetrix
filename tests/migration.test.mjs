@@ -54,3 +54,14 @@ test('indexable fighter, fight and event pages emit MMA Scouts canonical metadat
   assert.match(seo,/MMA SCOUTS FIGHTER PROFILE/);
   assert.match(events,/BRAND_NAME/);
 });
+
+test('production deployment includes domain-route changes and verifies the cutover',()=>{
+  const deploy=read('.github/workflows/deploy.yml');
+  const smoke=read('.github/workflows/post-deploy-smoke.yml');
+  assert.match(deploy,/name: Deploy MMA Scouts/);
+  assert.doesNotMatch(deploy,/paths-ignore:[\s\S]*- 'wrangler\.jsonc'/);
+  assert.match(smoke,/https:\/\/mmascouts\.com/);
+  assert.match(smoke,/https:\/\/cagemetrix\.com\/api\/health\?from=legacy/);
+  assert.match(smoke,/test "\$code" = "308"/);
+  assert.match(smoke,/https:\/\/mmascouts\.com\/\?from=legacy/);
+});
