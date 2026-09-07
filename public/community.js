@@ -2,8 +2,22 @@
   let me=null,authDialog=null,authMode='claim';
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
   const pct=v=>v==null?'—':`${Math.round(Number(v)*100)}%`;
-  const escText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const escText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const escAttr=escText;
+  const modelRank=v=>v==='0.2.1'?0:v==='0.2.0'?1:v==='0.1.0'?2:3;
+  function normalizeEventPayload(payload){
+    if(!payload||!Array.isArray(payload.bouts))return payload;
+    const byMatchup=new Map();
+    for(const b of payload.bouts){
+      const ids=[Number(b?.fighter_a?.id),Number(b?.fighter_b?.id)].sort((a,z)=>a-z),key=ids.every(Number.isFinite)?`${ids[0]}:${ids[1]}`:`bout:${b?.id}`;
+      const current=byMatchup.get(key);
+      if(!current||modelRank(b?.model?.version)<modelRank(current?.model?.version)||(modelRank(b?.model?.version)===modelRank(current?.model?.version)&&Number(b?.id)>Number(current?.id)))byMatchup.set(key,b);
+    }
+    payload.bouts=[...byMatchup.values()];
+    const made=payload.bouts.filter(b=>b.mine).length,community=payload.bouts.reduce((n,b)=>n+Number(b?.community?.total||0),0),gradedBouts=payload.bouts.filter(b=>b?.mine?.grade&&b?.model?.grade),userCorrect=gradedBouts.filter(b=>b.mine.grade==='correct').length,modelCorrect=gradedBouts.filter(b=>b.model.grade==='correct').length;
+    payload.card={...(payload.card||{}),made,total:payload.bouts.length,community_picks:community,graded:gradedBouts.length,user_correct:userCorrect,model_correct:modelCorrect,result:gradedBouts.length?(userCorrect>modelCorrect?'user':userCorrect<modelCorrect?'model':'tie'):null};
+    return payload;
+  }
   async function api(path,opt={}){
     const init={credentials:'same-origin',...opt};
     if(init.body&&typeof init.body!=='string'){init.headers={'content-type':'application/json',...(init.headers||{})};init.body=JSON.stringify(init.body)}
@@ -35,10 +49,10 @@
 
   async function initEvent(root){
     const slug=root.dataset.cmEvent;let payload;
-    async function load(){try{payload=await api(`/api/community/events/${encodeURIComponent(slug)}`);me=payload.account||me||false;refreshAccountUI();render()}catch(ex){$('[data-cm-event-score]',root).innerHTML=`<div class="cm-empty">${escText(ex.message)}</div>`}}
+    async function load(){try{payload=normalizeEventPayload(await api(`/api/community/events/${encodeURIComponent(slug)}`));me=payload.account||me||false;refreshAccountUI();render()}catch(ex){$('[data-cm-event-score]',root).innerHTML=`<div class="cm-empty">${escText(ex.message)}</div>`}}
     function render(){
       const card=payload.card||{},score=$('[data-cm-event-score]',root);score.innerHTML=`<div class="cm-event-stat"><strong>${card.made||0}/${card.total||0}</strong><span>your card</span></div><div class="cm-event-stat"><strong>${card.community_picks||0}</strong><span>community picks</span></div><div class="cm-event-stat"><strong>${card.graded?`${card.user_correct}-${card.model_correct}`:'—'}</strong><span>you vs model</span></div><div class="cm-event-stat"><strong>${card.result==='user'?'YOU WIN':card.result==='model'?'MODEL WINS':card.result==='tie'?'TIE':payload.event.locked?'LOCKED':'OPEN'}</strong><span>card status</span></div>`;
-      const list=$('[data-cm-pick-list]',root);list.innerHTML='';for(const b of payload.bouts){const row=document.createElement('article');row.className='cm-pick-row';const mine=b.mine,grade=mine?.grade||'';row.innerHTML=`<button class="cm-pick-fighter ${mine?.picked_fighter_id===b.fighter_a.id?'is-picked':''} ${grade&&mine?.picked_fighter_id===b.fighter_a.id?`is-${grade}`:''}" type="button" data-side="a"><strong>${escText(b.fighter_a.name)}</strong><small>Model ${pct(b.fighter_a.model_probability)} · Crowd ${pct(b.community.a_pct)}</small></button><div class="cm-pick-mid"><b>${escText(b.weight_class||'BOUT')}</b><span>VS</span><label class="cm-confidence"><input type="range" min="50" max="100" value="${mine?.confidence||65}" ${payload.event.locked?'disabled':''}><output>${mine?.confidence||65}%</output></label></div><button class="cm-pick-fighter ${mine?.picked_fighter_id===b.fighter_b.id?'is-picked':''} ${grade&&mine?.picked_fighter_id===b.fighter_b.id?`is-${grade}`:''}" type="button" data-side="b"><strong>${escText(b.fighter_b.name)}</strong><small>Model ${pct(b.fighter_b.model_probability)} · Crowd ${pct(b.community.b_pct)}</small></button>`;const slider=$('input[type="range"]',row),out=$('output',row);slider.oninput=()=>out.textContent=`${slider.value}%`;$$('[data-side]',row).forEach(btn=>{btn.disabled=payload.event.locked;btn.onclick=async()=>{if(!me){openAuth('claim');return}btn.disabled=true;try{payload=await api(`/api/community/events/${encodeURIComponent(slug)}/picks/${b.id}`,{method:'PUT',body:{pick:btn.dataset.side,confidence:Number(slider.value)}});me=payload.account||me;render()}catch(ex){alert(ex.message)}}});list.appendChild(row)}
+      const list=$('[data-cm-pick-list]',root);list.innerHTML='';for(const b of payload.bouts){const row=document.createElement('article');row.className='cm-pick-row';const mine=b.mine,grade=mine?.grade||'';row.innerHTML=`<button class="cm-pick-fighter ${mine?.picked_fighter_id===b.fighter_a.id?'is-picked':''} ${grade&&mine?.picked_fighter_id===b.fighter_a.id?`is-${grade}`:''}" type="button" data-side="a"><strong>${escText(b.fighter_a.name)}</strong><small>Model ${pct(b.fighter_a.model_probability)} · Crowd ${pct(b.community.a_pct)}</small></button><div class="cm-pick-mid"><b>${escText(b.weight_class||'BOUT')}</b><span>VS</span><label class="cm-confidence"><input type="range" min="50" max="100" value="${mine?.confidence||65}" ${payload.event.locked?'disabled':''}><output>${mine?.confidence||65}%</output></label></div><button class="cm-pick-fighter ${mine?.picked_fighter_id===b.fighter_b.id?'is-picked':''} ${grade&&mine?.picked_fighter_id===b.fighter_b.id?`is-${grade}`:''}" type="button" data-side="b"><strong>${escText(b.fighter_b.name)}</strong><small>Model ${pct(b.fighter_b.model_probability)} · Crowd ${pct(b.community.b_pct)}</small></button>`;const slider=$('input[type="range"]',row),out=$('output',row);slider.oninput=()=>out.textContent=`${slider.value}%`;$$('[data-side]',row).forEach(btn=>{btn.disabled=payload.event.locked;btn.onclick=async()=>{if(!me){openAuth('claim');return}btn.disabled=true;try{payload=normalizeEventPayload(await api(`/api/community/events/${encodeURIComponent(slug)}/picks/${b.id}`,{method:'PUT',body:{pick:btn.dataset.side,confidence:Number(slider.value)}}));me=payload.account||me;render()}catch(ex){alert(ex.message)}}});list.appendChild(row)}
       const thread=$('[data-cm-thread]',root);thread.dataset.scopeId=String(payload.event.id);initThread(thread,true);
     }
     window.addEventListener('cm-auth-changed',load);await load();
