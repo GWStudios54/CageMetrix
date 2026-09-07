@@ -1,24 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recentResultEvents } from '../scripts/lib/recent-source.mjs';
+import { boutSourceUrls, mirroredStats, resultSourcesForEvent } from '../scripts/lib/recent-source.mjs';
 
-test('recent result parser supports the current UFCalendar link markup',()=>{
-  const html=`<!doctype html><html><body>
-    <a href="/events/ufc-fight-night-2026-09-05"><span>Sep 5, 2026</span><span>UFC</span><strong>UFC Fight Night: Hooker vs Parnasse</strong><span>MMA</span><span>Paris</span></a>
-    <a href="/events/ufc-330-2026-08-15"><span>Aug 15, 2026</span><span>UFC</span><strong>UFC 330: Makhachev vs Machado Garry</strong><span>MMA</span></a>
-    <a href="/events/brave-cf-108-2026-09-05">BRAVE CF 108 MMA</a>
-  </body></html>`;
-  assert.deepEqual(recentResultEvents(html,'2026-08-29'),[
-    {url:'https://www.ufcalendar.com/events/ufc-fight-night-2026-09-05',name:'UFC Fight Night: Hooker vs Parnasse'}
+test('completed UFC cards map deterministically to official and statistics sources',()=>{
+  assert.deepEqual(resultSourcesForEvent('UFC Fight Night: Hooker vs Parnasse','2026-09-05'),{
+    name:'UFC Fight Night: Hooker vs Parnasse',date:'2026-09-05',
+    statisticsUrl:'https://www.ufcalendar.com/events/ufc-fight-night-2026-09-05',
+    officialUrl:'https://www.ufc.com/event/ufc-fight-night-september-05-2026'
+  });
+  assert.deepEqual(resultSourcesForEvent('UFC 330: Makhachev vs Machado Garry','2026-08-15'),{
+    name:'UFC 330: Makhachev vs Machado Garry',date:'2026-08-15',
+    statisticsUrl:'https://www.ufcalendar.com/events/ufc-330-2026-08-15',
+    officialUrl:'https://www.ufc.com/event/ufc-330'
+  });
+  assert.equal(resultSourcesForEvent("Dana White's Contender Series 90",'2026-09-01'),null);
+  assert.equal(resultSourcesForEvent('UFC Fight Night: Bad Date','September 5'),null);
+});
+
+test('bout result URLs use canonical UFC fighter slugs and retain a reversed fallback',()=>{
+  assert.deepEqual(boutSourceUrls('https://www.ufcalendar.com/events/ufc-fight-night-2026-09-05',{
+    red:'Michael Venom Page',redSlug:'michael-page',blue:'Nursulton Ruziboev',blueSlug:'nursulton-ruziboev'
+  }),[
+    'https://www.ufcalendar.com/events/ufc-fight-night-2026-09-05/michael-page-vs-nursulton-ruziboev',
+    'https://www.ufcalendar.com/events/ufc-fight-night-2026-09-05/nursulton-ruziboev-vs-michael-page'
   ]);
 });
 
-test('recent result parser keeps compatibility with the former ItemList markup',()=>{
-  const html=`<!doctype html><script type="application/ld+json">${JSON.stringify({'@type':'ItemList',itemListElement:[
-    {name:'UFC Fight Night: New vs Card',url:'https://www.ufcalendar.com/events/ufc-fight-night-2026-09-12'},
-    {name:'UFC Fight Night: Old vs Card',url:'https://www.ufcalendar.com/events/ufc-fight-night-2026-08-29'}
-  ]})}</script>`;
-  assert.deepEqual(recentResultEvents(html,'2026-08-29'),[
-    {url:'https://www.ufcalendar.com/events/ufc-fight-night-2026-09-12',name:'UFC Fight Night: New vs Card'}
-  ]);
+test('current UFCalendar fight totals markup is normalized to warehouse stat format',()=>{
+  const row=(a,label,b)=>`<div class="grid grid-cols-[1fr_auto_1fr]"><span>${a}</span><span>${label}</span><span>${b}</span></div>`;
+  const html=`<!doctype html><html><body><section><h2>Fight totals</h2>${row('Michael Page','vs','Nursulton Ruziboev')}${row('0','Knockdowns','0')}${row('12 / 28','Significant strikes','8 / 29')}${row('49 / 66','Total strikes','21 / 42')}${row('0 / 2','Takedowns','2 / 3')}${row('1','Submission attempts','0')}${row('1:06','Control time','5:28')}</section><script type="application/ld+json">${JSON.stringify({'@type':'SportsEvent',winner:{name:'Michael Page'}})}</script></body></html>`;
+  const parsed=mirroredStats(html);
+  assert.deepEqual(parsed.names,['Michael Page','Nursulton Ruziboev']);
+  assert.deepEqual(parsed.values.get('Significant strikes'),['12 of 28','8 of 29']);
+  assert.deepEqual(parsed.values.get('Takedowns'),['0 of 2','2 of 3']);
+  assert.equal(parsed.winner,'Michael Page');
 });

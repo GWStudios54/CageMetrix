@@ -5,38 +5,32 @@ export const normalizeName = value => String(value).normalize('NFKD').replace(/[
 const aliases = new Map([['celiu','liuce'], ['cameronnelson','camnelson'], ['josemontanha','josevitor'], ['levirodriguesjr','levirodrigues'], ['zacharyreese','zachreese'], ['josemigueldelgado','josedelgado'], ['ezraelliott','ezraelliot'], ['michaelvenompage','michaelpage']]);
 export const nameKey = name => aliases.get(normalizeName(name)) || normalizeName(name);
 const text = el => el?.textContent.replace(/\s+/g, ' ').trim() || '';
-const spacedText = el => {
-  const leaves=[...el.querySelectorAll('*')].filter(node=>node.children.length===0).map(text).filter(Boolean);
-  return leaves.length?leaves.join(' '):text(el);
-};
-const eventDate = url => String(url || '').match(/(20\d{2}-\d{2}-\d{2})(?:[/?#]|$)/)?.[1] || null;
-const eventNameFromText = value => {
-  const raw=String(value||'').replace(/\s+/g,' ').trim();
-  return raw.match(/(UFC\s+(?:\d{3,4}|Fight Night)\s*:[\s\S]*?)(?=MMA\b|$)/i)?.[1]?.trim() || raw.match(/(UFC\s+(?:\d{3,4}|Fight Night)\b)/i)?.[1]?.trim() || '';
-};
+const DATE_RE=/^20\d{2}-\d{2}-\d{2}$/;
+const MONTHS=['january','february','march','april','may','june','july','august','september','october','november','december'];
+const slug = value => String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/ł/gi,'l').replace(/đ/gi,'d').replace(/ø/gi,'o').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 
-export function recentResultEvents(html, cutoff='0000-00-00') {
-  const dom=new JSDOM(html,{url:'https://www.ufcalendar.com/results'}),doc=dom.window.document,candidates=[];
-  const structured=[...doc.querySelectorAll('script[type="application/ld+json"]')].flatMap(el=>{try{return [JSON.parse(el.textContent)]}catch{return []}}).find(x=>x?.['@type']==='ItemList'&&Array.isArray(x.itemListElement));
-  if(structured){
-    for(const item of structured.itemListElement){
-      const url=item?.url?new URL(item.url,'https://www.ufcalendar.com').href:null,name=String(item?.name||'').trim();
-      if(url&&name)candidates.push({url,name});
-    }
+export function resultSourcesForEvent(name,date){
+  const eventName=String(name||'').replace(/\s+/g,' ').trim();
+  if(!DATE_RE.test(String(date||'')))return null;
+  const [year,month,day]=String(date).split('-');
+  const numbered=eventName.match(/^UFC\s+(\d{3,4})(?:\b|:)/i);
+  if(numbered){
+    const number=numbered[1];
+    return {name:eventName,date:String(date),statisticsUrl:`https://www.ufcalendar.com/events/ufc-${number}-${date}`,officialUrl:`https://www.ufc.com/event/ufc-${number}`};
   }
-  if(!candidates.length){
-    for(const anchor of doc.querySelectorAll('a[href]')){
-      let url;try{url=new URL(anchor.getAttribute('href'),'https://www.ufcalendar.com').href}catch{continue}
-      if(!url.includes('/events/')||!eventDate(url))continue;
-      const name=eventNameFromText(spacedText(anchor));
-      if(name)candidates.push({url,name});
-    }
+  if(/^UFC\s+Fight Night\b/i.test(eventName)){
+    const monthName=MONTHS[Number(month)-1];
+    if(!monthName)return null;
+    return {name:eventName,date:String(date),statisticsUrl:`https://www.ufcalendar.com/events/ufc-fight-night-${date}`,officialUrl:`https://www.ufc.com/event/ufc-fight-night-${monthName}-${day}-${year}`};
   }
-  dom.window.close();
-  const supported=candidates.filter(e=>/^UFC (?:\d|Fight Night)/i.test(e.name)&&eventDate(e.url));
-  if(!supported.length)throw new Error('No recent result archive');
-  const unique=new Map(supported.map(e=>[e.url,e]));
-  return [...unique.values()].filter(e=>eventDate(e.url)>cutoff).sort((a,b)=>eventDate(a.url).localeCompare(eventDate(b.url)));
+  return null;
+}
+
+export function boutSourceUrls(eventUrl,bout){
+  const red=slug(bout?.redSlug||bout?.red),blue=slug(bout?.blueSlug||bout?.blue);
+  if(!eventUrl||!red||!blue)return [];
+  const base=String(eventUrl).replace(/\/$/,'');
+  return [...new Set([`${base}/${red}-vs-${blue}`,`${base}/${blue}-vs-${red}`])];
 }
 
 export function officialBouts(html) {
@@ -50,26 +44,28 @@ export function officialBouts(html) {
       return corner?.querySelector('.c-listing-fight__outcome--win') ? 'W' : corner?.querySelector('.c-listing-fight__outcome--loss') ? 'L' : '';
     };
     const values = new Map([...card.querySelectorAll('.c-listing-fight__result')].map(el => [text(el.querySelector('.c-listing-fight__result-label')), text(el.querySelector('.c-listing-fight__result-text'))]));
-    const sourceSlug = side => card.querySelector(`.c-listing-fight__corner-name--${side} a`)?.href.split('/').at(-1);
+    const sourceSlug = side => card.querySelector(`.c-listing-fight__corner-name--${side} a`)?.href.split('/').at(-1)?.split('?')[0];
     return { red, blue, redSlug:sourceSlug('red'), blueSlug:sourceSlug('blue'), redResult: outcome('red'), blueResult: outcome('blue'), method: values.get('Method'), round: values.get('Round'), time: values.get('Time'), division: text(card.querySelector('.c-listing-fight__class-text')), officialId: card.dataset.fmid };
-  }).filter(b => b.red && b.blue && b.method && b.round && b.time);
+  }).filter(b => b.red && b.blue && b.method && b.round && b.time && (b.redResult==='W'||b.blueResult==='W'));
   dom.window.close();
   if (!bouts.length) throw new Error('Official UFC card has no completed results');
   return bouts;
 }
 
+const normalizeStatValue=value=>String(value||'').trim().replace(/^(\d+)\s*\/\s*(\d+)$/,'$1 of $2');
+
 export function mirroredStats(html) {
   const dom = new JSDOM(html);
   const doc = dom.window.document;
-  const heading = [...doc.querySelectorAll('h2')].find(h => text(h) === 'Fight stats');
+  const heading = [...doc.querySelectorAll('h2')].find(h => ['Fight stats','Fight totals'].includes(text(h)));
   if (!heading) { dom.window.close(); return null; }
   const container = heading.parentElement;
   const grids = [...container.querySelectorAll('div.grid')].filter(el => el.children.length === 3 && el.className.includes('grid-cols-[1fr_auto_1fr]'));
   const names = [text(grids[0]?.children[0]), text(grids[0]?.children[2])];
-  const values = new Map(grids.slice(1).map(el => [text(el.children[1]), [text(el.children[0]), text(el.children[2])]]));
+  const values = new Map(grids.slice(1).map(el => [text(el.children[1]), [normalizeStatValue(text(el.children[0])), normalizeStatValue(text(el.children[2]))]]));
   const required = ['Knockdowns', 'Significant strikes', 'Total strikes', 'Takedowns', 'Submission attempts', 'Control time'];
   for (const label of required) if (!values.has(label)) throw new Error(`Missing source statistic: ${label}`);
-  const schema = [...doc.querySelectorAll('script[type="application/ld+json"]')].flatMap(el=>{try{return [JSON.parse(el.textContent)]}catch{return []}}).find(x => x['@type'] === 'SportsEvent');
+  const schema = [...doc.querySelectorAll('script[type="application/ld+json"]')].flatMap(el=>{try{return [JSON.parse(el.textContent)]}catch{return []}}).find(x => x?.['@type'] === 'SportsEvent');
   dom.window.close();
   return { names, values, winner: schema?.winner?.name };
 }
