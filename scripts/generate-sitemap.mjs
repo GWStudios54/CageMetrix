@@ -39,4 +39,4 @@ const fights = query(`
 
 mkdirSync('public', { recursive: true });
 writeFileSync('public/sitemap.xml', sitemapXml({ fighters, fights }));
-console.log(`Generated sitemap with ${3 + fighters.length + fights.length} URLs (${fighters.length} fighters, ${fights.length} predicted fights).`);
+console.log(`Generated sitemap with ${5 + fighters.length + fights.length} URLs (${fighters.length} fighters, ${fights.length} predicted fights).`);
