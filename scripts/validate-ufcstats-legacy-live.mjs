@@ -5,6 +5,9 @@ import { chromium } from 'playwright';
 const DB = 'cagemetrix';
 const OUT_DIR = '.cache/ufcstats-legacy-validation';
 const BASE = 'http://ufcstats.com';
+const PROFILE_CONCURRENCY = 6;
+const DETAIL_SAMPLE_PROMOTIONS = 30;
+const DETAIL_SAMPLES_PER_PROMOTION = 3;
 mkdirSync(OUT_DIR, { recursive: true });
 
 function wrangler(params) {
@@ -31,12 +34,27 @@ const boutKey = (a, b) => [nameKey(a), nameKey(b)].sort().join('|');
 function isoDate(value) {
   const raw = tidy(value);
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const parsed = Date.parse(`${raw} 12:00:00 UTC`);
+  const cleaned = raw.replace(/\bSept\./gi, 'Sep').replace(/\b([A-Za-z]{3})\./g, '$1');
+  const parsed = Date.parse(`${cleaned} 12:00:00 UTC`);
   return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 10) : null;
 }
 const isPair = value => /^(\d+)\s+(?:of|\/)\s+(\d+)$/i.test(tidy(value));
 const isInteger = value => /^\d+$/.test(tidy(value));
 const isClock = value => /^\d+:\d{2}$/.test(tidy(value));
+
+async function mapLimit(items, concurrency, worker) {
+  const output = new Array(items.length);
+  let next = 0;
+  async function run() {
+    while (true) {
+      const index = next++;
+      if (index >= items.length) return;
+      output[index] = await worker(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, run));
+  return output;
+}
 
 async function openUfcStats(page, url, readySelector) {
   let lastError = null;
@@ -53,8 +71,7 @@ async function openUfcStats(page, url, readySelector) {
           return !challenged && Boolean(document.querySelector(selector));
         }, readySelector, { timeout: 20000 });
       } catch {
-        // Capture the state below. This lets the report distinguish selector drift
-        // from the JavaScript interstitial that plain HTTP clients receive.
+        // Record the state below so challenge failures and selector drift stay distinct.
       }
       const state = await page.evaluate(selector => {
         const body = document.body?.innerText || '';
@@ -119,31 +136,55 @@ async function liveFightTechnical(page) {
   };
 }
 
-async function liveEventIndex(page) {
-  const raw = await page.evaluate(() => [...document.querySelectorAll('a[href*="event-details"]')].map(a => {
-    const row = a.closest('tr');
-    return {
-      href: a.href || a.getAttribute('href'),
-      title: (a.textContent || '').replace(/\s+/g, ' ').trim(),
-      dateText: (row?.querySelector('.b-statistics__date')?.textContent || row?.querySelector('span')?.textContent || '').replace(/\s+/g, ' ').trim()
-    };
-  }));
-  const out = [];
-  for (const item of raw) {
-    const date = isoDate(item.dateText);
-    if (item.href && item.title && date && !out.some(existing => existing.href === item.href)) out.push({ href: item.href, title: item.title, date });
+async function fighterDirectory(page) {
+  const found = [];
+  for (const char of 'abcdefghijklmnopqrstuvwxyz') {
+    const url = `${BASE}/statistics/fighters?char=${char}&page=all`;
+    const state = await openUfcStats(page, url, 'a[href*="fighter-details"]');
+    if (!state.ready) {
+      console.log(`fighter directory ${char}: unavailable status=${state.status} challenge=${state.challenge}`);
+      continue;
+    }
+    const rows = await page.evaluate(() => [...document.querySelectorAll('tr.b-statistics__table-row, tr')].flatMap(row => {
+      const anchors = [...row.querySelectorAll('a[href*="fighter-details"]')];
+      if (!anchors.length) return [];
+      const href = anchors[0].href || anchors[0].getAttribute('href');
+      const parts = [...new Set(anchors.filter(a => (a.href || a.getAttribute('href')) === href)
+        .map(a => (a.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean))];
+      return href && parts.length ? [{ href, name: parts.join(' ') }] : [];
+    }));
+    found.push(...rows);
+    console.log(`fighter directory ${char}: ${rows.length}`);
   }
-  return out;
+  const byHref = new Map();
+  for (const item of found) if (!byHref.has(item.href)) byHref.set(item.href, item);
+  return [...byHref.values()];
 }
 
-async function liveEventFights(page) {
-  return page.evaluate(() => [...document.querySelectorAll('tr')].flatMap(row => {
+async function fighterHistory(page) {
+  const raw = await page.evaluate(() => [...document.querySelectorAll('tr.b-fight-details__table-row, tr[data-link]')].flatMap(row => {
     const fighterLinks = [...row.querySelectorAll('a[href*="fighter-details"]')];
     if (fighterLinks.length < 2) return [];
     const fighters = fighterLinks.slice(0, 2).map(a => (a.textContent || '').replace(/\s+/g, ' ').trim());
+    const eventAnchor = row.querySelector('a[href*="event-details"]');
     const fightUrl = row.getAttribute('data-link') || row.querySelector('a[href*="fight-details"]')?.href || null;
-    return fightUrl && fighters.every(Boolean) ? [{ fighters, fightUrl }] : [];
+    const text = (row.textContent || '').replace(/\s+/g, ' ').trim();
+    const dateMatch = text.match(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2},\s+\d{4}\b/i);
+    return fightUrl && fighters.every(Boolean) && dateMatch ? [{
+      fighters,
+      fightUrl,
+      event: (eventAnchor?.textContent || '').replace(/\s+/g, ' ').trim(),
+      dateText: dateMatch[0]
+    }] : [];
   }));
+  return raw.map(item => ({ ...item, date: isoDate(item.dateText), bout_key: boutKey(item.fighters[0], item.fighters[1]) })).filter(item => item.date);
+}
+
+function spreadSamples(items, count) {
+  if (items.length <= count) return items;
+  if (count <= 1) return [items[Math.floor(items.length / 2)]];
+  const indexes = new Set(Array.from({ length: count }, (_, i) => Math.round(i * (items.length - 1) / (count - 1))));
+  return [...indexes].map(index => items[index]);
 }
 
 const browser = await chromium.launch({ headless: true });
@@ -185,88 +226,178 @@ try {
   const rawTargets = d1Rows(`
     SELECT source_fight_id,event_date,organization,event_name,fighter_name,opponent_name
     FROM ufc_warehouse_pre_ufc_rows
-    WHERE event_date <= '2014-12-31'
-      AND LOWER(organization) IN ('strikeforce','wec','pride')
     ORDER BY event_date DESC
   `);
   const targets = [];
   const seenTargets = new Set();
   for (const row of rawTargets) {
-    const key = `${row.source_fight_id}|${boutKey(row.fighter_name, row.opponent_name)}`;
-    if (seenTargets.has(key)) continue;
+    const date = String(row.event_date || '').slice(0, 10);
+    const key = `${row.source_fight_id}|${date}|${boutKey(row.fighter_name, row.opponent_name)}`;
+    if (!date || seenTargets.has(key)) continue;
     seenTargets.add(key);
-    targets.push({ ...row, bout_key: boutKey(row.fighter_name, row.opponent_name) });
+    targets.push({ ...row, event_date: date, bout_key: boutKey(row.fighter_name, row.opponent_name), fighter_key: nameKey(row.fighter_name) });
   }
-  const targetsByDate = new Map();
+  const targetsByFighter = new Map();
   for (const target of targets) {
-    const date = String(target.event_date).slice(0, 10);
-    if (!targetsByDate.has(date)) targetsByDate.set(date, []);
-    targetsByDate.get(date).push(target);
+    if (!targetsByFighter.has(target.fighter_key)) targetsByFighter.set(target.fighter_key, []);
+    targetsByFighter.get(target.fighter_key).push(target);
   }
 
-  const indexState = await openUfcStats(page, `${BASE}/statistics/events/completed?page=all`, 'a[href*="event-details"]');
-  if (!indexState.ready) throw new Error(`UFCStats completed-event index unavailable after browser challenge: ${indexState.bodyPrefix}`);
-  const events = await liveEventIndex(page);
-  if (events.length < 100) throw new Error(`UFCStats event index unexpectedly small: ${events.length}`);
+  const directory = await fighterDirectory(page);
+  const directoryByName = new Map();
+  const ambiguousNames = new Set();
+  for (const profile of directory) {
+    const key = nameKey(profile.name);
+    if (!key) continue;
+    if (directoryByName.has(key) && directoryByName.get(key).href !== profile.href) ambiguousNames.add(key);
+    else directoryByName.set(key, profile);
+  }
+  for (const key of ambiguousNames) directoryByName.delete(key);
 
-  const relevantEvents = events.filter(event => targetsByDate.has(event.date) && /^(strikeforce|wec|pride)\b/i.test(event.title));
-  const matched = [];
-  const targetCounts = new Map(['strikeforce','wec','pride'].map(p => [p, targets.filter(t => String(t.organization).toLowerCase() === p).length]));
-  const promotionCounts = new Map([...targetCounts].map(([p, count]) => [p, { targets: count, identity_matches: 0, core_technical: 0, full_cmr: 0 }]));
+  const profileTargets = [...targetsByFighter.entries()].flatMap(([key, fighterTargets]) => {
+    const profile = directoryByName.get(key);
+    return profile ? [{ key, profile, targets: fighterTargets }] : [];
+  });
+  console.log(`production targets=${targets.length} unique target fighters=${targetsByFighter.size} exact UFCStats profiles=${profileTargets.length} ambiguous directory names=${ambiguousNames.size}`);
 
-  for (const [eventIndex, event] of relevantEvents.entries()) {
-    const eventState = await openUfcStats(page, event.href, 'tr[data-link], a[href*="fighter-details"]');
-    if (!eventState.ready) continue;
-    const fights = await liveEventFights(page);
-    const dateTargets = targetsByDate.get(event.date) || [];
-    for (const fight of fights) {
-      const key = boutKey(fight.fighters[0], fight.fighters[1]);
-      const target = dateTargets.find(item => item.bout_key === key);
-      if (!target) continue;
-      const detailState = await openUfcStats(page, fight.fightUrl, 'table.b-fight-details__table, .b-fight-details__section');
-      const technical = detailState.ready ? await liveFightTechnical(page) : null;
-      matched.push({
-        promotion: target.organization,
-        source_fight_id: target.source_fight_id,
-        event_date: target.event_date,
-        target_event: target.event_name,
-        ufcstats_event: event.title,
-        fighter: target.fighter_name,
-        opponent: target.opponent_name,
-        fight_url: fight.fightUrl,
+  const profileMatchesNested = await mapLimit(profileTargets, PROFILE_CONCURRENCY, async (item, index) => {
+    const workerPage = await context.newPage();
+    try {
+      const state = await openUfcStats(workerPage, item.profile.href, 'tr.b-fight-details__table-row, tr[data-link]');
+      if (!state.ready) return [];
+      const history = await fighterHistory(workerPage);
+      const targetLookup = new Map(item.targets.map(target => [`${target.event_date}|${target.bout_key}`, target]));
+      const matches = [];
+      for (const row of history) {
+        const target = targetLookup.get(`${row.date}|${row.bout_key}`);
+        if (!target) continue;
+        matches.push({
+          promotion: String(target.organization || '').toLowerCase(),
+          source_fight_id: target.source_fight_id,
+          event_date: target.event_date,
+          target_event: target.event_name,
+          fighter: target.fighter_name,
+          opponent: target.opponent_name,
+          ufcstats_profile: item.profile.href,
+          ufcstats_event: row.event,
+          fight_url: row.fightUrl
+        });
+      }
+      if ((index + 1) % 50 === 0 || matches.length) console.log(`profile ${index + 1}/${profileTargets.length}: ${item.profile.name} history=${history.length} matches=${matches.length}`);
+      return matches;
+    } finally {
+      await workerPage.close();
+    }
+  });
+
+  const matchedBySource = new Map();
+  for (const match of profileMatchesNested.flat()) {
+    const key = `${match.source_fight_id}|${match.event_date}|${boutKey(match.fighter, match.opponent)}`;
+    if (!matchedBySource.has(key)) matchedBySource.set(key, match);
+  }
+  const matched = [...matchedBySource.values()];
+
+  const targetPromotionCounts = new Map();
+  for (const target of targets) {
+    const promotion = String(target.organization || '').toLowerCase();
+    targetPromotionCounts.set(promotion, (targetPromotionCounts.get(promotion) || 0) + 1);
+  }
+  const matchedByPromotion = new Map();
+  for (const match of matched) {
+    if (!matchedByPromotion.has(match.promotion)) matchedByPromotion.set(match.promotion, []);
+    matchedByPromotion.get(match.promotion).push(match);
+  }
+
+  const samplePromotions = [...matchedByPromotion.entries()]
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .slice(0, DETAIL_SAMPLE_PROMOTIONS);
+  const detailSamples = [];
+  for (const [promotion, promotionMatches] of samplePromotions) {
+    const ordered = [...promotionMatches].sort((a, b) => a.event_date.localeCompare(b.event_date));
+    for (const match of spreadSamples(ordered, DETAIL_SAMPLES_PER_PROMOTION)) detailSamples.push({ ...match, promotion });
+  }
+
+  const detailResults = await mapLimit(detailSamples, 4, async (match, index) => {
+    const workerPage = await context.newPage();
+    try {
+      const state = await openUfcStats(workerPage, match.fight_url, 'table.b-fight-details__table, .b-fight-details__section');
+      const technical = state.ready ? await liveFightTechnical(workerPage) : null;
+      const result = {
+        ...match,
+        status: state.status,
+        challenge: state.challenge,
         core_technical: Boolean(technical?.coreTechnical),
         full_cmr: Boolean(technical?.fullCmr),
         sample: technical?.sample ?? null
-      });
-      const p = String(target.organization).toLowerCase();
-      const c = promotionCounts.get(p);
-      c.identity_matches += 1;
-      if (technical?.coreTechnical) c.core_technical += 1;
-      if (technical?.fullCmr) c.full_cmr += 1;
+      };
+      console.log(`detail ${index + 1}/${detailSamples.length}: ${match.promotion} ${match.fighter} vs ${match.opponent} core=${result.core_technical} full=${result.full_cmr}`);
+      return result;
+    } finally {
+      await workerPage.close();
     }
-    console.log(`legacy event ${eventIndex + 1}/${relevantEvents.length}: ${event.title} ${event.date}`);
+  });
+
+  const detailByPromotion = new Map();
+  for (const result of detailResults) {
+    if (!detailByPromotion.has(result.promotion)) detailByPromotion.set(result.promotion, []);
+    detailByPromotion.get(result.promotion).push(result);
   }
 
+  const promotions = [...new Set([...targetPromotionCounts.keys(), ...matchedByPromotion.keys()])];
+  const byPromotion = {};
+  for (const promotion of promotions.sort()) {
+    const promotionMatches = matchedByPromotion.get(promotion) || [];
+    const samples = detailByPromotion.get(promotion) || [];
+    const dates = promotionMatches.map(item => item.event_date).filter(Boolean).sort();
+    byPromotion[promotion] = {
+      targets: targetPromotionCounts.get(promotion) || 0,
+      profile_identity_matches: promotionMatches.length,
+      identity_match_pct: Number((100 * promotionMatches.length / Math.max(1, targetPromotionCounts.get(promotion) || 0)).toFixed(1)),
+      first_match_date: dates[0] || null,
+      last_match_date: dates.at(-1) || null,
+      detail_samples: samples.length,
+      core_technical_samples: samples.filter(item => item.core_technical).length,
+      full_cmr_samples: samples.filter(item => item.full_cmr).length
+    };
+  }
+
+  const rankedCoverage = Object.entries(byPromotion)
+    .filter(([, value]) => value.profile_identity_matches > 0)
+    .sort((a, b) => b[1].profile_identity_matches - a[1].profile_identity_matches || a[0].localeCompare(b[0]));
   const report = {
     generated_at: new Date().toISOString(),
-    transport: 'playwright_chromium',
+    transport: 'playwright_chromium_fighter_histories',
     controls: controlResults,
-    ufcstats_events: events.length,
-    relevant_legacy_events: relevantEvents.length,
     production_targets: targets.length,
-    production_identity_matches: matched.length,
-    production_core_technical_matches: matched.filter(item => item.core_technical).length,
-    production_full_cmr_matches: matched.filter(item => item.full_cmr).length,
-    by_promotion: Object.fromEntries([...promotionCounts.entries()].sort()),
-    samples: matched.filter(item => item.core_technical).slice(0, 30)
+    unique_target_fighters: targetsByFighter.size,
+    ufcstats_directory_profiles: directory.length,
+    exact_target_profiles: profileTargets.length,
+    ambiguous_directory_names_skipped: ambiguousNames.size,
+    production_profile_identity_matches: matched.length,
+    production_profile_identity_match_rate: matched.length / Math.max(1, targets.length),
+    sampled_detail_pages: detailResults.length,
+    sampled_core_technical_pages: detailResults.filter(item => item.core_technical).length,
+    sampled_full_cmr_pages: detailResults.filter(item => item.full_cmr).length,
+    promotions_with_profile_matches: rankedCoverage.map(([promotion]) => promotion),
+    top_coverage: rankedCoverage.slice(0, 50).map(([promotion, value]) => ({ promotion, ...value })),
+    by_promotion: byPromotion,
+    detail_samples: detailResults
   };
-  report.identity_match_rate = matched.length / Math.max(1, targets.length);
-  report.core_technical_match_rate = report.production_core_technical_matches / Math.max(1, targets.length);
-  report.full_cmr_match_rate = report.production_full_cmr_matches / Math.max(1, targets.length);
   writeFileSync(`${OUT_DIR}/report.json`, JSON.stringify(report, null, 2) + '\n');
-  console.log(JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({
+    production_targets: report.production_targets,
+    unique_target_fighters: report.unique_target_fighters,
+    exact_target_profiles: report.exact_target_profiles,
+    production_profile_identity_matches: report.production_profile_identity_matches,
+    production_profile_identity_match_rate: report.production_profile_identity_match_rate,
+    sampled_detail_pages: report.sampled_detail_pages,
+    sampled_core_technical_pages: report.sampled_core_technical_pages,
+    sampled_full_cmr_pages: report.sampled_full_cmr_pages,
+    top_coverage: report.top_coverage
+  }, null, 2));
 
-  if (report.production_core_technical_matches === 0) throw new Error('UFCStats legacy source matched zero production pre-UFC fights with core technical data.');
+  if (matched.length === 0) throw new Error('UFCStats fighter histories matched zero production pre-UFC fights.');
+  if (detailResults.filter(item => item.core_technical).length === 0) throw new Error('Matched UFCStats fighter-history samples exposed zero core technical detail pages.');
 } finally {
   await context.close();
   await browser.close();
