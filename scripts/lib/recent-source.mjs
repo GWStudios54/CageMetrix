@@ -5,6 +5,10 @@ export const normalizeName = value => String(value).normalize('NFKD').replace(/[
 const aliases = new Map([['celiu','liuce'], ['cameronnelson','camnelson'], ['josemontanha','josevitor'], ['levirodriguesjr','levirodrigues'], ['zacharyreese','zachreese'], ['josemigueldelgado','josedelgado'], ['ezraelliott','ezraelliot'], ['michaelvenompage','michaelpage']]);
 export const nameKey = name => aliases.get(normalizeName(name)) || normalizeName(name);
 const text = el => el?.textContent.replace(/\s+/g, ' ').trim() || '';
+const spacedText = el => {
+  const leaves=[...el.querySelectorAll('*')].filter(node=>node.children.length===0).map(text).filter(Boolean);
+  return leaves.length?leaves.join(' '):text(el);
+};
 const eventDate = url => String(url || '').match(/(20\d{2}-\d{2}-\d{2})(?:[/?#]|$)/)?.[1] || null;
 const eventNameFromText = value => {
   const raw=String(value||'').replace(/\s+/g,' ').trim();
@@ -24,7 +28,7 @@ export function recentResultEvents(html, cutoff='0000-00-00') {
     for(const anchor of doc.querySelectorAll('a[href]')){
       let url;try{url=new URL(anchor.getAttribute('href'),'https://www.ufcalendar.com').href}catch{continue}
       if(!url.includes('/events/')||!eventDate(url))continue;
-      const name=eventNameFromText(text(anchor));
+      const name=eventNameFromText(spacedText(anchor));
       if(name)candidates.push({url,name});
     }
   }
