@@ -9,6 +9,14 @@
   },
   "routes": [
     {
+      "pattern": "mmascouts.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.mmascouts.com",
+      "custom_domain": true
+    },
+    {
       "pattern": "cagemetrix.com",
       "custom_domain": true
     },
