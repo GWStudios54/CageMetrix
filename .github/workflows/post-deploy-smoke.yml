@@ -28,6 +28,31 @@ jobs:
             done
           done
 
+      - name: Verify live research product surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/1.0'
+          curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/ -o diagnostics/home.html
+          curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/scout -o diagnostics/scout.html
+          curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/sitemap.xml -o diagnostics/sitemap.xml
+
+          grep -Fq 'Research any fighter.' diagnostics/home.html
+          grep -Fq 'Understand any matchup.' diagnostics/home.html
+          grep -Fq 'Ask MMA Scouts' diagnostics/home.html
+          grep -Fq 'Fighter Reports' diagnostics/home.html
+          grep -Fq 'Prospect Scout' diagnostics/home.html
+          grep -Fq 'SCOUT RANKINGS · FIGHTER DATABASE' diagnostics/home.html
+          ! grep -Fq 'THE CROWD DISAGREES' diagnostics/home.html
+
+          grep -Fq '<link rel="canonical" href="https://mmascouts.com/scout"' diagnostics/scout.html
+          grep -Fq 'name="robots" content="index,follow,max-image-preview:large"' diagnostics/scout.html
+          grep -Fq 'SCOUT AI · GROUNDED MMA RESEARCH' diagnostics/scout.html
+          ! grep -Fq 'RESEARCH PREVIEW' diagnostics/scout.html
+
+          grep -Fq '<loc>https://mmascouts.com/scout</loc>' diagnostics/sitemap.xml
+          echo 'Homepage, Scout AI, and sitemap product checks passed.'
+
       - name: Verify legacy and www redirects are one hop
         shell: bash
         run: |
