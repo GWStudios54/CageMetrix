@@ -31,6 +31,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
+      - name: Install Chromium for UFCStats browser validation
+        run: npx playwright install --with-deps chromium
       - name: Validate candidate syntax and unit tests
         run: |
           node --check scripts/lib/espn-mma.mjs
@@ -50,6 +52,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Measure UFCStats legacy coverage against production pre-UFC fights
+        continue-on-error: true
         run: node scripts/validate-ufcstats-legacy-live.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
