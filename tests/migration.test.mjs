@@ -77,7 +77,9 @@ test('MMA Scouts visual identity is independent from the old CageMetrix mark',()
   assert.match(visual,/--accent:#d8b76f/);
   assert.match(visual,/THE MMA RESEARCH ENGINE/);
   assert.match(navigation,/\/brand\.css\?v=identity-1/);
-  assert.doesNotMatch(navigation,/\.brand \.brand-mark'[\s\S]*el\.remove\(\)/);
+  assert.doesNotMatch(navigation,/\.on\('\.brand \.brand-mark',\{element\(el\)\{el\.remove\(\);\}\}\)/);
+  assert.match(navigation,/\.brand \.brand-mark/);
+  assert.match(navigation,/setAttribute\('src','\/logo\.svg'\)/);
   assert.match(home,/Fighter Reports/);
   assert.match(home,/Matchup Scout/);
   assert.match(home,/Prospect Scout/);
