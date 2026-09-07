@@ -6,6 +6,7 @@ import {chromium} from 'playwright';
 import {freshDb,seed,token,secondToken} from '../tests/helpers/fight-fixture.mjs';
 const workspace=resolve('.cache',`fight-e2e-${Date.now()}`);mkdirSync(workspace,{recursive:true});
 const config={...JSON.parse(readFileSync('wrangler.jsonc','utf8')),name:'cagemetrix-fight-test',main:resolve('tests/helpers/fight-worker.ts'),routes:[],assets:{directory:resolve('public'),binding:'ASSETS',run_worker_first:['/api/*','/fighters/*','/fights/*','/__test/*']}};
+delete config.ai;
 config.d1_databases=config.d1_databases.map(d=>({...d,migrations_dir:resolve('migrations')}));
 writeFileSync(`${workspace}/wrangler.json`,JSON.stringify(config));
 const wrangler=resolve('node_modules/wrangler/bin/wrangler.js'),flags=['--config',`${workspace}/wrangler.json`,'--persist-to',workspace];

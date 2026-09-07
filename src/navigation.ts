@@ -3,7 +3,7 @@ import {adminAccount} from './admin-session.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 
 export function primaryNavigation(admin=false){
-  return `<a href="/predictions.html">Predictions</a><a href="/#rankings">Rankings</a><a href="/forum">Forum</a><a href="/watchlist">Watchlist</a><a href="/community">Community</a>${admin?'<a href="/admin" class="admin-link">Admin</a>':''}`;
+  return `<a href="/scout">Scout AI</a><a href="/predictions.html">Predictions</a><a href="/#rankings">Rankings</a><a href="/forum">Forum</a><a href="/watchlist">Watchlist</a><a href="/community">Community</a>${admin?'<a href="/admin" class="admin-link">Admin</a>':''}`;
 }
 
 export async function normalizeNavigation(response:Response,request:Request,env:Env){
