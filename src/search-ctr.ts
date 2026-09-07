@@ -48,6 +48,7 @@ export async function enhanceFightSearchSnippet(response:Response,env:Env,id:str
   const place=location(event),startDate=event?.starts_at||bout.starts_at||bout.event_date;
   const modified=prediction.created_at||event?.updated_at||bout.updated_at||undefined;
   const graph:any[]=[
+    {'@type':'WebSite','@id':`${SITE}/#website`,url:`${SITE}/`,name:'CageMetrix'},
     {'@type':'WebPage','@id':`${canonical}#webpage`,url:canonical,name:title,description,isPartOf:{'@id':`${SITE}/#website`},mainEntity:{'@id':`${canonical}#fight`},about:[{'@id':`${aUrl}#fighter`},{'@id':`${bUrl}#fighter`}],...(modified?{dateModified:modified}:{})},
     {'@type':'SportsEvent','@id':`${canonical}#fight`,name:`${a} vs ${b}`,url:canonical,description,startDate,eventStatus:eventStatus(event?.status||bout.status),eventAttendanceMode:'https://schema.org/OfflineEventAttendanceMode',sport:'Mixed Martial Arts',organizer:{'@type':'Organization',name:'UFC',url:'https://www.ufc.com/'},competitor:[{'@id':`${aUrl}#fighter`},{'@id':`${bUrl}#fighter`}],performer:[{'@id':`${aUrl}#fighter`},{'@id':`${bUrl}#fighter`}],...(place?{location:place}:{}),...(eventCanonical?{superEvent:{'@type':'SportsEvent',name:label,url:eventCanonical}}:{})},
     {'@type':'Person','@id':`${aUrl}#fighter`,name:a,url:aUrl,jobTitle:'Mixed Martial Artist'},
