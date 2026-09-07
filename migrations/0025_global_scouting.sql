@@ -47,11 +47,11 @@ INSERT OR REPLACE INTO scout_promotions(slug,name,region,country,scope,official_
 INSERT OR IGNORE INTO scout_promotion_aliases(promotion_slug,organization_alias) VALUES
 ('lfa','lfa'),('lfa','legacy fighting alliance'),
 ('cffc','cffc'),('cffc','cage fury fighting championships'),('cffc','cage fury fc'),
-('fury-fc','fury fc'),('fury-fc','fury fighting championship'),('fury-fc','fury fighting championships'),
-('a1-combat','a1 combat'),('a1-combat','urijah faber''s a1 combat'),('a1-combat','urijah faber a1 combat'),
-('tuff-n-uff','tuff-n-uff'),('tuff-n-uff','tuff n uff'),('tuff-n-uff','tuff-n-uff fighting championships'),
+('fury-fc','fury'),('fury-fc','fury fc'),('fury-fc','fury fighting championship'),('fury-fc','fury fighting championships'),
+('a1-combat','urijah'),('a1-combat','a1 combat'),('a1-combat','urijah faber''s a1 combat'),('a1-combat','urijah faber a1 combat'),
+('tuff-n-uff','tuffnuff'),('tuff-n-uff','tuff-n-uff'),('tuff-n-uff','tuff n uff'),('tuff-n-uff','tuff-n-uff fighting championships'),
 ('combate-global','combate global'),('combate-global','combate americas'),
-('cage-warriors','cage warriors'),('cage-warriors','cage warriors fighting championship'),('cage-warriors','cage warriors fc'),
+('cage-warriors','cagewarriors'),('cage-warriors','cage warriors'),('cage-warriors','cage warriors fighting championship'),('cage-warriors','cage warriors fc'),
 ('oktagon','oktagon'),('oktagon','oktagon mma'),
 ('ksw','ksw'),('ksw','konfrontacja sztuk walki'),
 ('ares','ares'),('ares','ares fc'),('ares','ares fighting championship'),
@@ -62,9 +62,9 @@ INSERT OR IGNORE INTO scout_promotion_aliases(promotion_slug,organization_alias)
 ('shooto','shooto'),('shooto','professional shooto'),('shooto','shooto japan'),
 ('deep','deep'),('deep','deep impact'),
 ('road-fc','road fc'),('road-fc','road fighting championship'),
-('black-combat','black combat'),('black-combat','blackcombat'),
+('black-combat','black'),('black-combat','black combat'),('black-combat','blackcombat'),
 ('grachan','grachan'),
-('brave-cf','brave cf'),('brave-cf','brave combat federation');
+('brave-cf','brave'),('brave-cf','brave cf'),('brave-cf','brave combat federation');
 
 -- One rich, organization-agnostic dossier row per fighter per source snapshot.
 CREATE TABLE IF NOT EXISTS scout_global_profiles (
