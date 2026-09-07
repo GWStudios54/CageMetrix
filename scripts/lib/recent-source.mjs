@@ -1,10 +1,39 @@
 import { JSDOM } from 'jsdom';
-import { slugify, displayName } from './csv.mjs';
+import { displayName } from './csv.mjs';
 
 export const normalizeName = value => String(value).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ł/g,'l').replace(/đ/g,'d').replace(/ø/g,'o').replace(/[^a-z0-9]/g, '');
 const aliases = new Map([['celiu','liuce'], ['cameronnelson','camnelson'], ['josemontanha','josevitor'], ['levirodriguesjr','levirodrigues'], ['zacharyreese','zachreese'], ['josemigueldelgado','josedelgado'], ['ezraelliott','ezraelliot'], ['michaelvenompage','michaelpage']]);
 export const nameKey = name => aliases.get(normalizeName(name)) || normalizeName(name);
 const text = el => el?.textContent.replace(/\s+/g, ' ').trim() || '';
+const eventDate = url => String(url || '').match(/(20\d{2}-\d{2}-\d{2})(?:[/?#]|$)/)?.[1] || null;
+const eventNameFromText = value => {
+  const raw=String(value||'').replace(/\s+/g,' ').trim();
+  return raw.match(/(UFC\s+(?:\d{3,4}|Fight Night)\s*:[\s\S]*?)(?=MMA\b|$)/i)?.[1]?.trim() || raw.match(/(UFC\s+(?:\d{3,4}|Fight Night)\b)/i)?.[1]?.trim() || '';
+};
+
+export function recentResultEvents(html, cutoff='0000-00-00') {
+  const dom=new JSDOM(html,{url:'https://www.ufcalendar.com/results'}),doc=dom.window.document,candidates=[];
+  const structured=[...doc.querySelectorAll('script[type="application/ld+json"]')].flatMap(el=>{try{return [JSON.parse(el.textContent)]}catch{return []}}).find(x=>x?.['@type']==='ItemList'&&Array.isArray(x.itemListElement));
+  if(structured){
+    for(const item of structured.itemListElement){
+      const url=item?.url?new URL(item.url,'https://www.ufcalendar.com').href:null,name=String(item?.name||'').trim();
+      if(url&&name)candidates.push({url,name});
+    }
+  }
+  if(!candidates.length){
+    for(const anchor of doc.querySelectorAll('a[href]')){
+      let url;try{url=new URL(anchor.getAttribute('href'),'https://www.ufcalendar.com').href}catch{continue}
+      if(!url.includes('/events/')||!eventDate(url))continue;
+      const name=eventNameFromText(text(anchor));
+      if(name)candidates.push({url,name});
+    }
+  }
+  dom.window.close();
+  const supported=candidates.filter(e=>/^UFC (?:\d|Fight Night)/i.test(e.name)&&eventDate(e.url));
+  if(!supported.length)throw new Error('No recent result archive');
+  const unique=new Map(supported.map(e=>[e.url,e]));
+  return [...unique.values()].filter(e=>eventDate(e.url)>cutoff).sort((a,b)=>eventDate(a.url).localeCompare(eventDate(b.url)));
+}
 
 export function officialBouts(html) {
   const dom = new JSDOM(html);
@@ -36,7 +65,7 @@ export function mirroredStats(html) {
   const values = new Map(grids.slice(1).map(el => [text(el.children[1]), [text(el.children[0]), text(el.children[2])]]));
   const required = ['Knockdowns', 'Significant strikes', 'Total strikes', 'Takedowns', 'Submission attempts', 'Control time'];
   for (const label of required) if (!values.has(label)) throw new Error(`Missing source statistic: ${label}`);
-  const schema = [...doc.querySelectorAll('script[type="application/ld+json"]')].map(el => JSON.parse(el.textContent)).find(x => x['@type'] === 'SportsEvent');
+  const schema = [...doc.querySelectorAll('script[type="application/ld+json"]')].flatMap(el=>{try{return [JSON.parse(el.textContent)]}catch{return []}}).find(x => x['@type'] === 'SportsEvent');
   dom.window.close();
   return { names, values, winner: schema?.winner?.name };
 }
