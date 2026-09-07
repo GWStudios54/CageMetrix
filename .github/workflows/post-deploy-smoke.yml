@@ -32,11 +32,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p diagnostics
           check_redirect() {
             source="$1"
             expected="$2"
-            headers=$(mktemp)
-            code=$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
+            key=$(echo "$source" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
+            headers="diagnostics/${key}.redirect.headers"
+            code=$(curl --silent --show-error --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/1.0' --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
             location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
             echo "$source -> $code $location"
             test "$code" = "308"
