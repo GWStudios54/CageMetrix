@@ -74,11 +74,33 @@ async function eventItems(slug, year) {
   }
   return out;
 }
+function payloadShape(payload) {
+  const categories = payload?.splits?.categories || payload?.categories || [];
+  return {
+    top_level_keys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0,30) : [],
+    splits_keys: payload?.splits && typeof payload.splits === 'object' ? Object.keys(payload.splits).slice(0,20) : [],
+    category_count: Array.isArray(categories) ? categories.length : null,
+    categories: Array.isArray(categories) ? categories.slice(0,6).map(category => ({
+      name: category?.name ?? category?.displayName ?? null,
+      keys: category && typeof category === 'object' ? Object.keys(category).slice(0,15) : [],
+      stat_count: Array.isArray(category?.stats) ? category.stats.length : null,
+      stats: Array.isArray(category?.stats) ? category.stats.slice(0,20).map(stat => ({
+        name: stat?.name ?? null,
+        abbreviation: stat?.abbreviation ?? null,
+        displayName: stat?.displayName ?? null,
+        value: stat?.value ?? null,
+        displayValue: stat?.displayValue ?? null,
+        keys: stat && typeof stat === 'object' ? Object.keys(stat).slice(0,12) : []
+      })) : []
+    })) : []
+  };
+}
 async function stats(slug,eventId,competitionId,athleteId) {
   const key=`${slug}|${eventId}|${competitionId}|${athleteId}`;
   if (!statsCache.has(key)) statsCache.set(key, (async()=>{
     const url=`${ESPN_MMA_CORE}/leagues/${encodeURIComponent(slug)}/events/${encodeURIComponent(eventId)}/competitions/${encodeURIComponent(competitionId)}/competitors/${encodeURIComponent(athleteId)}/statistics`;
-    return { url, parsed: parseEspnTechnicalStats(await fetchJson(url)) };
+    const payload=await fetchJson(url);
+    return { url, parsed: parseEspnTechnicalStats(payload), shape: payloadShape(payload) };
   })());
   return statsCache.get(key);
 }
@@ -121,7 +143,8 @@ const report={
   identity_matches:0,
   complete_stat_matches:0,
   leagues_with_complete_stats:new Set(),
-  samples:[]
+  samples:[],
+  diagnostics:[]
 };
 
 for (const group of ordered) {
@@ -159,6 +182,16 @@ for (const group of ordered) {
         espn_fighter:found.names[fighterIndex],
         stats:lines[fighterIndex].parsed,
         source_url:lines[fighterIndex].url
+      });
+    } else if (report.diagnostics.length < 6) {
+      report.diagnostics.push({
+        league:group.slug,
+        date:targetDate,
+        fighter:target.fighter_name,
+        opponent:target.opponent_name,
+        event_id:espnEventId(found.event),
+        competition_id:found.cid,
+        lines:lines.map((line,index)=>({athlete:found.names[index],url:line.url,parsed:line.parsed,shape:line.shape}))
       });
     }
   }
