@@ -6,12 +6,14 @@ const read=path=>fs.readFileSync(path,'utf8');
 
 test('one canonical top menu is used across rendered pages',()=>{
   const nav=read('src/navigation.ts');
+  const session=read('src/admin-session.ts');
   const worker=read('src/worker.ts');
   for(const href of ['/predictions.html','/#rankings','/forum','/watchlist','/community'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
   assert.ok(nav.includes('href=\"/admin\"'),'admin link missing');
-  assert.ok(nav.includes("a.role='admin'"),'admin tab must be role-gated');
+  assert.ok(nav.includes('adminAccount(request,env.DB)'),'navigation must ask the shared session layer for admin status');
+  assert.ok(session.includes("a.role='admin'"),'shared session lookup must role-gate the admin tab');
   assert.ok(worker.includes("import {normalizeNavigation} from './navigation.ts'"));
-  assert.ok(worker.includes("return page(base.fetch(routed,env,context),request,env)"),'static HTML fallback must use global nav');
+  assert.ok(worker.includes('return renderPage(base.fetch(routed,env,context),request,env)'),'static HTML fallback must use global nav');
   for(const route of ['homePage','predictionsPage','adminDashboardPage','watchlistPage','communityHomePage','forumHomePage','communityProfilePage','enhanceFighterFollow','enhanceFightCommunity'])assert.ok(worker.includes(route),`missing routed page ${route}`);
 });
 
