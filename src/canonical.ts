@@ -5,10 +5,12 @@ export function canonicalRedirect(request:Request){
   const legacy=LEGACY_HOSTS.has(host);
   const nonCanonicalNewHost=host===WWW_CANONICAL_HOST;
   const insecureCanonical=host===CANONICAL_HOST&&url.protocol==='http:';
-  if(!legacy&&!nonCanonicalNewHost&&!insecureCanonical)return null;
+  const duplicateHome=host===CANONICAL_HOST&&url.pathname==='/index.html';
+  if(!legacy&&!nonCanonicalNewHost&&!insecureCanonical&&!duplicateHome)return null;
   url.protocol='https:';
   url.hostname=CANONICAL_HOST;
   url.port='';
+  if(url.pathname==='/index.html')url.pathname='/';
   return new Response(null,{status:308,headers:{
     location:url.toString(),
     'cache-control':'public, max-age=31536000, immutable'
