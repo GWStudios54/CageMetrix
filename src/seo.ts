@@ -38,10 +38,10 @@ export async function enhanceFighterPage(response:Response,env:Env,slug:string){
   const canonical=`${SITE}/fighters/${encodeURIComponent(slug)}`;
   const schema={'@context':'https://schema.org','@type':'Person',name:fighter.name,url:canonical,jobTitle:'Mixed Martial Artist',description,mainEntityOfPage:canonical,additionalProperty:score?[{'@type':'PropertyValue',name:'MMA Scouts Rating',value:score},{'@type':'PropertyValue',name:'Weight class',value:division}]:[{'@type':'PropertyValue',name:'Weight class',value:division}]};
   const crumbs={'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:BRAND_NAME,item:`${SITE}/`},{'@type':'ListItem',position:2,name:'MMA Rankings',item:`${SITE}/#rankings`},{'@type':'ListItem',position:3,name:fighter.name,item:canonical}]};
-  return new HTMLRewriter()
+  const transformed=new HTMLRewriter()
     .on('title',{element(el){el.setInnerContent(title);}})
     .on('meta[name="description"]',{element(el){el.setAttribute('content',description);}})
-    .on('link[rel="canonical"]',{element(el){el.setAttribute('href',canonical);}})
+    .on('link[rel="canonical"]',{element(el){el.remove();}})
     .on('meta[property="og:title"]',{element(el){el.setAttribute('content',title);}})
     .on('meta[property="og:description"]',{element(el){el.setAttribute('content',description);}})
     .on('meta[property="og:url"]',{element(el){el.setAttribute('content',canonical);}})
@@ -55,8 +55,11 @@ export async function enhanceFighterPage(response:Response,env:Env,slug:string){
     .on('#fighter-cmr',{element(el){el.setInnerContent(score||'—');}})
     .on('#fighter-rank',{element(el){el.setInnerContent(score?'Current opponent-adjusted Scout Rating':'Rating pending');}})
     .on('script[type="application/ld+json"]',{element(el){el.remove();}})
-    .on('head',{element(el){el.append(`<meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="${BRAND_NAME}"><meta property="og:image" content="${SITE}/og.png"><meta name="twitter:image" content="${SITE}/og.png"><script type="application/ld+json">${jsonLd(schema)}</script><script type="application/ld+json">${jsonLd(crumbs)}</script>`,{html:true});}})
+    .on('head',{element(el){el.append(`<link rel="canonical" href="${canonical}"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:site_name" content="${BRAND_NAME}"><meta property="og:url" content="${canonical}"><meta property="og:image" content="${SITE}/og.png"><meta name="twitter:image" content="${SITE}/og.png"><script type="application/ld+json">${jsonLd(schema)}</script><script type="application/ld+json">${jsonLd(crumbs)}</script>`,{html:true});}})
     .transform(response);
+  const out=new Response(transformed.body,transformed);
+  out.headers.set('Link',`<${canonical}>; rel="canonical"`);
+  return out;
 }
 
 export async function enhanceFightPage(response:Response,env:Env,id:string){
