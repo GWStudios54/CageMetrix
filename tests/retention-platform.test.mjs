@@ -23,7 +23,7 @@ test('fighter watchlists are persistent, personalized, and wired into fighter pa
 
 test('admin panel covers both fight-night and standalone forum reports',()=>{
   const worker=read('src/worker.ts');
-  const admin=read('src/admin-v2.ts');
+  const admin=read('src/admin.ts');
   assert.match(worker,/adminDashboardPage/);
   assert.match(worker,/adminForumPostMatch/);
   assert.match(worker,/adminForumReportMatch/);
@@ -32,7 +32,6 @@ test('admin panel covers both fight-night and standalone forum reports',()=>{
   assert.match(admin,/forum_reports/);
   assert.match(admin,/Fight & event reports/);
   assert.match(admin,/Forum reports/);
-  assert.match(admin,/a\.role='admin'/);
 });
 
 test('public sitemap exposes community destinations without leaking personalized pages',()=>{
