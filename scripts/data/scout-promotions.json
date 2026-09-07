@@ -1,0 +1,24 @@
+[
+  {"slug":"lfa","name":"Legacy Fighting Alliance","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://www.lfa.com/","aliases":["lfa","legacy fighting alliance"]},
+  {"slug":"cffc","name":"Cage Fury Fighting Championships","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://cffc.tv/","aliases":["cffc","cage fury fighting championships","cage fury fc"]},
+  {"slug":"fury-fc","name":"Fury Fighting Championship","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://www.furyfc.tv/","aliases":["fury fc","fury fighting championship","fury fighting championships"]},
+  {"slug":"a1-combat","name":"Urijah Faber's A1 Combat","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://a1combat.com/","aliases":["a1 combat","urijah faber's a1 combat","urijah faber a1 combat"]},
+  {"slug":"tuff-n-uff","name":"Tuff-N-Uff","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://tuffnuff.com/","aliases":["tuff-n-uff","tuff n uff","tuff-n-uff fighting championships"]},
+  {"slug":"combate-global","name":"Combate Global","region":"United States","country":"United States","scope":"regional_international","official_url":"https://combateglobal.com/","aliases":["combate global","combate americas"]},
+
+  {"slug":"cage-warriors","name":"Cage Warriors","region":"Europe","country":"United Kingdom / Ireland","scope":"regional_feeder","official_url":"https://cagewarriors.com/","aliases":["cage warriors","cage warriors fighting championship","cage warriors fc"]},
+  {"slug":"oktagon","name":"OKTAGON MMA","region":"Europe","country":"Czech Republic / Germany","scope":"major_regional","official_url":"https://oktagonmma.com/","aliases":["oktagon","oktagon mma"]},
+  {"slug":"ksw","name":"KSW","region":"Europe","country":"Poland","scope":"major_regional","official_url":"https://www.kswmma.com/","aliases":["ksw","konfrontacja sztuk walki"]},
+  {"slug":"ares","name":"ARES Fighting Championship","region":"Europe","country":"France","scope":"regional_feeder","official_url":"https://www.aresfighting.com/","aliases":["ares","ares fc","ares fighting championship"]},
+  {"slug":"fnc","name":"Fight Nation Championship","region":"Europe","country":"Croatia","scope":"regional_feeder","official_url":"https://www.fnc.hr/","aliases":["fnc","fight nation championship"]},
+  {"slug":"aca","name":"Absolute Championship Akhmat","region":"Europe","country":"Russia","scope":"major_regional","official_url":"https://www.aca-mma.com/","aliases":["aca","absolute championship akhmat","absolute championship berkut","acb"]},
+
+  {"slug":"rizin","name":"RIZIN Fighting Federation","region":"Asia","country":"Japan","scope":"major_regional","official_url":"https://www.rizin.tv/","aliases":["rizin","rizin fighting federation"]},
+  {"slug":"pancrase","name":"PANCRASE","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":"https://www.pancrase.co.jp/","aliases":["pancrase"]},
+  {"slug":"shooto","name":"Professional Shooto","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":"https://www.shooto-mma.com/","aliases":["shooto","professional shooto","shooto japan"]},
+  {"slug":"deep","name":"DEEP","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":"https://www.deep2001.com/","aliases":["deep","deep impact"]},
+  {"slug":"road-fc","name":"ROAD FC","region":"Asia","country":"South Korea","scope":"regional_feeder","official_url":"https://www.roadfc.com/","aliases":["road fc","road fighting championship"]},
+  {"slug":"black-combat","name":"BLACK COMBAT","region":"Asia","country":"South Korea","scope":"regional_feeder","official_url":"https://blackcombat-official.com/","aliases":["black combat","blackcombat"]},
+  {"slug":"grachan","name":"GRACHAN","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":null,"aliases":["grachan"]},
+  {"slug":"brave-cf","name":"BRAVE Combat Federation","region":"Asia","country":"Bahrain","scope":"international_feeder","official_url":"https://www.bravecf.com/","aliases":["brave cf","brave combat federation"]}
+]
