@@ -48,6 +48,7 @@
   function afterAuth(){refreshAccountUI();window.dispatchEvent(new CustomEvent('cm-auth-changed',{detail:{account:me}}));}
 
   async function initEvent(root){
+    const heading=$('.event-seo .section-heading');if(heading)heading.before(root);
     const slug=root.dataset.cmEvent;let payload;
     async function load(){try{payload=normalizeEventPayload(await api(`/api/community/events/${encodeURIComponent(slug)}`));me=payload.account||me||false;refreshAccountUI();render()}catch(ex){$('[data-cm-event-score]',root).innerHTML=`<div class="cm-empty">${escText(ex.message)}</div>`}}
     function render(){
