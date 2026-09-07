@@ -3,6 +3,13 @@ on:
   schedule:
     - cron: '30 8 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sync-recent.mjs'
+      - 'scripts/lib/recent-source.mjs'
+      - 'tests/recent-results.test.mjs'
+      - '.github/workflows/refresh-data.yml'
 concurrency:
   group: cagemetrix-production
   cancel-in-progress: false
