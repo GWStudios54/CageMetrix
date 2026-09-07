@@ -11,7 +11,10 @@ function publicBrandText(value:string){
   return value.replace(/CageMetrix™/g,BRAND_NAME).replace(/CageMetrix/g,BRAND_NAME).replace(/CAGEMETRIX/g,'MMA SCOUTS');
 }
 function publicBrandUrl(value:string){
-  return value.replace(/^https?:\/\/(?:www\.)?cagemetrix\.com/i,SITE_ORIGIN).replace(/^https?:\/\/www\.mmascouts\.com/i,SITE_ORIGIN);
+  return value
+    .replace(/^https?:\/\/(?:www\.)?cagemetrix\.com/i,SITE_ORIGIN)
+    .replace(/^https?:\/\/www\.mmascouts\.com/i,SITE_ORIGIN)
+    .replace(/\/og\.png$/i,'/og.svg');
 }
 
 export async function normalizeNavigation(response:Response,request:Request,env:Env){
