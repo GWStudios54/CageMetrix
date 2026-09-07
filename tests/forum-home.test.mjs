@@ -23,12 +23,16 @@ test('fight and event pages send discussion to the forum instead of embedding it
   assert.match(source,/hidden/);
 });
 
-test('homepage is a fight-week dashboard',()=>{
-  const source=fs.readFileSync('src/static-seo.ts','utf8'),client=fs.readFileSync('public/home-dashboard.js','utf8');
-  assert.match(source,/NEXT CARD/);
-  assert.match(source,/THE CROWD DISAGREES/);
-  assert.match(source,/Active discussions/);
-  assert.match(source,/community picks/);
-  assert.match(client,/beat_model/);
-  assert.match(client,/Finish your card/);
+test('homepage is a research-engine dashboard instead of a community dashboard',()=>{
+  const source=fs.readFileSync('src/static-seo.ts','utf8'),html=fs.readFileSync('public/index.html','utf8'),client=fs.readFileSync('public/home.js','utf8');
+  assert.match(source,/MATCHUP SCOUT/);
+  assert.match(source,/Who has the stronger strength of schedule/);
+  assert.match(html,/Ask MMA Scouts/);
+  assert.match(html,/Fighter Reports/);
+  assert.match(html,/Prospect Scout/);
+  assert.match(html,/SCOUT RANKINGS · FIGHTER DATABASE/);
+  assert.match(client,/\/api\/fighters\?q=/);
+  assert.match(client,/\/scout\?q=/);
+  assert.doesNotMatch(source,/THE CROWD DISAGREES/);
+  assert.doesNotMatch(source,/Active discussions/);
 });
