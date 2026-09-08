@@ -2,6 +2,7 @@ import worker from './worker.ts';
 import {canonicalRedirect} from './canonical.ts';
 import {normalizeNavigation} from './navigation.ts';
 import {globalFighterApi,globalFighterPage,globalFightersApi,promotionApi,promotionPage,promotionsApi,promotionsPage} from './global-scout.ts';
+import {eventsApi,eventsPage} from './events.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -13,6 +14,7 @@ export default {
     const redirected=canonicalRedirect(request);if(redirected)return redirected;
     const url=new URL(request.url),path=url.pathname;
 
+    if(path==='/api/events')return eventsApi(request,env);
     if(path==='/api/promotions')return promotionsApi(request,env);
     const promotionApiMatch=path.match(/^\/api\/promotions\/([a-z0-9-]{1,100})\/?$/);
     if(promotionApiMatch)return promotionApi(request,env,promotionApiMatch[1]);
@@ -20,6 +22,10 @@ export default {
     const fighterApiMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(fighterApiMatch)return globalFighterApi(request,env,fighterApiMatch[1]);
 
+    if(request.method==='GET'&&(path==='/events'||path==='/events/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/events',request.url),308);
+      return page(eventsPage(request,env),request,env);
+    }
     if(request.method==='GET'&&(path==='/promotions'||path==='/promotions/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/promotions',request.url),308);
       return page(promotionsPage(request,env),request,env);
