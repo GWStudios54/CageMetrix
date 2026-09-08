@@ -8,6 +8,7 @@ import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
+import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -46,6 +47,8 @@ export default {
     const promotionApiMatch=path.match(/^\/api\/promotions\/([a-z0-9-]{1,100})\/?$/);
     if(promotionApiMatch)return promotionApi(request,env,promotionApiMatch[1]);
     if(path==='/api/scout/fighters')return globalFightersApi(request,env);
+    const fighterIntelMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/intel\/?$/);
+    if(fighterIntelMatch)return fighterIntelApi(request,env,fighterIntelMatch[1]);
     const fighterApiMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(fighterApiMatch)return globalFighterApi(request,env,fighterApiMatch[1]);
     if(path==='/api/prospects')return scoutScoresApi(request,env);
@@ -103,6 +106,7 @@ export default {
       let dossier=await globalFighterPage(request,env,fighterPageMatch[1]);
       dossier=await enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterScoutScore(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
       return page(dossier,request,env);
     }
 
