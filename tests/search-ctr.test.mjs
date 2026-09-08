@@ -19,7 +19,7 @@ test('legacy CageMetrix and alternate MMA Scouts hosts permanently collapse to h
   assert.match(canonical,/status:308/);
   assert.match(canonical,/url\.hostname=CANONICAL_HOST/);
   assert.match(entry,/canonicalRedirect\(request\)/);
-  assert.match(entry,/return worker\.fetch\(request,env,context\)/);
+  assert.match(entry,/stripRetiredPersonalUi\(await worker\.fetch\(request,env,context\)\)/);
   assert.match(worker,/canonicalRedirect\(request\)/);
   assert.match(config,/"main": "src\/entry\.ts"/);
   for(const host of ['mmascouts.com','www.mmascouts.com','cagemetrix.com','www.cagemetrix.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);

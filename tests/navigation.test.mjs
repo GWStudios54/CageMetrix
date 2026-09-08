@@ -8,12 +8,10 @@ test('one canonical scouting-first top menu is used across rendered pages',()=>{
   const nav=read('src/navigation.ts');
   const session=read('src/admin-session.ts');
   const worker=read('src/worker.ts');
-  for(const href of ['/scout','/#rankings','/promotions','/events','/watchlist'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
+  for(const href of ['/scout','/#rankings','/promotions','/events'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
   assert.ok(nav.includes('Find%20the%20best%20regional%20MMA%20prospects'),'prospect scouting link missing');
   assert.ok(nav.includes('href=\"/admin\"'),'admin link missing');
-  assert.ok(!nav.includes('href=\"/predictions.html\"'),'predictions should not be primary navigation');
-  assert.ok(!nav.includes('href=\"/community\"'),'community should not be primary navigation');
-  assert.ok(!nav.includes('href=\"/forum\"'),'forum should not be primary navigation');
+  for(const retired of ['/predictions.html','/community','/forum','/watchlist'])assert.ok(!nav.includes(`href=\"${retired}\"`),`${retired} should not be primary navigation`);
   assert.ok(nav.includes('adminAccount(request,env.DB)'),'navigation must ask the shared session layer for admin status');
   assert.ok(session.includes("a.role='admin'"),'shared session lookup must role-gate the admin tab');
   assert.ok(worker.includes("import {normalizeNavigation} from './navigation.ts'"));

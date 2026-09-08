@@ -14,7 +14,7 @@ test('runtime responsibilities stay in their owning modules',()=>{
 
   assert.match(config,/"main": "src\/entry\.ts"/);
   assert.match(entry,/import worker from '.\/worker\.ts'/);
-  assert.match(entry,/return worker\.fetch\(request,env,context\)/);
+  assert.match(entry,/stripRetiredPersonalUi\(await worker\.fetch\(request,env,context\)\)/);
   assert.match(entry,/return worker\.scheduled\(controller,env,context\)/);
   assert.match(entry,/canonicalRedirect\(request\)/);
   assert.match(worker,/canonicalRedirect\(request\)/);
