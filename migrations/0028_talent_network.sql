@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS fighter_management_history (
   verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   notes TEXT,
-  CHECK (agency_id IS NOT NULL OR manager_name IS NOT NULL)
+  CHECK (agency_id IS NOT NULL OR manager_name IS NOT NULL),
+  CHECK (source_url IS NOT NULL OR source_type='verified_profile')
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fighter_management_one_current
   ON fighter_management_history(source_key,source_fighter_id)
@@ -70,7 +71,12 @@ CREATE TABLE IF NOT EXISTS fighter_opportunity_status (
   confidence TEXT NOT NULL DEFAULT 'C' CHECK (confidence IN ('A','B','C')),
   verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY(source_key,source_fighter_id)
+  PRIMARY KEY(source_key,source_fighter_id),
+  CHECK (
+    (management_status='unknown' AND contract_status='unknown' AND open_to_fights='unknown' AND open_to_management='unknown' AND open_to_team='unknown')
+    OR source_url IS NOT NULL
+    OR source_type='verified_profile'
+  )
 );
 CREATE INDEX IF NOT EXISTS idx_fighter_opportunity_management
   ON fighter_opportunity_status(management_status,verified_at DESC);
