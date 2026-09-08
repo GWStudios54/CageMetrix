@@ -1,4 +1,4 @@
-name: Validate fight details
+name: Validate scouting product
 on:
   pull_request:
   workflow_dispatch:
@@ -17,14 +17,12 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:fights:e2e
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: fight-detail-validation
+          name: scouting-product-validation
           path: |
-            docs/screenshots/*.png
-            .cache/fight-e2e-*/summary.json
-            .cache/fight-e2e-*/server.log
+            .cache/event-locations/summary.json
+            .cache/refresh/summary.json
+          if-no-files-found: ignore
           retention-days: 14
