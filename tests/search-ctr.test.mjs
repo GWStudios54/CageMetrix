@@ -7,6 +7,7 @@ const read=path=>fs.readFileSync(path,'utf8');
 test('legacy CageMetrix and alternate MMA Scouts hosts permanently collapse to https non-www before routing',()=>{
   const brand=read('src/brand.ts');
   const canonical=read('src/canonical.ts');
+  const entry=read('src/entry.ts');
   const worker=read('src/worker.ts');
   const config=read('wrangler.jsonc');
   assert.match(brand,/CANONICAL_HOST='mmascouts\.com'/);
@@ -17,8 +18,10 @@ test('legacy CageMetrix and alternate MMA Scouts hosts permanently collapse to h
   assert.match(canonical,/url\.pathname==='\/index\.html'/);
   assert.match(canonical,/status:308/);
   assert.match(canonical,/url\.hostname=CANONICAL_HOST/);
+  assert.match(entry,/canonicalRedirect\(request\)/);
+  assert.match(entry,/return worker\.fetch\(request,env,context\)/);
   assert.match(worker,/canonicalRedirect\(request\)/);
-  assert.match(config,/"main": "src\/worker\.ts"/);
+  assert.match(config,/"main": "src\/entry\.ts"/);
   for(const host of ['mmascouts.com','www.mmascouts.com','cagemetrix.com','www.cagemetrix.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);
 });
 
