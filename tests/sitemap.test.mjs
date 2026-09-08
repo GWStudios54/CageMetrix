@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sitemapXml } from '../scripts/lib/sitemap.mjs';
 
-test('sitemap publishes canonical MMA Scouts static, event, fighter and predicted-fight URLs', () => {
+test('sitemap publishes canonical MMA Scouts scouting, event and fighter URLs', () => {
   const xml = sitemapXml({
     fighters: [
       { slug: 'alpha-fighter', last_fight_date: '2026-08-29' },
@@ -13,22 +13,19 @@ test('sitemap publishes canonical MMA Scouts static, event, fighter and predicte
       { slug: 'ufc-example-event', event_date: '2026-09-10' }
     ],
     fights: [
-      { id: 42, updated_at: '2026-09-03 13:00:00' },
-      { id: 77, event_date: '2026-09-10' }
+      { id: 42, updated_at: '2026-09-03 13:00:00' }
     ]
   });
 
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/predictions\.html<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/validation\.html<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/community<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/forum<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/scout<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events\/ufc-example-event<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/fighters\/alpha-fighter<\/loc>/);
   assert.match(xml, /<lastmod>2026-08-29<\/lastmod>/);
   assert.match(xml, /fighters\/a%26b/);
-  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/fights\/42<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/fights\/77<\/loc>/);
+  assert.doesNotMatch(xml, /\/predictions|\/validation|\/community|\/forum|\/fights\//);
   assert.doesNotMatch(xml, /cagemetrix\.com/);
   assert.doesNotMatch(xml, /\/api\//);
   assert.doesNotMatch(xml, /\/admin|\/watchlist/);

@@ -1,8 +1,5 @@
-name: Validate Predictor 0.1 production
+name: Archived Predictor 0.1 production validation
 on:
-  push:
-    branches:
-      - model/predictor-v01-production
   workflow_dispatch:
 jobs:
   validate:
@@ -16,25 +13,21 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
-      - name: Validate code and tests
+      - name: Validate archived code and tests
         run: |
           npm run typecheck
           npm test
           npm run build
       - name: Prepare current data without touching D1
         run: node scripts/refresh-data.mjs --dry-run
-      - name: Re-run leakage-safe Predictor 0.1 benchmark
+      - name: Re-run archived Predictor 0.1 benchmark
         run: npm run predictor:validate
-      - name: Generate Predictor 0.1 forecasts without touching D1
+      - name: Generate archived Predictor 0.1 forecasts without touching D1
         run: node scripts/sync-forecasts.mjs --dry-run
-      - name: Verify model handoff SQL
-        run: |
-          grep -q "CageMetrix Elo Baseline" .cache/forecasts/forecasts.sql
-          grep -q "Frozen Predictor 0.1" .cache/forecasts/forecasts.sql
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: predictor-v01-production-audit
+          name: archived-predictor-v01-production-audit
           path: |
             .cache/refresh/summary.json
             .cache/predictor-validation.json
