@@ -5,15 +5,21 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(path,'utf8');
 
 test('runtime responsibilities stay in their owning modules',()=>{
+  const entry=read('src/entry.ts');
   const worker=read('src/worker.ts');
   const nav=read('src/navigation.ts');
   const seo=read('src/seo.ts');
   const sitemap=read('src/public-sitemap.ts');
   const config=read('wrangler.jsonc');
 
-  assert.match(config,/"main": "src\/worker\.ts"/);
+  assert.match(config,/"main": "src\/entry\.ts"/);
+  assert.match(entry,/import worker from '.\/worker\.ts'/);
+  assert.match(entry,/return worker\.fetch\(request,env,context\)/);
+  assert.match(entry,/return worker\.scheduled\(controller,env,context\)/);
+  assert.match(entry,/canonicalRedirect\(request\)/);
   assert.match(worker,/canonicalRedirect\(request\)/);
   assert.match(worker,/enhanceFightPage/);
+  assert.doesNotMatch(entry,/enhanceFightPage|predictorForecasts|createForumPost/);
   assert.doesNotMatch(nav,/canonicalRedirect|enhanceFightPage|search-ctr/);
   assert.doesNotMatch(sitemap,/from ['"]\.\/seo\.ts['"]/);
   assert.doesNotMatch(seo,/export async function sitemap|export async function eventPage/);
