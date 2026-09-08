@@ -4,7 +4,7 @@ type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 type Row=Record<string,any>;
 const SITE=SITE_ORIGIN;
 const GLOBAL_MODEL='global-1.0.0';
-const xml=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&apos;'}[c]!));
+const xml=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!));
 const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).slice(0,10):null;
 
 type SitemapEntry=[loc:string,lastmod:string|null,changefreq:string,priority:string];
