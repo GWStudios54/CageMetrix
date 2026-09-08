@@ -133,6 +133,19 @@ jobs:
           print('Prepared global Scout model:', json.dumps(scout, indent=2))
           PY
 
+      - name: Prepare D1-safe import
+        shell: bash
+        run: |
+          set -euo pipefail
+          D1_SQL_DIR=".cache/mma-master/d1-sql"
+          rm -rf "$D1_SQL_DIR"
+          python scripts/prepare_d1_import.py --input .cache/mma-master/sql --output "$D1_SQL_DIR"
+          cat .cache/mma-master/d1-import-plan.json
+          MAX_PREPARED="$(jq -r '.max_prepared_statement_bytes' .cache/mma-master/d1-import-plan.json)"
+          if [ "$MAX_PREPARED" -gt 64000 ]; then
+            echo "D1 preflight emitted an oversized statement: ${MAX_PREPARED} bytes" >&2; exit 1
+          fi
+
       - name: Apply D1 schema
         if: github.event_name != 'pull_request'
         run: npx wrangler d1 migrations apply cagemetrix --remote
@@ -153,13 +166,7 @@ jobs:
             echo "Snapshot ${SNAPSHOT_ID} and global Scout layer are already complete; nothing to write."
           else
             D1_SQL_DIR=".cache/mma-master/d1-sql"
-            rm -rf "$D1_SQL_DIR"
-            python scripts/prepare_d1_import.py --input .cache/mma-master/sql --output "$D1_SQL_DIR"
-            cat .cache/mma-master/d1-import-plan.json
-            MAX_PREPARED="$(jq -r '.max_prepared_statement_bytes' .cache/mma-master/d1-import-plan.json)"
-            if [ "$MAX_PREPARED" -gt 64000 ]; then
-              echo "D1 preflight emitted an oversized statement: ${MAX_PREPARED} bytes" >&2; exit 1
-            fi
+            test -d "$D1_SQL_DIR"
             for file in "$D1_SQL_DIR"/*.sql; do
               echo "Applying $(basename "$file")"
               npx wrangler d1 execute cagemetrix --remote --file "$file"
