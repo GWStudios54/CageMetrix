@@ -9,6 +9,7 @@ import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,manag
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
+import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -42,6 +43,8 @@ export default {
 
     if(path==='/api/forecasts'||path.startsWith('/api/community')||path.startsWith('/api/forum')||path.startsWith('/api/fans')||/^\/api\/fights\/[1-9]\d*\/(fans|fan-prediction|fan-scorecard)$/.test(path))return retiredJson();
 
+    if(path==='/api/profile-removal')return profileRemovalApi(request,env);
+    if(path==='/api/admin/privacy/removals'||path==='/api/admin/privacy/removals/')return profileRemovalAdminApi(request,env);
     if(path==='/api/events')return eventsApi(request,env);
     if(path==='/api/promotions')return promotionsApi(request,env);
     const promotionApiMatch=path.match(/^\/api\/promotions\/([a-z0-9-]{1,100})\/?$/);
@@ -63,6 +66,18 @@ export default {
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
 
+    if(request.method==='GET'&&(path==='/data-policy'||path==='/data-policy/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/data-policy',request.url),308);
+      return page(dataPolicyPage(),request,env);
+    }
+    if(request.method==='GET'&&(path==='/privacy'||path==='/privacy/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/privacy',request.url),308);
+      return page(privacyPage(),request,env);
+    }
+    if(request.method==='GET'&&(path==='/profile-removal'||path==='/profile-removal/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/profile-removal${url.search}`,request.url),308);
+      return page(profileRemovalPage(request),request,env);
+    }
     if(request.method==='GET'&&(path==='/events'||path==='/events/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/events',request.url),308);
       return page(eventsPage(request,env),request,env);
