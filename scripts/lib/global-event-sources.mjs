@@ -3,13 +3,26 @@ import { JSDOM } from 'jsdom';
 export const GLOBAL_EVENT_SOURCES = [
   { slug:'pfl', name:'Professional Fighters League', url:'https://pflmma.com/events', title:/^PFL\b/i },
   { slug:'one', name:'ONE Championship', url:'https://www.onefc.com/events/', liveUrl:'https://live.onefc.com/', title:/^(?:ONE\b|The Inner Circle\b)/i },
-  { slug:'rizin', name:'RIZIN Fighting Federation', url:'https://www.rizin.tv/', title:/RIZIN/i, defaultCountry:'Japan' },
-  { slug:'oktagon', name:'OKTAGON MMA', url:'https://oktagonmma.com/en/events/', title:/^OKTAGON\b/i },
-  { slug:'ksw', name:'KSW', url:'https://www.kswmma.com/en/events', title:/^(?:XTB\s+)?KSW\s+\d+/i },
-  { slug:'cage-warriors', name:'Cage Warriors', url:'https://cagewarriors.com/cage-warriors-events/', title:/^(?:CW\s*\d+|CW\s+unplugged|CW\s+Manchester|Cage Warriors)/i },
   { slug:'lfa', name:'Legacy Fighting Alliance', url:'https://www.lfa.com/events/', title:/^LFA\s+\d+/i },
   { slug:'cffc', name:'Cage Fury Fighting Championships', url:'https://cffc.tv/', title:/^CFFC\s+\d+/i, defaultCountry:'United States', exclude:/\bBJJ\b/i },
-  { slug:'fury-fc', name:'Fury Fighting Championship', url:'https://www.furyfc.tv/events', title:/^FURY\s+(?:FC|AS|CHALLENGER SERIES)\s*\d+/i, defaultCountry:'United States' }
+  { slug:'fury-fc', name:'Fury Fighting Championship', url:'https://www.furyfc.tv/events', title:/^FURY\s+(?:FC|AS|CHALLENGER SERIES)\s*\d+/i, defaultCountry:'United States' },
+  { slug:'a1-combat', name:'A1 Combat', url:'https://a1combat.com/events', title:/^A1\s+Combat(?:\s*:|\s+\d+|\s+Prospect Series)/i, defaultCountry:'United States' },
+  { slug:'tuff-n-uff', name:'Tuff-N-Uff', url:'https://tuffnuff.com/events/', title:/^Tuff-N-Uff\s+\d+/i, defaultCountry:'United States' },
+  { slug:'combate-global', name:'Combate Global', url:'https://combateglobal.com/en/events', title:/^(?:CG\s+20\d{2}|Combate Global\b)/i, defaultCountry:'United States' },
+  { slug:'cage-warriors', name:'Cage Warriors', url:'https://cagewarriors.com/cage-warriors-events/', title:/^(?:CW\s*\d+|CW\s+unplugged|CW\s+Manchester|Cage Warriors)/i },
+  { slug:'oktagon', name:'OKTAGON MMA', url:'https://oktagonmma.com/en/events/', title:/^OKTAGON\b/i },
+  { slug:'ksw', name:'KSW', url:'https://www.kswmma.com/en/events', title:/^(?:XTB\s+)?KSW\s+\d+/i },
+  { slug:'ares', name:'ARES Fighting Championship', url:'https://www.aresfighting.com/events/?filter=upcoming', title:/^ARES\b/i, defaultCountry:'France' },
+  { slug:'fnc', name:'Fight Nation Championship', url:'https://www.fnc.hr/en', title:/^FNC\s+\d+/i, defaultCountry:'Croatia' },
+  { slug:'aca', name:'Absolute Championship Akhmat', url:'https://www.aca-mma.com/en', title:/^ACA\s+\d+/i, defaultCountry:'Russia', simpleLocation:true },
+  { slug:'rizin', name:'RIZIN Fighting Federation', url:'https://www.rizin.tv/', title:/RIZIN/i, defaultCountry:'Japan' },
+  { slug:'pancrase', name:'Pancrase', url:'https://www.pancrase.co.jp/', title:/^PANCRASE(?:\s+BLOOD\.)?\s*\d+/i, defaultCountry:'Japan', detailUrlPattern:/\/tour\/20\d{2}\/pancrase(?:blood)?\d+\/index\.html/i, detailLinkAny:true },
+  { slug:'shooto', name:'Shooto', url:'https://www.shooto-mma.com/schedule/', title:/(?:PROFESSIONAL SHOOTO|プロフェッショナル修斗|修斗公式戦)/i, defaultCountry:'Japan', parser:'shooto' },
+  { slug:'deep', name:'DEEP', url:'https://www.deep2001.com/future/', title:/^DEEP(?:\s+\d+|\s+(?:OSAKA|HAMAMATSU|TOKYO)\s+IMPACT)/i, defaultCountry:'Japan', detailUrlPattern:/\/deep-(?:\d+|osaka-impact|hamamatsu-impact|tokyo-impact)[^/]*\/?$/i },
+  { slug:'road-fc', name:'ROAD FC', url:'https://roadfc.com/main/ticket/ticket.php', title:/^(?:GOOBNE\s+)?ROAD\s+FC\s+\d+/i, defaultCountry:'South Korea' },
+  { slug:'black-combat', name:'Black Combat', url:'https://www.blackcombat-official.com/event.php', title:/^(?:BLACK COMBAT|블랙컵)/i, defaultCountry:'South Korea' },
+  { slug:'grachan', name:'GRACHAN', url:'https://grachan.jp/schedule/plans2026/', title:/^GRACHAN\s*\d+/i, defaultCountry:'Japan', parser:'table' },
+  { slug:'brave-cf', name:'BRAVE Combat Federation', url:'https://www.bravecf.com/events', title:/^BRAVE\s+CF\s+\d+/i }
 ];
 
 const MONTHS = new Map([
@@ -21,7 +34,8 @@ const COUNTRY_ALIASES = new Map([
   ['ksa','Saudi Arabia'],['saudi arabia','Saudi Arabia'],['uae','United Arab Emirates'],['united arab emirates','United Arab Emirates'],
   ['uk','United Kingdom'],['united kingdom','United Kingdom'],['england','United Kingdom'],['scotland','United Kingdom'],['wales','United Kingdom'],
   ['czechy','Czech Republic'],['czech republic','Czech Republic'],['czechia','Czech Republic'],
-  ['france','France'],['italy','Italy'],['ireland','Ireland'],['germany','Germany'],['poland','Poland'],['japan','Japan'],['brazil','Brazil'],['canada','Canada'],['singapore','Singapore'],['thailand','Thailand'],['croatia','Croatia'],['australia','Australia'],['new zealand','New Zealand']
+  ['france','France'],['italy','Italy'],['ireland','Ireland'],['germany','Germany'],['poland','Poland'],['japan','Japan'],['brazil','Brazil'],['canada','Canada'],['singapore','Singapore'],['thailand','Thailand'],['croatia','Croatia'],['australia','Australia'],['new zealand','New Zealand'],
+  ['south korea','South Korea'],['korea','South Korea'],['republic of korea','South Korea'],['russia','Russia'],['tajikistan','Tajikistan']
 ]);
 
 const clean = value => String(value ?? '').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
@@ -41,12 +55,20 @@ export function dateFromText(value, now=new Date()) {
   const text=clean(value);
   let match=text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
   if(match){const out=isoDate(Number(match[1]),Number(match[2]),Number(match[3]));if(validDate(out))return out;}
-  match=text.match(/\b(\d{1,2})[.](\d{1,2})[.](20\d{2})\b/);
+  match=text.match(/(?:^|[^\d])(\d{1,2})\/(\d{1,2})\/(20\d{2})(?!\d)/);
   if(match){const out=isoDate(Number(match[3]),Number(match[2]),Number(match[1]));if(validDate(out))return out;}
+  match=text.match(/(?:^|[^\d])(\d{1,2})[.](\d{1,2})[.](20\d{2})(?!\d)/);
+  if(match){const out=isoDate(Number(match[3]),Number(match[2]),Number(match[1]));if(validDate(out))return out;}
+  match=text.match(/(?:(20\d{2})年\s*)?(\d{1,2})月\s*(\d{1,2})日/);
+  if(match){const month=Number(match[2]),day=Number(match[3]),year=match[1]?Number(match[1]):inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
+  match=text.match(/(20\d{2})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+  if(match){const out=isoDate(Number(match[1]),Number(match[2]),Number(match[3]));if(validDate(out))return out;}
   match=text.match(/\b(January|February|March|April|May|June|July|August|September|Sept|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s*(20\d{2})?\b/i);
   if(match){const month=MONTHS.get(match[1].toLowerCase()),day=Number(match[2]),year=match[3]?Number(match[3]):inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
   match=text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|Sept|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(20\d{2})?\b/i);
   if(match){const month=MONTHS.get(match[2].toLowerCase()),day=Number(match[1]),year=match[3]?Number(match[3]):inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
+  match=text.match(/(?:^|[^\d])(\d{1,2})[.](\d{1,2})(?![.]20\d{2})(?=[^\d]|$)/);
+  if(match){const month=Number(match[1]),day=Number(match[2]),year=inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
   return null;
 }
 
@@ -83,8 +105,13 @@ function countryName(raw) {
 
 export function parseLocation(value, defaultCountry=null) {
   let text=clean(value).replace(/\s+[–—-]\s+/g,', ');
-  text=text.replace(/^(?:venue|location)\s*:?\s*/i,'');
+  text=text.replace(/^[●◇◆■・]?\s*(?:venue|location|会場|場所|開催地)\s*[:：|]?\s*/i,'');
+  text=text.replace(/\s*(?:主催|Organizer)\s*[:：].*$/i,'');
   if(!text)return {venue:null,city:null,region:null,country:defaultCountry};
+  if(text.includes('・')){
+    const [place,...rest]=text.split('・').map(clean).filter(Boolean);
+    if(rest.length)return {venue:rest.join('・'),city:place||null,region:null,country:defaultCountry};
+  }
   const parts=text.split(',').map(clean).filter(Boolean);
   let city=null,region=null,country=defaultCountry;
   if(parts.length>=2) {
@@ -96,24 +123,39 @@ export function parseLocation(value, defaultCountry=null) {
   return {venue:text,city,region,country};
 }
 
-function probableVenue(line) {
+function probableVenue(line,simple=false) {
   const text=clean(line);
-  if(!text || dateFromText(text) || /\b(vs\.?|versus|buy|ticket|watch|more info|fightcard|results|schedule|prelims|main card|presented by|stream|live\/ppv)\b/i.test(text))return false;
+  if(!text || dateFromText(text) || /\b(vs\.?|versus|buy|ticket|watch|more info|fightcard|results|schedule|prelims|main card|presented by|stream|live\/ppv|fighter|champion)\b/i.test(text))return false;
   if(text.length<3 || text.length>150)return false;
-  return /\b(arena|stadium|center|centre|casino|hotel|hall|pavilion|coliseum|dome|garden|park|bank|venues?|gymnasium|gin[aá]sio|pal[a-z]+|halle|forum|resort|base|rds|bec)\b/i.test(text) || /^[\p{L}.' -]+,\s*(?:[A-Z]{2}|[\p{L} .' -]+)$/u.test(text);
+  if(/(?:アリーナ|スタジアム|ホール|体育館|会館|センター|ガーデン|プラザ|ドーム|BOX|체육관|아레나|홀)/i.test(text))return true;
+  if(/\b(arena|stadium|center|centre|casino|hotel|hall|theatre|theater|pool|pavilion|coliseum|dome|garden|park|bank|venues?|gymnasium|gin[aá]sio|pal[a-z]+|halle|forum|resort|base|rds|bec)\b/i.test(text))return true;
+  if(/^[\p{L}.' -]+,\s*(?:[A-Z]{2}|[\p{L} .' -]+)$/u.test(text))return true;
+  return simple && /^[\p{L}.' -]{3,60}$/u.test(text) && !/^(?:event|events|news|home|latest|upcoming|main card|prelims)$/i.test(text);
 }
 
-function venueNear(lines,index,title,date,defaultCountry) {
+function stripDate(value) {
+  return clean(value
+    .replace(/\b20\d{2}[-/.]\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}:\d{2})?\b/g,'')
+    .replace(/\b\d{1,2}\/\d{1,2}\/20\d{2}\b/g,'')
+    .replace(/\b\d{1,2}[.]\d{1,2}[.]20\d{2}\b/g,'')
+    .replace(/(?:20\d{2}年\s*)?\d{1,2}月\s*\d{1,2}日(?:\([^)]*\)|（[^）]*）)?/g,'')
+    .replace(/20\d{2}년\s*\d{1,2}월\s*\d{1,2}일/g,'')
+    .replace(/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*/gi,'')
+    .replace(/\b(?:January|February|March|April|May|June|July|August|September|Sept|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:st|nd|rd|th)?(?:,)?\s*20\d{2}?\b/gi,''));
+}
+
+function venueNear(lines,index,title,date,source) {
+  const defaultCountry=source.defaultCountry||null;
   for(let radius=1;radius<=12;radius++) {
     for(const pos of [index+radius,index-radius]) {
       if(pos<0||pos>=lines.length)continue;
       const line=lines[pos];
       if(line===title || dateFromText(line)!==null) {
-        const stripped=clean(line.replace(/\b20\d{2}[-/.]\d{1,2}[-/.]\d{1,2}(?:\s+\d{1,2}:\d{2}:\d{2})?\b/,'').replace(/\b\d{1,2}[.]\d{1,2}[.]20\d{2}\b/,'').replace(/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*/i,'').replace(/\b(?:January|February|March|April|May|June|July|August|September|Sept|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:st|nd|rd|th)?(?:,)?\s*20\d{2}?\b/i,''));
-        if(probableVenue(stripped))return parseLocation(stripped,defaultCountry);
+        const stripped=stripDate(line);
+        if(probableVenue(stripped,!!source.simpleLocation))return parseLocation(stripped,defaultCountry);
         continue;
       }
-      if(probableVenue(line))return parseLocation(line,defaultCountry);
+      if(probableVenue(line,!!source.simpleLocation))return parseLocation(line,defaultCountry);
     }
   }
   return {venue:null,city:null,region:null,country:defaultCountry};
@@ -166,7 +208,7 @@ function headingEvents(doc,source,now) {
     if(!eventDate)continue;
     let index=lines.findIndex(line=>line===name);
     if(index<0)index=lines.findIndex(line=>line.includes(name));
-    const loc=venueNear(lines,index,name,eventDate,source.defaultCountry||null);
+    const loc=venueNear(lines,index,name,eventDate,source);
     events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl:sourceUrlFor(element,source.url)});
   }
   return events;
@@ -179,8 +221,42 @@ function bodyFallback(doc,source,now) {
     if(name.length>110 || !source.title.test(name) || source.exclude?.test(name))continue;
     const context=lines.slice(Math.max(0,i-4),Math.min(lines.length,i+14)).join(' ');
     const eventDate=dateFromText(context,now);if(!eventDate)continue;
-    const loc=venueNear(lines,i,name,eventDate,source.defaultCountry||null);
+    const loc=venueNear(lines,i,name,eventDate,source);
     events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl:source.url});
+  }
+  return events;
+}
+
+function tableEvents(doc,source,now) {
+  const events=[];
+  for(const row of doc.querySelectorAll('tr')) {
+    const cells=[...row.querySelectorAll('th,td')].map(cell=>clean(cell.textContent)).filter(Boolean);
+    if(cells.length<2)continue;
+    const name=cells.find(cell=>source.title.test(cell));
+    if(!name||source.exclude?.test(name))continue;
+    const eventDate=dateFromText(cells.join(' '),now);if(!eventDate)continue;
+    const locationCandidates=cells.filter(cell=>cell!==name&&dateFromText(cell,now)===null);
+    const locText=locationCandidates.find(cell=>probableVenue(cell,!!source.simpleLocation)) || locationCandidates.at(-1) || null;
+    const loc=locText?parseLocation(locText,source.defaultCountry||null):{venue:null,city:null,region:null,country:source.defaultCountry||null};
+    events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl:source.url});
+  }
+  return events;
+}
+
+function shootoEvents(doc,source,now) {
+  const lines=semanticLines(doc),events=[];
+  for(const anchor of doc.querySelectorAll('a[href*="schedule/"][href*="id="]')) {
+    const descriptor=clean(anchor.textContent);
+    if(!descriptor||descriptor.length>180||/^Schedule$/i.test(descriptor))continue;
+    let index=lines.findIndex(line=>line===descriptor);
+    if(index<0)index=lines.findIndex(line=>line.includes(descriptor));
+    const context=lines.slice(Math.max(0,index-3),Math.min(lines.length,index+4)).join(' ');
+    const eventDate=dateFromText(context,now);if(!eventDate)continue;
+    const place=stripDate(descriptor).replace(/\s*(?:主催|Organizer)\s*[:：].*$/i,'').trim();
+    const explicit=descriptor.match(/(?:PROFESSIONAL SHOOTO[^|]{0,80}|プロフェッショナル修斗[^|]{0,80})/i)?.[0];
+    const name=clean(explicit||`Shooto ${eventDate}`);
+    const loc=probableVenue(place)?parseLocation(place,source.defaultCountry):venueNear(lines,index,descriptor,eventDate,source);
+    events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl:sourceUrlFor(anchor,source.url)});
   }
   return events;
 }
@@ -220,7 +296,7 @@ export function parseOneEvents(eventsHtml,liveHtml,now=new Date()) {
   const venueRecords=[];
   for(let i=0;i<listingLines.length;i++) {
     const name=listingLines[i];if(!source.title.test(name)||name.length>120)continue;
-    const loc=venueNear(listingLines,i,name,null,null);
+    const loc=venueNear(listingLines,i,name,null,source);
     venueRecords.push({name,...loc});
   }
   const live=oneLiveEvents(liveHtml,now);
@@ -233,10 +309,26 @@ export function parseOneEvents(eventsHtml,liveHtml,now=new Date()) {
   return mergeEvents([...listings,...live]);
 }
 
+export function eventDetailUrls(source,html) {
+  if(!source.detailUrlPattern)return [];
+  const doc=new JSDOM(html).window.document,urls=[];
+  for(const anchor of doc.querySelectorAll('a[href]')) {
+    const label=clean(anchor.textContent),href=anchor.getAttribute('href');if(!href)continue;
+    let absolute;try{absolute=new URL(href,source.url).href.split('#')[0];}catch{continue;}
+    source.detailUrlPattern.lastIndex=0;
+    if(!source.detailUrlPattern.test(absolute))continue;
+    if(!source.detailLinkAny && !source.title.test(label))continue;
+    if(!urls.includes(absolute))urls.push(absolute);
+  }
+  return urls.slice(0,24);
+}
+
 export function parsePromotionEvents(source,html,now=new Date()) {
   if(source.slug==='one')throw new Error('Use parseOneEvents for ONE Championship');
   const doc=new JSDOM(html).window.document;
-  return mergeEvents([...jsonLdEvents(doc,source,now),...headingEvents(doc,source,now),...bodyFallback(doc,source,now)]);
+  if(source.parser==='shooto')return mergeEvents(shootoEvents(doc,source,now));
+  const extra=source.parser==='table'?tableEvents(doc,source,now):[];
+  return mergeEvents([...jsonLdEvents(doc,source,now),...headingEvents(doc,source,now),...bodyFallback(doc,source,now),...extra]);
 }
 
 export function eventSlug(event) {
