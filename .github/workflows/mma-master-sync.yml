@@ -8,13 +8,20 @@ on:
       - 'migrations/0014_warehouse_history_identity_guard.sql'
       - 'migrations/0015_ufc_warehouse_materialized_history.sql'
       - 'migrations/0016_precomputed_ufc_history_features.sql'
+      - 'migrations/0023_scout_research_index.sql'
+      - 'migrations/0024_scout_relationship_intelligence.sql'
+      - 'migrations/0025_global_scouting.sql'
+      - 'migrations/0026_global_scout_fight_history.sql'
       - 'scripts/import-mma-master.py'
+      - 'scripts/build-global-scout-rating-v2.py'
+      - 'scripts/data/scout-promotions.json'
       - 'scripts/refresh-ufc-history.py'
       - 'scripts/refresh-ufc-history-small.py'
       - 'scripts/refresh-ufc-history.mjs'
       - 'scripts/canonicalize-ufc-history.py'
       - 'scripts/lib/warehouse-history.mjs'
       - 'tests/warehouse-history.test.mjs'
+      - 'tests/global-scout-rating.test.mjs'
       - 'tests/test_canonicalize_ufc_history.py'
       - '.github/workflows/mma-master-sync.yml'
   push:
@@ -26,13 +33,20 @@ on:
       - 'migrations/0014_warehouse_history_identity_guard.sql'
       - 'migrations/0015_ufc_warehouse_materialized_history.sql'
       - 'migrations/0016_precomputed_ufc_history_features.sql'
+      - 'migrations/0023_scout_research_index.sql'
+      - 'migrations/0024_scout_relationship_intelligence.sql'
+      - 'migrations/0025_global_scouting.sql'
+      - 'migrations/0026_global_scout_fight_history.sql'
       - 'scripts/import-mma-master.py'
+      - 'scripts/build-global-scout-rating-v2.py'
+      - 'scripts/data/scout-promotions.json'
       - 'scripts/refresh-ufc-history.py'
       - 'scripts/refresh-ufc-history-small.py'
       - 'scripts/refresh-ufc-history.mjs'
       - 'scripts/canonicalize-ufc-history.py'
       - 'scripts/lib/warehouse-history.mjs'
       - 'tests/warehouse-history.test.mjs'
+      - 'tests/global-scout-rating.test.mjs'
       - 'tests/test_canonicalize_ufc_history.py'
       - '.github/workflows/mma-master-sync.yml'
   workflow_dispatch:
@@ -44,7 +58,7 @@ concurrency:
 jobs:
   prepare-and-sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     permissions:
       contents: read
     steps:
@@ -64,12 +78,12 @@ jobs:
       - name: Install project dependencies
         run: npm ci
 
-      - name: Validate UFC history pipeline
+      - name: Validate global research pipeline
         run: |
-          python -m py_compile scripts/refresh-ufc-history.py scripts/refresh-ufc-history-small.py scripts/canonicalize-ufc-history.py tests/test_canonicalize_ufc_history.py
+          python -m py_compile scripts/refresh-ufc-history.py scripts/refresh-ufc-history-small.py scripts/canonicalize-ufc-history.py scripts/build-global-scout-rating-v2.py tests/test_canonicalize_ufc_history.py
           python tests/test_canonicalize_ufc_history.py
           node --check scripts/refresh-ufc-history.mjs
-          node --test tests/warehouse-history.test.mjs
+          node --test tests/warehouse-history.test.mjs tests/global-scout-rating.test.mjs
 
       - name: Install data importer dependencies
         run: python -m pip install --disable-pip-version-check 'duckdb>=1.3,<2' 'kagglehub>=1.0,<2'
@@ -77,12 +91,21 @@ jobs:
       - name: Download and prepare MMA master snapshot
         run: python scripts/import-mma-master.py
 
+      - name: Build global Scout profiles and rating
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_FILE="$(find .cache/mma-master/source -type f -name '*.duckdb' -printf '%s %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
+          test -n "$SOURCE_FILE"
+          python scripts/build-global-scout-rating-v2.py --source "$SOURCE_FILE"
+
       - name: Validate prepared coverage
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           summary = json.loads(Path('.cache/mma-master/summary.json').read_text())
+          scout = json.loads(Path('.cache/mma-master/scout-global-summary.json').read_text())
           assert summary['fighters'] >= 15000, summary
           assert summary['fights'] >= 120000, summary
           assert summary['participants'] == summary['fights'] * 2, summary
@@ -90,8 +113,19 @@ jobs:
           technical_ratio = summary['technical_fights_matched'] / max(1, summary['technical_fights_source'])
           assert summary['technical_fights_matched'] >= 3500, summary
           assert technical_ratio >= 0.35, summary
+          assert scout['profiles'] >= 15000, scout
+          assert scout['profiles_with_history'] >= 12000, scout
+          assert scout['ratings'] >= 12000, scout
+          assert scout['materialized_fighter_fights'] >= 100000, scout
+          assert scout['decisive_fights'] >= 50000, scout
+          assert scout['promotion_registry_count'] >= 20, scout
+          assert scout['elo_baseline']['fights'] >= 5000, scout
+          assert scout['combined_model']['fights'] == scout['elo_baseline']['fights'], scout
+          assert scout['combined_model']['log_loss'] < scout['elo_baseline']['log_loss'], scout
+          assert abs(sum(scout['weights'].values()) - 1) < 1e-6, scout
           print(f"Verified technical overlay: {technical_ratio:.1%}")
           print('Prepared master snapshot:', json.dumps(summary, indent=2))
+          print('Prepared global Scout model:', json.dumps(scout, indent=2))
           PY
 
       - name: Apply D1 schema
@@ -109,22 +143,19 @@ jobs:
           SNAPSHOT_ID="$(jq -r '.snapshot_id' .cache/mma-master/summary.json)"
           SOURCE_KEY="$(jq -r '.source_key' .cache/mma-master/summary.json)"
           STATUS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT status FROM mma_source_snapshots WHERE source_key='${SOURCE_KEY}' AND snapshot_id='${SNAPSHOT_ID}' LIMIT 1" --json | jq -r '.[0].results[0].status // ""')"
-          if [ "$STATUS" = "complete" ]; then
-            echo "Snapshot ${SNAPSHOT_ID} is already complete; nothing to write."
+          GLOBAL_COUNT="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT COUNT(*) AS n FROM scout_global_profiles WHERE source_key='${SOURCE_KEY}' AND snapshot_id='${SNAPSHOT_ID}'" --json 2>/dev/null | jq -r '.[0].results[0].n // 0' || echo 0)"
+          if [ "$STATUS" = "complete" ] && [ "$GLOBAL_COUNT" -ge 15000 ]; then
+            echo "Snapshot ${SNAPSHOT_ID} and global Scout layer are already complete; nothing to write."
           else
             D1_SQL_DIR=".cache/mma-master/d1-sql"
-            rm -rf "$D1_SQL_DIR"
-            mkdir -p "$D1_SQL_DIR"
+            rm -rf "$D1_SQL_DIR" && mkdir -p "$D1_SQL_DIR"
             for file in .cache/mma-master/sql/*.sql; do
               output="$D1_SQL_DIR/$(basename "$file")"
               sed -E '/^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT)[[:space:]]*;[[:space:]]*$/Id' "$file" > "$output"
             done
-
             if grep -RniE '^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT|SAVEPOINT|RELEASE([[:space:]]+SAVEPOINT)?|ROLLBACK)[[:space:]]' "$D1_SQL_DIR"; then
-              echo "D1-incompatible transaction control remained in generated SQL." >&2
-              exit 1
+              echo "D1-incompatible transaction control remained in generated SQL." >&2; exit 1
             fi
-
             for file in "$D1_SQL_DIR"/*.sql; do
               echo "Applying $(basename "$file")"
               npx wrangler d1 execute cagemetrix --remote --file "$file"
@@ -141,11 +172,13 @@ jobs:
           set -euo pipefail
           npx wrangler d1 execute cagemetrix --remote --command "SELECT s.source_key,s.active_snapshot_id,x.status,x.fighter_count,x.fight_count,x.participant_count,x.technical_fight_count,x.organization_count,x.source_max_date FROM mma_source_registry s JOIN mma_source_snapshots x ON x.source_key=s.source_key AND x.snapshot_id=s.active_snapshot_id WHERE s.source_key='leandroiber_mmastats'" --json | tee .cache/mma-master/remote-verification.json
           ACTIVE_FIGHTS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT COUNT(*) AS n FROM mma_active_fights" --json | jq -r '.[0].results[0].n')"
-          if [ "$ACTIVE_FIGHTS" -lt 120000 ]; then
-            echo "Remote active fight count is too small: $ACTIVE_FIGHTS" >&2
-            exit 1
+          GLOBAL_PROFILES="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT COUNT(*) AS n FROM scout_active_global_profiles" --json | jq -r '.[0].results[0].n')"
+          GLOBAL_RATINGS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT COUNT(*) AS n FROM scout_active_global_ratings WHERE model_version='global-1.0.0'" --json | jq -r '.[0].results[0].n')"
+          GLOBAL_FIGHTS="$(npx wrangler d1 execute cagemetrix --remote --command "SELECT COUNT(*) AS n FROM scout_active_global_fights" --json | jq -r '.[0].results[0].n')"
+          if [ "$ACTIVE_FIGHTS" -lt 120000 ] || [ "$GLOBAL_PROFILES" -lt 15000 ] || [ "$GLOBAL_RATINGS" -lt 12000 ] || [ "$GLOBAL_FIGHTS" -lt 100000 ]; then
+            echo "Remote coverage too small: fights=$ACTIVE_FIGHTS profiles=$GLOBAL_PROFILES ratings=$GLOBAL_RATINGS global_history=$GLOBAL_FIGHTS" >&2; exit 1
           fi
-          echo "Remote master database contains $ACTIVE_FIGHTS active fights."
+          echo "Remote master: $ACTIVE_FIGHTS raw fights / $GLOBAL_PROFILES profiles / $GLOBAL_RATINGS ratings / $GLOBAL_FIGHTS resolved fighter-fight rows."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -171,6 +204,7 @@ jobs:
           name: mma-master-import-audit
           path: |
             .cache/mma-master/summary.json
+            .cache/mma-master/scout-global-summary.json
             .cache/mma-master/remote-verification.json
             .cache/mma-master/ufc-history-summary.json
             .cache/mma-master/ufc-history-canonical-summary.json
