@@ -3,6 +3,7 @@ import {canonicalRedirect} from './canonical.ts';
 import {normalizeNavigation} from './navigation.ts';
 import {globalFighterApi,globalFighterPage,globalFightersApi,promotionApi,promotionPage,promotionsApi,promotionsPage} from './global-scout.ts';
 import {eventsApi,eventsPage} from './events.ts';
+import {eventPage} from './event-page.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -39,6 +40,11 @@ export default {
     if(request.method==='GET'&&(path==='/events'||path==='/events/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/events',request.url),308);
       return page(eventsPage(request,env),request,env);
+    }
+    const eventPageMatch=path.match(/^\/events\/([a-z0-9-]{1,180})\/?$/);
+    if(request.method==='GET'&&eventPageMatch){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/events/${eventPageMatch[1]}`,request.url),308);
+      return page(eventPage(request,env,eventPageMatch[1]),request,env);
     }
     if(request.method==='GET'&&(path==='/promotions'||path==='/promotions/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/promotions',request.url),308);
