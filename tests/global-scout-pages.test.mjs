@@ -17,10 +17,10 @@ test('global scouting routes are isolated ahead of the legacy Worker',()=>{
   assert.match(entry,/stripRetiredPersonalUi\(await worker\.fetch\(request,env,context\)\)/);
 });
 
-test('promotion rosters and global dossiers use the materialized global model',()=>{
+test('promotion rosters and global dossiers use the publication-safe materialized global model',()=>{
   const source=read('src/global-scout.ts');
   assert.match(source,/GLOBAL_MODEL='global-1\.0\.0'/);
-  assert.match(source,/FROM scout_active_global_profiles/);
+  assert.match(source,/scout_public_global_profiles/);
   assert.match(source,/scout_active_global_ratings/);
   assert.match(source,/scout_active_global_fights/);
   assert.match(source,/opponent_pre_elo/);

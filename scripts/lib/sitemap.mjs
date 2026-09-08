@@ -31,6 +31,8 @@ export function sitemapXml({ fighters = [], events = [], promotions = [], agenci
     entry(`${base}/promotions`),
     entry(`${base}/talent`),
     entry(`${base}/management`),
+    entry(`${base}/data-policy`),
+    entry(`${base}/privacy`),
     ...agencies
       .filter(row => row?.slug)
       .map(row => entry(`${base}/management/${encodeURIComponent(row.slug)}`, row.verified_at || row.updated_at)),

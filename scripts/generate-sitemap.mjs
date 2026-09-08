@@ -23,10 +23,20 @@ function query(sql) {
 }
 
 const fighters = query(`
-  SELECT slug, last_fight_date, updated_at
-  FROM fighters
-  WHERE slug IS NOT NULL AND slug <> '' AND (active = 1 OR ufc_bouts > 0)
-  ORDER BY id
+  SELECT f.slug, f.last_fight_date, f.updated_at
+  FROM fighters f
+  WHERE f.slug IS NOT NULL AND f.slug <> '' AND (f.active = 1 OR f.ufc_bouts > 0)
+    AND NOT EXISTS (
+      SELECT 1
+      FROM mma_identity_links l
+      JOIN fighter_publication_controls c
+        ON c.source_key=l.source_key
+       AND c.source_fighter_id=l.source_fighter_id
+       AND c.public_status='removed'
+      WHERE CAST(l.cagemetrix_fighter_id AS INTEGER)=f.id
+        AND l.confidence>=0.90
+    )
+  ORDER BY f.id
 `);
 
 const events = query(`
@@ -57,5 +67,5 @@ const agencies = query(`
 
 mkdirSync('public', { recursive: true });
 writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, promotions, agencies }));
-const total = 7 + fighters.length + events.length + promotions.length + agencies.length;
+const total = 9 + fighters.length + events.length + promotions.length + agencies.length;
 console.log(`Generated sitemap with ${total} URLs (${fighters.length} fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies).`);

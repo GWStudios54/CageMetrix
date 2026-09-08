@@ -34,7 +34,7 @@ async function rows(request:Request,env:Env){
   const result=await env.DB.prepare(`
     SELECT s.*,sp.name promotion_name,sp.region promotion_region,p.nationality,p.gym,p.career_no_contests
     FROM scout_active_prospect_scores s
-    JOIN scout_active_global_profiles p
+    JOIN scout_public_global_profiles p
       ON p.source_key=s.source_key AND p.snapshot_id=s.snapshot_id AND p.source_fighter_id=s.source_fighter_id
     LEFT JOIN scout_promotions sp ON sp.slug=s.current_promotion_slug
     WHERE ${clauses.join(' AND ')}
@@ -57,7 +57,7 @@ export async function prospectsPage(request:Request,env:Env){
   return new Response(shell('MMA Prospect Rankings & Scout Scores | MMA Scouts','Discover rising MMA talent with Scout Score, Global Rating, age-adjusted performance, trajectory, activity and evidence.','/prospects',body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60, s-maxage=300'}});
 }
 
-async function fighterScore(env:Env,slug:string){return env.DB.prepare(`SELECT * FROM scout_active_prospect_scores WHERE profile_slug=? LIMIT 1`).bind(slug).first<Row>();}
+async function fighterScore(env:Env,slug:string){return env.DB.prepare(`SELECT s.* FROM scout_active_prospect_scores s JOIN scout_public_global_profiles p ON p.source_key=s.source_key AND p.snapshot_id=s.snapshot_id AND p.source_fighter_id=s.source_fighter_id WHERE s.profile_slug=? LIMIT 1`).bind(slug).first<Row>();}
 
 export async function enhanceFighterScoutScore(response:Response,env:Env,slug:string){
   if(!response.ok||!response.headers.get('content-type')?.includes('text/html'))return response;
@@ -70,7 +70,7 @@ export async function enhanceFighterScoutScore(response:Response,env:Env,slug:st
 
 export async function enhancePromotionScoutScores(response:Response,env:Env,promotionSlug:string){
   if(!response.ok||!response.headers.get('content-type')?.includes('text/html'))return response;
-  const result=await env.DB.prepare(`SELECT profile_slug,scout_score,scout_rank FROM scout_active_prospect_scores WHERE current_promotion_slug=?`).bind(promotionSlug).all<Row>();
+  const result=await env.DB.prepare(`SELECT s.profile_slug,s.scout_score,s.scout_rank FROM scout_active_prospect_scores s JOIN scout_public_global_profiles p ON p.source_key=s.source_key AND p.snapshot_id=s.snapshot_id AND p.source_fighter_id=s.source_fighter_id WHERE s.current_promotion_slug=?`).bind(promotionSlug).all<Row>();
   const map=new Map((result.results||[]).map(row=>[String(row.profile_slug),row]));
   return new HTMLRewriter()
     .on('.directory-rating small',{element(el){el.setInnerContent('Global Rating');}})

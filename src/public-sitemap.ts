@@ -11,10 +11,10 @@ type SitemapEntry=[loc:string,lastmod:string|null,changefreq:string,priority:str
 
 export async function publicSitemap(env:Env){
   const [fighters,events,promotions,regionalFighters,agencies]=await Promise.all([
-    env.DB.prepare(`SELECT slug,COALESCE(last_fight_date,updated_at) lastmod FROM fighters WHERE slug IS NOT NULL AND (active=1 OR ufc_bouts>0) ORDER BY id`).all<Row>(),
+    env.DB.prepare(`SELECT f.slug,COALESCE(f.last_fight_date,f.updated_at) lastmod FROM fighters f WHERE f.slug IS NOT NULL AND (f.active=1 OR f.ufc_bouts>0) AND NOT EXISTS(SELECT 1 FROM mma_identity_links l JOIN fighter_publication_controls c ON c.source_key=l.source_key AND c.source_fighter_id=l.source_fighter_id AND c.public_status='removed' WHERE CAST(l.cagemetrix_fighter_id AS INTEGER)=f.id AND l.confidence>=0.90) ORDER BY f.id`).all<Row>(),
     env.DB.prepare(`SELECT DISTINCT e.slug,e.event_date FROM events e WHERE e.slug IS NOT NULL AND (e.promotion_slug IS NOT NULL OR e.promotion='UFC' OR EXISTS(SELECT 1 FROM bouts b WHERE b.event_id=e.id)) ORDER BY e.event_date DESC`).all<Row>(),
     env.DB.prepare(`SELECT slug,verified_at FROM scout_promotions WHERE active=1 ORDER BY slug`).all<Row>(),
-    env.DB.prepare(`SELECT p.profile_slug,p.last_fight_date FROM scout_active_global_profiles p JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=? WHERE p.current_promotion_slug IS NOT NULL AND p.data_completeness>=60 AND r.evidence_strength>=40 AND p.last_fight_date>=date('now','-730 day') ORDER BY p.last_fight_date DESC`).bind(GLOBAL_MODEL).all<Row>(),
+    env.DB.prepare(`SELECT p.profile_slug,p.last_fight_date FROM scout_public_global_profiles p JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=? WHERE p.current_promotion_slug IS NOT NULL AND p.data_completeness>=60 AND r.evidence_strength>=40 AND p.last_fight_date>=date('now','-730 day') ORDER BY p.last_fight_date DESC`).bind(GLOBAL_MODEL).all<Row>(),
     env.DB.prepare(`SELECT slug,COALESCE(verified_at,updated_at) lastmod FROM management_agencies WHERE active=1 ORDER BY slug`).all<Row>()
   ]);
   const urls:SitemapEntry[]=[
@@ -24,7 +24,9 @@ export async function publicSitemap(env:Env){
     [`${SITE}/talent`,null,'daily','0.95'],
     [`${SITE}/events`,null,'hourly','0.95'],
     [`${SITE}/promotions`,null,'daily','0.9'],
-    [`${SITE}/management`,null,'daily','0.9']
+    [`${SITE}/management`,null,'daily','0.9'],
+    [`${SITE}/data-policy`,null,'monthly','0.55'],
+    [`${SITE}/privacy`,null,'monthly','0.5']
   ];
   for(const row of agencies.results||[])urls.push([`${SITE}/management/${encodeURIComponent(String(row.slug))}`,dateOnly(row.lastmod),'weekly','0.84']);
   for(const row of promotions.results||[])urls.push([`${SITE}/promotions/${encodeURIComponent(String(row.slug))}`,dateOnly(row.verified_at),'daily','0.85']);

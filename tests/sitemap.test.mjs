@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sitemapXml } from '../scripts/lib/sitemap.mjs';
 
-test('sitemap publishes canonical MMA Scouts scouting, prospects, talent, management, promotion, event and fighter URLs', () => {
+test('sitemap publishes canonical MMA Scouts scouting, legal policy, talent, promotion, event and fighter URLs', () => {
   const xml = sitemapXml({
     fighters: [
       { slug: 'alpha-fighter', last_fight_date: '2026-08-29' },
@@ -29,6 +29,8 @@ test('sitemap publishes canonical MMA Scouts scouting, prospects, talent, manage
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/talent<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/management<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/data-policy<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/privacy<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/management\/example-management<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions\/one<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions\/cage-warriors<\/loc>/);
@@ -38,13 +40,14 @@ test('sitemap publishes canonical MMA Scouts scouting, prospects, talent, manage
   assert.match(xml, /<lastmod>2026-08-29<\/lastmod>/);
   assert.match(xml, /<lastmod>2026-09-08<\/lastmod>/);
   assert.match(xml, /fighters\/a%26b/);
+  assert.doesNotMatch(xml, /\/profile-removal/);
   assert.doesNotMatch(xml, /\/predictions|\/validation|\/community|\/forum|\/fights\//);
   assert.doesNotMatch(xml, /cagemetrix\.com/);
   assert.doesNotMatch(xml, /\/api\//);
   assert.doesNotMatch(xml, /\/admin|\/watchlist/);
 });
 
-test('sitemap generator indexes global event shells, promotions and management agencies', () => {
+test('sitemap generator indexes public event shells and filters removed canonical fighters', () => {
   const source = readFileSync(new URL('../scripts/generate-sitemap.mjs', import.meta.url), 'utf8');
   assert.match(source, /e\.promotion_slug IS NOT NULL/);
   assert.match(source, /e\.promotion = 'UFC'/);
@@ -52,8 +55,11 @@ test('sitemap generator indexes global event shells, promotions and management a
   assert.doesNotMatch(source, /JOIN predictions p/);
   assert.match(source, /FROM scout_promotions/);
   assert.match(source, /FROM management_agencies/);
+  assert.match(source, /fighter_publication_controls c/);
+  assert.match(source, /c\.public_status='removed'/);
+  assert.match(source, /l\.confidence>=0\.90/);
   assert.match(source, /WHERE active = 1/);
-  assert.match(source, /const total = 7 \+/);
+  assert.match(source, /const total = 9 \+/);
   assert.match(source, /sitemapXml\(\{ fighters, events, promotions, agencies \}\)/);
 });
 
