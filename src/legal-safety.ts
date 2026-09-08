@@ -46,7 +46,11 @@ export function profileRemovalPage(request:Request){
 async function inputObject(request:Request){
   const type=request.headers.get('content-type')||'';
   if(type.includes('application/json'))return await request.json() as Record<string,unknown>;
-  const form=await request.formData(),out:Record<string,unknown>={};for(const [key,value] of form.entries())if(typeof value==='string')out[key]=value;return out;
+  const form=await request.formData(),out:Record<string,unknown>={};
+  for(const key of ['profile','fighter_name','requester_role','requester_name','contact_email','verification_url','reason','attested','company','id','action','notes']){
+    const value=form.get(key);if(typeof value==='string')out[key]=value;
+  }
+  return out;
 }
 
 function normalizeProfile(value:unknown){
