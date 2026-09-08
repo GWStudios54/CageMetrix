@@ -1,15 +1,16 @@
 name: Diagnose MMA Scouts scouting surfaces
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/post-deploy-smoke.yml'
+  workflow_run:
+    workflows:
+      - Deploy MMA Scouts
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
   smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -22,7 +23,7 @@ jobs:
             key=$(echo "$base" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
             for path in /api/health '/api/rankings?limit=1' '/api/events?limit=1' '/api/promotions'; do
               name=$(echo "$path" | sed 's#[/?=&]#_#g')
-              code=$(curl --silent --show-error --location --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0' --output "diagnostics/${key}${name}.body" --dump-header "diagnostics/${key}${name}.headers" --write-out '%{http_code}' "${base}${path}")
+              code=$(curl --silent --show-error --location --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/3.0' --output "diagnostics/${key}${name}.body" --dump-header "diagnostics/${key}${name}.headers" --write-out '%{http_code}' "${base}${path}")
               echo "$base$path -> $code"
               test "$code" = "200"
             done
@@ -32,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0'
+          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/3.0'
           curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/ -o diagnostics/home.html
           curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/scout -o diagnostics/scout.html
           curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/events -o diagnostics/events.html
@@ -45,6 +46,7 @@ jobs:
           grep -Fq 'Prospect Scout' diagnostics/home.html
           grep -Fq 'SCOUT RANKINGS · FIGHTER DATABASE' diagnostics/home.html
           ! grep -Fq 'Matchup Scout' diagnostics/home.html
+          ! grep -Fq '>Saved<' diagnostics/home.html
 
           grep -Fq 'SCOUT AI · GROUNDED MMA RESEARCH' diagnostics/scout.html
           grep -Fq 'GLOBAL MMA CALENDAR' diagnostics/events.html
@@ -56,29 +58,30 @@ jobs:
           ! grep -Fq '/predictions' diagnostics/sitemap.xml
           ! grep -Fq '/community' diagnostics/sitemap.xml
           ! grep -Fq '/forum' diagnostics/sitemap.xml
+          ! grep -Fq '/watchlist' diagnostics/sitemap.xml
           ! grep -Fq '/fights/' diagnostics/sitemap.xml
           echo 'Scouting homepage, Scout AI, events, promotions, and sitemap checks passed.'
 
-      - name: Verify retired prediction and social surfaces
+      - name: Verify retired prediction and account surfaces
         shell: bash
         run: |
           set -euo pipefail
-          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0'
-          check_redirect() {
+          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/3.0'
+          check_final() {
             source="$1"
             expected="$2"
-            key=$(echo "$source" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
-            headers="diagnostics/${key}.retired.headers"
-            code=$(curl --silent --show-error --user-agent "$ua" --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
-            location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
-            echo "$source -> $code $location"
-            test "$code" = "308"
-            test "$location" = "$expected"
+            result=$(curl --silent --show-error --location --user-agent "$ua" --output /dev/null --write-out '%{http_code} %{url_effective}' "$source")
+            code=${result%% *}
+            effective=${result#* }
+            echo "$source -> $code $effective"
+            test "$code" = "200"
+            test "$effective" = "$expected"
           }
-          check_redirect 'https://mmascouts.com/predictions.html' 'https://mmascouts.com/events'
-          check_redirect 'https://mmascouts.com/validation.html' 'https://mmascouts.com/#rankings'
-          check_redirect 'https://mmascouts.com/community' 'https://mmascouts.com/scout'
-          check_redirect 'https://mmascouts.com/forum' 'https://mmascouts.com/scout'
+          check_final 'https://mmascouts.com/predictions.html' 'https://mmascouts.com/events'
+          check_final 'https://mmascouts.com/validation.html' 'https://mmascouts.com/#rankings'
+          check_final 'https://mmascouts.com/community' 'https://mmascouts.com/scout'
+          check_final 'https://mmascouts.com/forum' 'https://mmascouts.com/scout'
+          check_final 'https://mmascouts.com/watchlist' 'https://mmascouts.com/scout'
           code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/forecasts-retired.body --write-out '%{http_code}' https://mmascouts.com/api/forecasts)
           test "$code" = "410"
           grep -Fq 'feature_retired' diagnostics/forecasts-retired.body
@@ -93,7 +96,7 @@ jobs:
             expected="$2"
             key=$(echo "$source" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
             headers="diagnostics/${key}.redirect.headers"
-            code=$(curl --silent --show-error --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0' --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
+            code=$(curl --silent --show-error --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/3.0' --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
             location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
             echo "$source -> $code $location"
             test "$code" = "308"
