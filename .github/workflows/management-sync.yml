@@ -24,7 +24,7 @@ on:
       - '.github/workflows/management-sync.yml'
 
 concurrency:
-  group: cagemetrix-production
+  group: mmascouts-management-sync
   cancel-in-progress: false
 
 jobs:
