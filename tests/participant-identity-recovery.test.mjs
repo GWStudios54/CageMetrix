@@ -36,8 +36,32 @@ test('resolver bounds expensive identity work to rowid batches for D1',()=>{
   assert.match(resolver,/const BATCH_ROWS=5000/);
   assert.match(resolver,/SELECT MIN\(p\.rowid\) min_rowid,MAX\(p\.rowid\) max_rowid/);
   assert.match(resolver,/for\(let lo=minRow;lo&&lo<=maxRow;lo\+=BATCH_ROWS\)/);
-  assert.ok((resolver.match(/p\.rowid BETWEEN \$\{lo\} AND \$\{hi\}/g)||[]).length>=2);
+  assert.ok((resolver.match(/p\.rowid BETWEEN \$\{lo\} AND \$\{hi\}/g)||[]).length>=3);
   assert.match(resolver,/batches_processed:batches/);
+});
+
+test('accepted identities can propagate only hard same-name biography fingerprints',()=>{
+  assert.match(resolver,/const MAX_FINGERPRINT_PASSES=4/);
+  assert.match(resolver,/seed_rows AS/);
+  assert.match(resolver,/s\.normalized_name=u\.normalized_name/);
+  assert.match(resolver,/resolved_history_fingerprint/);
+  assert.match(resolver,/dob_conflict=0 AND height_conflict=0 AND reach_conflict=0/);
+  assert.match(resolver,/score>=8/);
+  assert.match(resolver,/score-second_score>=4/);
+  assert.match(resolver,/if\(added===0\)break/);
+  assert.match(resolver,/fingerprint_added:fingerprintAdded/);
+  assert.doesNotMatch(resolver,/global_rating|scout_score|elo|promotion_prestige/i);
+});
+
+test('remaining history holes are classified by fighter-master candidate count',()=>{
+  assert.match(resolver,/const backlogByName=new Map/);
+  assert.match(resolver,/master_candidates/);
+  assert.match(resolver,/no_master_candidate:category/);
+  assert.match(resolver,/single_master_candidate_anomaly:category/);
+  assert.match(resolver,/ambiguous_master_candidates:category/);
+  assert.match(resolver,/top_completed_history_holes/);
+  assert.match(resolver,/known_opponent_sides/);
+  assert.match(resolver,/sides_with_2plus_bio_dimensions/);
 });
 
 test('manual verified resolutions survive auto rebuilds and self-opponent collisions are excluded',()=>{
@@ -45,6 +69,7 @@ test('manual verified resolutions survive auto rebuilds and self-opponent collis
   assert.match(resolver,/match_method IN \('global_builder_existing','metadata_auto'\)/);
   assert.doesNotMatch(resolver,/match_method IN \([^\n]*manual_verified/);
   assert.match(resolver,/f\.source_fighter_id<>u\.opponent_id/);
+  assert.match(resolver,/s\.resolved_source_fighter_id<>u\.opponent_id/);
   assert.match(recovery,/o\.effective_source_fighter_id<>p\.effective_source_fighter_id/);
 });
 
