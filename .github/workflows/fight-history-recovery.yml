@@ -11,10 +11,16 @@ on:
       - main
     paths:
       - 'migrations/0032_participant_identity_resolutions.sql'
+      - 'migrations/0033_participant_identity_seed_facts.sql'
+      - 'migrations/0034_source_name_history_coverage.sql'
       - 'scripts/resolve-participant-identities.mjs'
+      - 'scripts/derive-source-name-history-identities.mjs'
       - 'scripts/recover-global-fight-history.mjs'
+      - 'scripts/backfill-history-opponent-identities.mjs'
+      - 'scripts/audit-fighter-history-coverage.mjs'
       - 'tests/participant-identity-recovery.test.mjs'
       - 'tests/fight-history-recovery.test.mjs'
+      - 'tests/full-history-coverage.test.mjs'
       - '.github/workflows/fight-history-recovery.yml'
   workflow_dispatch:
 
@@ -26,7 +32,7 @@ jobs:
   recover:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -42,9 +48,9 @@ jobs:
         run: npm ci
 
       - name: Validate identity and history recovery invariants
-        run: node --test tests/participant-identity-recovery.test.mjs tests/fight-history-recovery.test.mjs
+        run: node --test tests/participant-identity-recovery.test.mjs tests/fight-history-recovery.test.mjs tests/full-history-coverage.test.mjs
 
-      - name: Apply identity-resolution schema
+      - name: Apply history identity and coverage schema
         run: npx wrangler d1 migrations apply cagemetrix --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -56,8 +62,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Recover completed fighter-side history rows
+      - name: Derive source-consistent exact-name history identities
+        run: node scripts/derive-source-name-history-identities.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Recover every safe completed fighter-side history row
         run: node scripts/recover-global-fight-history.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Backfill newly resolved opponent identities
+        run: node scripts/backfill-history-opponent-identities.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Prove source-reported history materialization and freshness
+        run: node scripts/audit-fighter-history-coverage.mjs --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -74,7 +98,10 @@ jobs:
           name: fight-history-recovery-audit
           path: |
             .cache/participant-identity/summary.json
+            .cache/source-name-history/summary.json
             .cache/fight-history-recovery/summary.json
+            .cache/fighter-history-coverage/summary.json
+            .cache/fighter-history-coverage/opponent-backfill.json
             .cache/fighter-intel/summary.json
           if-no-files-found: ignore
           retention-days: 14
