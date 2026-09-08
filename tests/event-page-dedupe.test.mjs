@@ -1,37 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {dedupeEventBouts} from '../src/event-page.ts';
 
-test('event pages collapse duplicate bout rows and prefer the current public model',()=>{
-  const rows=[
-    {id:41,bout_order:1,fighter_a_id:10,fighter_b_id:20,model_version:'0.1.0',fighter_a_probability:.495,fighter_b_probability:.505},
-    {id:84,bout_order:1,fighter_a_id:10,fighter_b_id:20,model_version:'0.2.1',fighter_a_probability:.434,fighter_b_probability:.566},
-    {id:85,bout_order:2,fighter_a_id:30,fighter_b_id:40,model_version:'0.2.1'}
-  ];
-  const bouts=dedupeEventBouts(rows);
-  assert.equal(bouts.length,2);
-  assert.equal(bouts[0].id,84);
-  assert.equal(bouts[0].model_version,'0.2.1');
-  assert.equal(bouts[1].id,85);
+const read=path=>fs.readFileSync(path,'utf8');
+
+test('public event pages are scouting pages, not prediction pages',()=>{
+  const page=read('src/event-page.ts');
+  assert.match(page,/EVENT SCOUT/);
+  assert.match(page,/Scout fighter/);
+  assert.match(page,/Compare in Scout AI/);
+  assert.match(page,/SportsEvent/);
+  assert.doesNotMatch(page,/fighter_a_probability|picked_fighter_id|data-cm-inline-pick|event-picks-inline\.js|MODEL PICK/);
 });
 
-test('community hero CTA is a single mobile-safe flex box',()=>{
-  const css=fs.readFileSync('public/community.css','utf8');
-  assert.match(css,/\.cm-community-hero>\.button\{display:inline-flex/);
-  assert.match(css,/@media\(max-width:760px\)[\s\S]*\.cm-community-hero>\.button\{display:flex;width:100%/);
+test('event directory routes users into scouting research',()=>{
+  const page=read('src/events.ts');
+  assert.match(page,/Scout this event/);
+  assert.match(page,/Promotion scouting/);
+  assert.match(page,/Ask Scout AI/);
+  assert.doesNotMatch(page,/UFC predictions|\/predictions\.html/);
 });
 
-test('event Pick em controls are distributed inside each fight card',()=>{
-  const page=fs.readFileSync('src/event-page.ts','utf8');
-  const client=fs.readFileSync('public/event-picks-inline.js','utf8');
-  const css=fs.readFileSync('public/community.css','utf8');
-  assert.match(page,/data-cm-inline-pick/);
-  assert.match(page,/event-picks-inline\.js/);
-  assert.match(client,/YOUR PICK/);
-  assert.match(client,/data-inline-side/);
-  assert.match(client,/Your card vs CageMetrix/);
-  assert.match(client,/function dedupe/);
-  assert.match(css,/\.cm-inline-pick-slot/);
-  assert.match(css,/\.cm-inline-pick-actions/);
+test('prediction and social public routes are retired at the entry boundary',()=>{
+  const entry=read('src/entry.ts');
+  assert.match(entry,/path==='\/predictions\.html'/);
+  assert.match(entry,/path==='\/validation\.html'/);
+  assert.match(entry,/path==='\/community'/);
+  assert.match(entry,/path==='\/forum'/);
+  assert.match(entry,/feature_retired/);
+  assert.match(entry,/\/api\/forecasts/);
+  assert.match(entry,/fan-prediction/);
 });
