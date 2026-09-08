@@ -10,8 +10,10 @@ on:
       - 'scripts/sync-global-events.mjs'
       - 'scripts/lib/global-event-sources.mjs'
       - 'scripts/lib/global-event-calendar.mjs'
+      - 'scripts/lib/global-event-html.mjs'
       - 'scripts/data/scout-promotions.json'
       - 'tests/global-events.test.mjs'
+      - 'tests/global-event-html.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
   push:
@@ -22,8 +24,10 @@ on:
       - 'scripts/sync-global-events.mjs'
       - 'scripts/lib/global-event-sources.mjs'
       - 'scripts/lib/global-event-calendar.mjs'
+      - 'scripts/lib/global-event-html.mjs'
       - 'scripts/data/scout-promotions.json'
       - 'tests/global-events.test.mjs'
+      - 'tests/global-event-html.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
 
@@ -44,7 +48,7 @@ jobs:
           node-version: '24'
       - run: npm ci
       - name: Validate event source parsers
-        run: node --test tests/global-events.test.mjs
+        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs
       - name: Probe official calendars without D1 writes
         if: github.event_name == 'pull_request'
         run: node scripts/sync-global-events.mjs --dry-run
