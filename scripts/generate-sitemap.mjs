@@ -48,7 +48,14 @@ const promotions = query(`
   ORDER BY slug
 `);
 
+const agencies = query(`
+  SELECT slug, verified_at, updated_at
+  FROM management_agencies
+  WHERE active = 1 AND slug IS NOT NULL AND slug <> ''
+  ORDER BY slug
+`);
+
 mkdirSync('public', { recursive: true });
-writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, promotions }));
-const total = 4 + fighters.length + events.length + promotions.length;
-console.log(`Generated sitemap with ${total} URLs (${fighters.length} fighters, ${events.length} events, ${promotions.length} promotions).`);
+writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, promotions, agencies }));
+const total = 6 + fighters.length + events.length + promotions.length + agencies.length;
+console.log(`Generated sitemap with ${total} URLs (${fighters.length} fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies).`);
