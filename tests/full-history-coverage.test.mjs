@@ -9,6 +9,7 @@ const recover=fs.readFileSync('scripts/recover-global-fight-history.mjs','utf8')
 const opponents=fs.readFileSync('scripts/backfill-history-opponent-identities.mjs','utf8');
 const audit=fs.readFileSync('scripts/audit-fighter-history-coverage.mjs','utf8');
 const workflow=fs.readFileSync('.github/workflows/fight-history-recovery.yml','utf8');
+const masterWorkflow=fs.readFileSync('.github/workflows/mma-master-sync.yml','utf8');
 
 test('source history identities remain auditable overlays and never rewrite raw source ids',()=>{
   assert.match(legacyMigration,/CREATE TABLE IF NOT EXISTS mma_source_identity_contracts/);
@@ -72,6 +73,15 @@ test('coverage ledger distinguishes materialization, identity coverage and sourc
   assert.match(audit,/if\(gaps!==0\|\|missing!==0\|\|missingPublicCoverage!==0\|\|remainingEffectiveMissing!==0\)throw new Error/);
 });
 
+test('production master sync serializes ahead of history recovery and PR validation cannot write through workflow_run',()=>{
+  assert.match(masterWorkflow,/0035_source_master_name_identities\.sql/);
+  assert.match(masterWorkflow,/scripts\/derive-source-name-history-identities\.mjs/);
+  assert.match(masterWorkflow,/\.github\/workflows\/fight-history-recovery\.yml/);
+  assert.doesNotMatch(workflow,/\n  push:/);
+  assert.match(workflow,/github\.event\.workflow_run\.event != 'pull_request'/);
+  assert.match(workflow,/github\.event\.workflow_run\.head_branch == 'main'/);
+});
+
 test('production recovery order applies repaired identity schema before recovery and audits after materialization',()=>{
   const migrate=workflow.indexOf('Apply history identity and coverage schema');
   const resolve=workflow.indexOf('Resolve ambiguous participant identities');
@@ -81,7 +91,6 @@ test('production recovery order applies repaired identity schema before recovery
   const auditStep=workflow.indexOf('Prove source-reported history materialization and freshness');
   const intel=workflow.indexOf('Refresh fighter intelligence after history repair');
   assert.ok(migrate>=0&&resolve>migrate&&deriveStep>resolve&&recoverStep>deriveStep&&opponentStep>recoverStep&&auditStep>opponentStep&&intel>auditStep);
-  assert.match(workflow,/0035_source_master_name_identities\.sql/);
   assert.match(workflow,/source-name-history\/summary\.json/);
   assert.match(workflow,/fighter-history-coverage\/summary\.json/);
 });
