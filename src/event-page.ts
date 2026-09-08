@@ -14,6 +14,7 @@ const initials=(name:unknown)=>String(name||'?').trim().split(/\s+/).map(v=>v[0]
 const publicModelRank=(version:unknown)=>version==='0.2.1'?0:version==='0.2.0'?1:version==='0.1.0'?2:3;
 function schemaStatus(status:unknown){return status==='completed'?'https://schema.org/EventCompleted':status==='cancelled'?'https://schema.org/EventCancelled':'https://schema.org/EventScheduled';}
 function schemaLocation(event:Row){const address=[event.city,event.region,event.country].filter(Boolean).join(', ');if(!event.venue&&!address)return undefined;return {'@type':'Place',...(event.venue?{name:event.venue}:{}),...(address?{address:{'@type':'PostalAddress',addressLocality:event.city||undefined,addressRegion:event.region||undefined,addressCountry:event.country||undefined}}:{})};}
+function schemaPerson(name:unknown,slug:unknown){return {'@type':'Person',name:String(name||''),url:`${SITE}/fighters/${encodeURIComponent(String(slug||''))}`};}
 function portrait(name:unknown,slug:unknown){return `<span class="portrait event-portrait" data-event-portrait data-name="${esc(name)}" data-slug="${esc(slug)}" aria-hidden="true"><span class="portrait-initials">${esc(initials(name))}</span></span>`;}
 function fighter(b:Row,side:'a'|'b',has:boolean,pick:boolean){const name=b[`fighter_${side}_name`],slug=b[`fighter_${side}_slug`],prob=b[`fighter_${side}_probability`];return `<a class="forecast-fighter" href="/fighters/${encodeURIComponent(String(slug||''))}">${portrait(name,slug)}<span><strong>${esc(name)}</strong>${has?`<b>${pct(prob)}</b>`:''}${pick?'<small class="event-pick">MODEL PICK</small>':''}</span></a>`;}
 
@@ -48,7 +49,39 @@ export async function eventPage(_request:Request,env:Env,slug:string){
   const title=`${label} Predictions: ${matchup} Picks & Win Probabilities | ${BRAND_NAME}`;
   const description=`${label} predictions for ${matchup} and the full ${prettyDate(event.event_date)} card. ${BRAND_NAME} model picks, win probabilities, Scout Ratings and matchup stats.`.slice(0,190);
   const location=schemaLocation(event);
-  const schema:any={'@context':'https://schema.org','@type':'SportsEvent',name:`${label}: ${matchup}`,url:canonical,startDate:event.starts_at||event.event_date,eventStatus:schemaStatus(event.status),sport:'Mixed Martial Arts',organizer:{'@type':'Organization',name:'UFC',url:'https://www.ufc.com/'},...(event.source_url?{sameAs:event.source_url}:{}),...(location?{location}:{}),competitor:main?[{'@type':'Person',name:main.fighter_a_name,url:`${SITE}/fighters/${main.fighter_a_slug}`},{'@type':'Person',name:main.fighter_b_name,url:`${SITE}/fighters/${main.fighter_b_slug}`}]:undefined,subEvent:bouts.map((b:Row)=>({'@type':'SportsEvent',name:`${b.fighter_a_name} vs ${b.fighter_b_name}`,url:`${SITE}/fights/${b.id}`,startDate:event.starts_at||event.event_date,sport:'Mixed Martial Arts',competitor:[{'@type':'Person',name:b.fighter_a_name,url:`${SITE}/fighters/${b.fighter_a_slug}`},{'@type':'Person',name:b.fighter_b_name,url:`${SITE}/fighters/${b.fighter_b_slug}`}]}))};
+  const organizer={'@type':'Organization',name:String(event.promotion||'UFC'),...(String(event.promotion||'UFC').toUpperCase()==='UFC'?{url:'https://www.ufc.com/'}:{})};
+  const mainPeople=main?[schemaPerson(main.fighter_a_name,main.fighter_a_slug),schemaPerson(main.fighter_b_name,main.fighter_b_slug)]:undefined;
+  const schema:any={
+    '@context':'https://schema.org',
+    '@type':'SportsEvent',
+    name:`${label}: ${matchup}`,
+    url:canonical,
+    startDate:event.starts_at||event.event_date,
+    eventStatus:schemaStatus(event.status),
+    sport:'Mixed Martial Arts',
+    description,
+    organizer,
+    ...(event.source_url?{sameAs:event.source_url}:{}),
+    ...(location?{location}:{}),
+    performer:mainPeople,
+    competitor:mainPeople,
+    subEvent:bouts.map((b:Row)=>{
+      const people=[schemaPerson(b.fighter_a_name,b.fighter_a_slug),schemaPerson(b.fighter_b_name,b.fighter_b_slug)];
+      return {
+        '@type':'SportsEvent',
+        name:`${b.fighter_a_name} vs ${b.fighter_b_name}`,
+        url:`${SITE}/fights/${b.id}`,
+        startDate:event.starts_at||event.event_date,
+        eventStatus:schemaStatus(b.status),
+        sport:'Mixed Martial Arts',
+        description:`${b.fighter_a_name} vs ${b.fighter_b_name} at ${label}. ${BRAND_NAME} prediction, win probabilities and matchup statistics.`,
+        organizer,
+        ...(location?{location}:{}),
+        performer:people,
+        competitor:people
+      };
+    })
+  };
   const crumbs={'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:BRAND_NAME,item:`${SITE}/`},{'@type':'ListItem',position:2,name:'UFC Predictions',item:`${SITE}/predictions.html`},{'@type':'ListItem',position:3,name:label,item:canonical}]};
   const cards=bouts.map((b:Row)=>{
     const has=Number.isFinite(Number(b.fighter_a_probability))&&Number.isFinite(Number(b.fighter_b_probability));
