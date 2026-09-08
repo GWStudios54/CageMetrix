@@ -2,7 +2,6 @@ import { JSDOM } from 'jsdom';
 import { dateFromText, parseLocation } from './global-event-sources.mjs';
 
 const clean=value=>String(value??'').replace(/\s+/g,' ').trim();
-const pad=value=>String(value).padStart(2,'0');
 
 function countryHint(location,slug){
   const text=clean(location).toLowerCase();
@@ -86,6 +85,58 @@ function parseOktagon(html,source,now){
   return events;
 }
 
+function cffcVenueFromTicket(href,location){
+  const value=clean(href).toLowerCase();
+  if(value.includes('hard-rock-live-casino-rockford'))return 'Hard Rock Live Casino Rockford';
+  if(value.includes('hard-rock-hotel-casino-bristol'))return 'Hard Rock Hotel & Casino Bristol';
+  return location;
+}
+
+function stripNamedDate(value){
+  return clean(value.replace(/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s*/gi,'')
+    .replace(/\b(?:January|February|March|April|May|June|July|August|September|Sept|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:st|nd|rd|th)?(?:,)?\s*(?:20\d{2})?/gi,''));
+}
+
+function parseCffc(html,source,now){
+  const doc=new JSDOM(html).window.document;
+  const events=[];
+  for(const heading of doc.querySelectorAll('h3')){
+    const name=clean(heading.textContent);
+    if(!/^CFFC\s+\d+$/i.test(name))continue;
+    const column=heading.closest('.sqs-col-6')||heading.parentElement?.parentElement||heading.parentElement;
+    const details=clean(column?.querySelector('h2')?.textContent);
+    const eventDate=dateFromText(details,now);if(!eventDate)continue;
+    const location=stripNamedDate(details);
+    if(!location)continue;
+    const ticket=column?.querySelector('a[href*="/tickets/"]');
+    const sourceUrl=ticket?.href||source.url;
+    const loc=parseLocation(location,'United States');
+    loc.venue=cffcVenueFromTicket(sourceUrl,location);
+    events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl});
+  }
+  return events;
+}
+
+function parseFnc(html,source,now){
+  const doc=new JSDOM(html).window.document;
+  const section=doc.querySelector('section.upcomingEvent');
+  if(!section)return [];
+  const name=clean(section.querySelector('.fight-details .title-wrap h2')?.textContent);
+  const detailText=clean(section.querySelector('.fight-details .title-wrap p')?.textContent);
+  const eventDate=dateFromText(detailText,now);
+  if(!name||!eventDate)return [];
+  const city=clean(name.split('|').at(-1))||null;
+  const pageText=clean(doc.body?.textContent);
+  const venueMatch=pageText.match(/\bcoming to\s+([^,.]{3,80})\s+on\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}/i);
+  const venue=clean(venueMatch?.[1])||city;
+  if(!venue)return [];
+  const detail=section.querySelector('a[href*="/event/"]');
+  return [{
+    promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,
+    venue,city,region:null,country:'Croatia',sourceUrl:detail?.href||source.url
+  }];
+}
+
 function shootoLocation(row,descriptor){
   const explicit=clean(row.querySelector('.result-list-place')?.textContent);
   if(explicit)return explicit;
@@ -117,8 +168,10 @@ function parseShooto(html,source,now){
 export function parseSpecialPromotion(source,html,now=new Date()){
   switch(source?.slug){
     case 'one': return parseOne(html);
+    case 'cffc': return parseCffc(html,source,now);
     case 'ksw': return parseKsw(html,source);
     case 'oktagon': return parseOktagon(html,source,now);
+    case 'fnc': return parseFnc(html,source,now);
     case 'shooto': return parseShooto(html,source,now);
     default: return null;
   }
