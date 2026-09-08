@@ -38,7 +38,7 @@ test('LFA-style calendar card resolves event date and venue',()=>{
 test('OKTAGON-style compact card resolves date and arena',()=>{
   const html=`<section><h2>OKTAGON 93: ROUŠAL vs. MÅGÅRD</h2><p>12.09.2026 Winning Group Arena, Brno-město</p><a href="/en/events/oktagon-93/">Fightcard</a></section>`;
   const events=usableUpcomingEvents(parsePromotionEvents(source('oktagon'),html,now),now);
-  assert.equal(events.length,1);
+  assert.equal(events.length,1,JSON.stringify(events));
   assert.equal(events[0].eventDate,'2026-09-12');
   assert.match(events[0].venue,/Winning Group Arena/i);
 });
@@ -94,7 +94,7 @@ test('ARES dates are parsed but cards stay unpublished until a physical venue is
 test('Japanese and Korean calendar layouts resolve real physical venues',()=>{
   const grachan=`<table><tr><th>大会名</th><th>日程</th><th>場所</th></tr><tr><td>GRACHAN85</td><td>9月13日（日）</td><td>福岡・アクロス福岡</td></tr></table>`;
   const grachanEvents=usableUpcomingEvents(parsePromotionEvents(source('grachan'),grachan,now),now);
-  assert.equal(grachanEvents.length,1);
+  assert.equal(grachanEvents.length,1,JSON.stringify(parsePromotionEvents(source('grachan'),grachan,now)));
   assert.equal(grachanEvents[0].eventDate,'2026-09-13');
   assert.equal(grachanEvents[0].city,'福岡');
   assert.equal(grachanEvents[0].venue,'アクロス福岡');
