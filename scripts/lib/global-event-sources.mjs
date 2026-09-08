@@ -55,9 +55,9 @@ export function dateFromText(value, now=new Date()) {
   const text=clean(value);
   let match=text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
   if(match){const out=isoDate(Number(match[1]),Number(match[2]),Number(match[3]));if(validDate(out))return out;}
-  match=text.match(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/);
+  match=text.match(/(?:^|[^\d])(\d{1,2})\/(\d{1,2})\/(20\d{2})(?!\d)/);
   if(match){const out=isoDate(Number(match[3]),Number(match[2]),Number(match[1]));if(validDate(out))return out;}
-  match=text.match(/\b(\d{1,2})[.](\d{1,2})[.](20\d{2})\b/);
+  match=text.match(/(?:^|[^\d])(\d{1,2})[.](\d{1,2})[.](20\d{2})(?!\d)/);
   if(match){const out=isoDate(Number(match[3]),Number(match[2]),Number(match[1]));if(validDate(out))return out;}
   match=text.match(/(?:(20\d{2})年\s*)?(\d{1,2})月\s*(\d{1,2})日/);
   if(match){const month=Number(match[2]),day=Number(match[3]),year=match[1]?Number(match[1]):inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
@@ -67,7 +67,7 @@ export function dateFromText(value, now=new Date()) {
   if(match){const month=MONTHS.get(match[1].toLowerCase()),day=Number(match[2]),year=match[3]?Number(match[3]):inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
   match=text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|Sept|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(20\d{2})?\b/i);
   if(match){const month=MONTHS.get(match[2].toLowerCase()),day=Number(match[1]),year=match[3]?Number(match[3]):inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
-  match=text.match(/(?:^|[^\d])(\d{1,2})[.](\d{1,2})(?:[^\d]|$)/);
+  match=text.match(/(?:^|[^\d])(\d{1,2})[.](\d{1,2})(?![.]20\d{2})(?=[^\d]|$)/);
   if(match){const month=Number(match[1]),day=Number(match[2]),year=inferYear(month,day,now);const out=isoDate(year,month,day);if(validDate(out))return out;}
   return null;
 }
@@ -235,7 +235,8 @@ function tableEvents(doc,source,now) {
     const name=cells.find(cell=>source.title.test(cell));
     if(!name||source.exclude?.test(name))continue;
     const eventDate=dateFromText(cells.join(' '),now);if(!eventDate)continue;
-    const locText=cells.find(cell=>cell!==name&&dateFromText(cell,now)===null&&probableVenue(cell));
+    const locationCandidates=cells.filter(cell=>cell!==name&&dateFromText(cell,now)===null);
+    const locText=locationCandidates.find(cell=>probableVenue(cell,!!source.simpleLocation)) || locationCandidates.at(-1) || null;
     const loc=locText?parseLocation(locText,source.defaultCountry||null):{venue:null,city:null,region:null,country:source.defaultCountry||null};
     events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl:source.url});
   }
