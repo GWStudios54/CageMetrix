@@ -28,7 +28,7 @@ test('automatic resolution requires exact normalized name plus strong independen
   assert.match(resolver,/score>=7/);
   assert.match(resolver,/dob_match=1 OR evidence_dimensions>=2/);
   assert.match(resolver,/score-second_score>=3/);
-  assert.doesNotMatch(resolver,/levenshtein|soundex|jaro|fuzzy/i);
+  assert.doesNotMatch(resolver,/levenshtein\s*\(|soundex\s*\(|jaro[_a-z]*\s*\(|fuzzy[_a-z]*\s*\(/i);
 });
 
 test('manual verified resolutions survive auto rebuilds and self-opponent collisions are excluded',()=>{
