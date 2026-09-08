@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sitemapXml } from '../scripts/lib/sitemap.mjs';
 
-test('sitemap publishes canonical MMA Scouts scouting, talent, management, promotion, event and fighter URLs', () => {
+test('sitemap publishes canonical MMA Scouts scouting, prospects, talent, management, promotion, event and fighter URLs', () => {
   const xml = sitemapXml({
     fighters: [
       { slug: 'alpha-fighter', last_fight_date: '2026-08-29' },
@@ -24,6 +24,7 @@ test('sitemap publishes canonical MMA Scouts scouting, talent, management, promo
 
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/scout<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/prospects<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/talent<\/loc>/);
@@ -52,6 +53,7 @@ test('sitemap generator indexes global event shells, promotions and management a
   assert.match(source, /FROM scout_promotions/);
   assert.match(source, /FROM management_agencies/);
   assert.match(source, /WHERE active = 1/);
+  assert.match(source, /const total = 7 \+/);
   assert.match(source, /sitemapXml\(\{ fighters, events, promotions, agencies \}\)/);
 });
 
