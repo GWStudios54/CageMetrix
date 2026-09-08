@@ -123,11 +123,15 @@ function parseDeepDetail(html,source,now){
   const doc=new JSDOM(html).window.document;
   const name=clean(doc.querySelector('h1')?.textContent);
   if(!/^DEEP\b/i.test(name))return [];
-  const paragraphs=[...doc.querySelectorAll('p')].map(node=>clean(node.textContent));
-  const dateLine=paragraphs.find(text=>/^●?\s*日時[:：]/.test(text))||paragraphs.find(text=>dateFromText(text,now)&&text.includes(name));
+  const paragraphs=[...doc.querySelectorAll('p')].map(node=>clean(node.textContent)).filter(Boolean);
+  const intro=paragraphs.find(text=>dateFromText(text,now)&&text.includes(name))||'';
+  const dateLine=paragraphs.find(text=>/^●?\s*日時[:：]/.test(text))||intro;
   const venueLine=paragraphs.find(text=>/^●?\s*会場[:：]/.test(text));
   const eventDate=dateFromText(dateLine,now);
-  const venue=clean(String(venueLine||'').replace(/^●?\s*会場[:：]\s*/, '').replace(/[（(].*$/,'').trim());
+  let venue=clean(String(venueLine||'').replace(/^●?\s*会場[:：]\s*/, '').replace(/[（(].*$/,'').trim());
+  if(!venue&&intro){
+    venue=clean(intro.match(/に(.{2,140}?)で開催する/)?.[1]);
+  }
   if(!eventDate||!venue)return [];
   return [{promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,venue,city:null,region:null,country:'Japan',sourceUrl:source.url}];
 }
