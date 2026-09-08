@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const migration=fs.readFileSync('migrations/0032_participant_identity_resolutions.sql','utf8');
+const seedMigration=fs.readFileSync('migrations/0033_participant_identity_seed_facts.sql','utf8');
 const resolver=fs.readFileSync('scripts/resolve-participant-identities.mjs','utf8');
 const recovery=fs.readFileSync('scripts/recover-global-fight-history.mjs','utf8');
 const workflow=fs.readFileSync('.github/workflows/fight-history-recovery.yml','utf8');
@@ -40,9 +41,19 @@ test('resolver bounds expensive identity work to rowid batches for D1',()=>{
   assert.match(resolver,/batches_processed:batches/);
 });
 
+test('fingerprint propagation uses a compact indexed materialization instead of a full-table seed CTE',()=>{
+  assert.match(seedMigration,/CREATE TABLE IF NOT EXISTS mma_participant_identity_seed_facts/);
+  assert.match(seedMigration,/idx_mma_identity_seed_name/);
+  assert.match(seedMigration,/idx_mma_identity_seed_candidate/);
+  assert.match(resolver,/function refreshSeedFacts\(\)/);
+  assert.match(resolver,/INSERT OR REPLACE INTO mma_participant_identity_seed_facts/);
+  assert.match(resolver,/JOIN mma_participant_identity_seed_facts s/);
+  assert.doesNotMatch(resolver,/seed_rows AS/);
+  assert.match(resolver,/max_seed_facts:maxSeedFacts/);
+});
+
 test('accepted identities can propagate only hard same-name biography fingerprints',()=>{
   assert.match(resolver,/const MAX_FINGERPRINT_PASSES=4/);
-  assert.match(resolver,/seed_rows AS/);
   assert.match(resolver,/s\.normalized_name=u\.normalized_name/);
   assert.match(resolver,/resolved_history_fingerprint/);
   assert.match(resolver,/dob_conflict=0 AND height_conflict=0 AND reach_conflict=0/);
