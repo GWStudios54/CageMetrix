@@ -9,6 +9,16 @@ function textWithBreaks(element){
   for(const br of clone.querySelectorAll?.('br')||[])br.replaceWith(' ');
   return clean(clone.textContent);
 }
+function absoluteUrl(value,base){
+  const href=typeof value==='string'?value:value?.getAttribute?.('href')||value?.href;
+  if(!href)return base;
+  try{return new URL(href,base).href.split('#')[0];}catch{return base;}
+}
+function decodeHtml(doc,value){
+  const node=doc.createElement('textarea');
+  node.innerHTML=String(value??'');
+  return clean(node.value);
+}
 
 function countryHint(location,slug){
   const text=clean(location).toLowerCase();
@@ -20,6 +30,11 @@ function countryHint(location,slug){
   if(slug==='ksw'){
     if(/liberec|czech/.test(text))return 'Czech Republic';
     if(/szczecin|rzesz|radom|gdynia|kalisz|poland/.test(text))return 'Poland';
+  }
+  if(slug==='oktagon'){
+    if(/brno|karlovy|třinec|trinec|praha|prague/.test(text))return 'Czech Republic';
+    if(/frankfurt|münchen|munich|hannover|dortmund|stuttgart/.test(text))return 'Germany';
+    if(/bratislava/.test(text))return 'Slovakia';
   }
   return null;
 }
@@ -44,8 +59,38 @@ function parseOne(html){
     const eventDate=startsAt.slice(0,10);
     events.push({
       promotionSlug:'one',promotionName:'ONE Championship',name,eventDate,startsAt,
-      ...withCountry(location,'one'),sourceUrl:anchor?.href||'https://www.onefc.com/events/'
+      ...withCountry(location,'one'),sourceUrl:absoluteUrl(anchor,'https://www.onefc.com/events/')
     });
+  }
+  return events;
+}
+
+function parseLfa(html,source){
+  const doc=new JSDOM(html).window.document;
+  const events=[];
+  for(const script of doc.querySelectorAll('script[type="application/ld+json"]')){
+    let parsed;
+    try{parsed=JSON.parse(script.textContent||'null');}catch{continue;}
+    const nodes=Array.isArray(parsed)?parsed:[parsed];
+    for(const node of nodes){
+      if(!node||!String(node['@type']||'').toLowerCase().includes('event'))continue;
+      const name=decodeHtml(doc,node.name);
+      if(!/^LFA\s+\d+/i.test(name))continue;
+      const start=clean(node.startDate);
+      const eventDate=/^20\d{2}-\d{2}-\d{2}/.test(start)?start.slice(0,10):null;
+      const place=node.location&&typeof node.location==='object'?node.location:{};
+      const address=place.address&&typeof place.address==='object'?place.address:{};
+      const venue=decodeHtml(doc,place.name);
+      const city=decodeHtml(doc,address.addressLocality)||null;
+      const region=decodeHtml(doc,address.addressRegion)||null;
+      let country=decodeHtml(doc,address.addressCountry)||null;
+      if(!country&&(city||region))country='United States';
+      if(!eventDate||!venue)continue;
+      events.push({
+        promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:start||eventDate,
+        venue,city,region,country,sourceUrl:absoluteUrl(node.url,source.url)
+      });
+    }
   }
   return events;
 }
@@ -68,7 +113,7 @@ function parseKsw(html,source){
     if(!venue||/\bvs\b/i.test(venue))continue;
     events.push({
       promotionSlug:source.slug,promotionName:source.name,name:clean(name),eventDate,startsAt:eventDate,
-      ...withCountry(venue,'ksw'),sourceUrl:anchor.href||source.url
+      ...withCountry(venue,'ksw'),sourceUrl:absoluteUrl(anchor,source.url)
     });
   }
   return events;
@@ -84,10 +129,10 @@ function parseOktagon(html,source,now){
     const eventDate=dateFromText(subtitles[0]||clean(card.textContent),now);
     const venue=subtitles.find(value=>value!==subtitles[0]&&dateFromText(value,now)===null)||null;
     if(!eventDate||!venue)continue;
-    const detail=[...card.querySelectorAll('a[href]')].map(a=>a.href).find(url=>/\/events\/oktagon-\d+\/?$/i.test(url));
+    const detail=[...card.querySelectorAll('a[href]')].find(anchor=>/\/events\/oktagon-\d+\/?$/i.test(anchor.getAttribute('href')||''));
     events.push({
       promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,
-      ...parseLocation(venue),sourceUrl:detail||source.url
+      ...parseLocation(venue,countryHint(venue,'oktagon')),sourceUrl:absoluteUrl(detail,source.url)
     });
   }
   return events;
@@ -117,7 +162,7 @@ function parseCffc(html,source,now){
     const location=stripNamedDate(details);
     if(!location)continue;
     const ticket=column?.querySelector('a[href*="/tickets/"]');
-    const sourceUrl=ticket?.href||source.url;
+    const sourceUrl=absoluteUrl(ticket,source.url);
     const loc=parseLocation(location,'United States');
     loc.venue=cffcVenueFromTicket(sourceUrl,location);
     events.push({promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,...loc,sourceUrl});
@@ -141,14 +186,14 @@ function parseFnc(html,source,now){
   const detail=section.querySelector('a[href*="/event/"]');
   return [{
     promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,
-    venue,city,region:null,country:'Croatia',sourceUrl:detail?.href||source.url
+    venue,city,region:null,country:'Croatia',sourceUrl:absoluteUrl(detail,source.url)
   }];
 }
 
 function shootoLocation(row,descriptor){
   const explicit=clean(row.querySelector('.result-list-place')?.textContent);
-  if(explicit)return explicit;
-  return clean(descriptor.replace(/\s*(?:主催|Organizer)\s*[:：].*$/i,'').replace(/^\s*[|｜:：-]+|[|｜:：-]+\s*$/g,''));
+  const raw=explicit||clean(descriptor.replace(/\s*(?:主催|Organizer)\s*[:：].*$/i,'').replace(/^\s*[|｜:：-]+|[|｜:：-]+\s*$/g,''));
+  return clean(raw.replace(/\s*[（(]\s*$/,''));
 }
 
 function parseShooto(html,source,now){
@@ -167,7 +212,7 @@ function parseShooto(html,source,now){
     const name=clean(explicit||`Shooto ${eventDate}${loc.city?` — ${loc.city}`:''}`);
     events.push({
       promotionSlug:source.slug,promotionName:source.name,name,eventDate,startsAt:eventDate,
-      ...loc,sourceUrl:anchor?.href||source.url
+      ...loc,sourceUrl:absoluteUrl(anchor,source.url)
     });
   }
   return events;
@@ -178,6 +223,7 @@ export function parseSpecialPromotion(source,html,now=new Date()){
   if(extended!==null)return extended;
   switch(source?.slug){
     case 'one': return parseOne(html);
+    case 'lfa': return parseLfa(html,source);
     case 'cffc': return parseCffc(html,source,now);
     case 'ksw': return parseKsw(html,source);
     case 'oktagon': return parseOktagon(html,source,now);
