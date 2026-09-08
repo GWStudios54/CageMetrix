@@ -23,6 +23,24 @@ const scalar=sql=>Number(query(sql)[0]?.n||0);
 const active=`EXISTS(SELECT 1 FROM mma_source_registry s WHERE s.source_key=p.source_key AND s.active_snapshot_id=p.snapshot_id)`;
 const acceptedOverlayCount=()=>scalar(`SELECT COUNT(*) n FROM mma_participant_identity_resolutions r JOIN mma_source_registry s ON s.source_key=r.source_key AND s.active_snapshot_id=r.snapshot_id WHERE r.status='accepted'`);
 
+function refreshSeedFacts(){
+  // Materialize the tiny accepted-identity fact set once per propagation pass. Joining every
+  // unresolved batch back through the full participant table caused D1 CPU resets even when
+  // the unresolved side itself was rowid-bounded.
+  run(`DELETE FROM mma_participant_identity_seed_facts;`);
+  run(`INSERT OR REPLACE INTO mma_participant_identity_seed_facts(
+      source_key,snapshot_id,source_fight_id,side,normalized_name,resolved_source_fighter_id,
+      dob,gym,nationality,height_cm,reach_cm,stance,updated_at)
+    SELECT r.source_key,r.snapshot_id,r.source_fight_id,r.side,r.normalized_name,r.resolved_source_fighter_id,
+           sp.dob,sp.gym,sp.nationality,sp.height_cm,sp.reach_cm,sp.stance,CURRENT_TIMESTAMP
+    FROM mma_participant_identity_resolutions r
+    JOIN mma_source_registry registry ON registry.source_key=r.source_key AND registry.active_snapshot_id=r.snapshot_id
+    JOIN mma_fight_participants sp
+      ON sp.source_key=r.source_key AND sp.snapshot_id=r.snapshot_id AND sp.source_fight_id=r.source_fight_id AND sp.side=r.side
+    WHERE r.status='accepted';`);
+  return scalar(`SELECT COUNT(*) n FROM mma_participant_identity_seed_facts`);
+}
+
 const rawUnresolved=scalar(`SELECT COUNT(*) n FROM mma_fight_participants p WHERE p.source_fighter_id IS NULL AND ${active}`);
 const existingOverlay=acceptedOverlayCount();
 const range=query(`SELECT MIN(p.rowid) min_rowid,MAX(p.rowid) max_rowid FROM mma_fight_participants p WHERE p.source_fighter_id IS NULL AND ${active}`)[0]||{};
@@ -40,9 +58,6 @@ for(let lo=minRow;lo&&lo<=maxRow;lo+=BATCH_ROWS){
   const hi=Math.min(maxRow,lo+BATCH_ROWS-1);batches+=1;
   console.log(`Resolving participant identity batch ${batches}: rowid ${lo}-${hi}`);
 
-  // First recover identities the global builder had already resolved from the same source
-  // metadata. Require exactly one materialized fighter on the fight whose master normalized
-  // name matches the unresolved participant, so same-name collisions remain unresolved.
   run(`WITH matches AS (
     SELECT p.source_key,p.snapshot_id,p.source_fight_id,p.side,p.normalized_name,g.source_fighter_id,
            COUNT(*) OVER(PARTITION BY p.source_key,p.snapshot_id,p.source_fight_id,p.side) match_count
@@ -63,9 +78,6 @@ for(let lo=minRow;lo&&lo<=maxRow;lo+=BATCH_ROWS){
   WHERE match_count=1
   ON CONFLICT(source_key,snapshot_id,source_fight_id,side) DO NOTHING;`);
 
-  // Resolve a subset of the remaining ambiguous names only when independent biography
-  // evidence clearly separates one candidate. DOB is strongest; height/reach, nationality,
-  // gym and stance are supporting dimensions. There are no approximate-name guesses.
   run(`WITH unresolved AS (
     SELECT p.*,
            COALESCE(o.source_fighter_id,orr.resolved_source_fighter_id) opponent_id
@@ -125,12 +137,19 @@ for(let lo=minRow;lo&&lo<=maxRow;lo+=BATCH_ROWS){
 }
 
 // A safely resolved ambiguous row is useful evidence for other rows carrying the exact same
-// normalized name. Propagate only hard biography fingerprints from those accepted rows.
-// This never uses rating, promotion prestige, win/loss pattern or approximate names.
+// normalized name. Propagate only hard biography fingerprints from accepted rows. The seed
+// facts are materialized and indexed before each pass so each 5k D1 query touches a compact
+// candidate set instead of rebuilding a CTE over the full participant table.
 let fingerprintPasses=0;
 let fingerprintAdded=0;
+let maxSeedFacts=0;
 for(let pass=1;pass<=MAX_FINGERPRINT_PASSES;pass+=1){
   const passBefore=acceptedOverlayCount();
+  const seedFacts=refreshSeedFacts();
+  maxSeedFacts=Math.max(maxSeedFacts,seedFacts);
+  if(seedFacts===0)break;
+  console.log(`History-fingerprint pass ${pass} using ${seedFacts} indexed seed facts.`);
+
   for(let lo=minRow;lo&&lo<=maxRow;lo+=BATCH_ROWS){
     const hi=Math.min(maxRow,lo+BATCH_ROWS-1);
     run(`WITH unresolved AS (
@@ -145,14 +164,6 @@ for(let pass=1;pass<=MAX_FINGERPRINT_PASSES;pass+=1){
       WHERE p.rowid BETWEEN ${lo} AND ${hi}
         AND p.source_fighter_id IS NULL
         AND NOT EXISTS(SELECT 1 FROM mma_participant_identity_resolutions existing WHERE existing.source_key=p.source_key AND existing.snapshot_id=p.snapshot_id AND existing.source_fight_id=p.source_fight_id AND existing.side=p.side AND existing.status='accepted')
-    ), seed_rows AS (
-      SELECT r.source_key,r.snapshot_id,r.normalized_name,r.resolved_source_fighter_id,
-             sp.dob,sp.gym,sp.nationality,sp.height_cm,sp.reach_cm,sp.stance
-      FROM mma_participant_identity_resolutions r
-      JOIN mma_source_registry registry ON registry.source_key=r.source_key AND registry.active_snapshot_id=r.snapshot_id
-      JOIN mma_fight_participants sp
-        ON sp.source_key=r.source_key AND sp.snapshot_id=r.snapshot_id AND sp.source_fight_id=r.source_fight_id AND sp.side=r.side
-      WHERE r.status='accepted'
     ), candidate_evidence AS (
       SELECT u.source_key,u.snapshot_id,u.source_fight_id,u.side,u.normalized_name,u.opponent_id,
              s.resolved_source_fighter_id source_fighter_id,
@@ -166,7 +177,8 @@ for(let pass=1;pass<=MAX_FINGERPRINT_PASSES;pass+=1){
              MAX(CASE WHEN u.reach_cm IS NOT NULL AND s.reach_cm IS NOT NULL AND abs(u.reach_cm-s.reach_cm)>15 THEN 1 ELSE 0 END) reach_conflict,
              MAX(CASE WHEN u.stance IS NOT NULL AND trim(u.stance)<>'' AND s.stance IS NOT NULL AND trim(s.stance)<>'' AND lower(trim(u.stance))=lower(trim(s.stance)) THEN 1 ELSE 0 END) stance_match
       FROM unresolved u
-      JOIN seed_rows s ON s.source_key=u.source_key AND s.snapshot_id=u.snapshot_id AND s.normalized_name=u.normalized_name
+      JOIN mma_participant_identity_seed_facts s
+        ON s.source_key=u.source_key AND s.snapshot_id=u.snapshot_id AND s.normalized_name=u.normalized_name
       WHERE u.opponent_id IS NULL OR s.resolved_source_fighter_id<>u.opponent_id
       GROUP BY u.source_key,u.snapshot_id,u.source_fight_id,u.side,u.normalized_name,u.opponent_id,s.resolved_source_fighter_id
     ), scored AS (
@@ -195,6 +207,7 @@ for(let pass=1;pass<=MAX_FINGERPRINT_PASSES;pass+=1){
       AND (second_score IS NULL OR score-second_score>=4)
     ON CONFLICT(source_key,snapshot_id,source_fight_id,side) DO NOTHING;`);
   }
+
   const passAfter=acceptedOverlayCount();
   const added=Math.max(0,passAfter-passBefore);
   fingerprintPasses=pass;
@@ -218,17 +231,16 @@ const after={
   active_participant_sides:totalActive,
   batches_processed:batches,
   fingerprint_passes:fingerprintPasses,
-  fingerprint_added:fingerprintAdded
+  fingerprint_added:fingerprintAdded,
+  max_seed_facts:maxSeedFacts
 };
 
 const confidenceBands=query(`SELECT CASE WHEN confidence>=0.995 THEN '99.5%+' WHEN confidence>=0.99 THEN '99-99.49%' WHEN confidence>=0.975 THEN '97.5-98.99%' ELSE '95-97.49%' END confidence_band,COUNT(*) resolutions FROM mma_participant_identity_resolutions r JOIN mma_source_registry s ON s.source_key=r.source_key AND s.active_snapshot_id=r.snapshot_id WHERE r.status='accepted' AND r.match_method='metadata_auto' GROUP BY confidence_band ORDER BY MIN(confidence) DESC`);
 
-// Build the remaining completed-history backlog in the runner, not in one giant D1 GROUP BY.
-// The audit distinguishes missing fighter-master identities from genuine same-name ambiguity.
 const backlogByName=new Map();
 for(let lo=minRow;lo&&lo<=maxRow;lo+=BATCH_ROWS){
   const hi=Math.min(maxRow,lo+BATCH_ROWS-1);
-  const rows=query(`SELECT p.normalized_name,MIN(p.fighter_name) fighter_name,COUNT(*) unresolved_sides,
+  const rows=query(`SELECT p.source_key,p.snapshot_id,p.normalized_name,MIN(p.fighter_name) fighter_name,COUNT(*) unresolved_sides,
       SUM(CASE WHEN f.outcome<>'unknown' AND f.event_date<=date('now') AND p.result IN ('W','L','D','NC') THEN 1 ELSE 0 END) completed_sides,
       SUM(CASE WHEN COALESCE(o.source_fighter_id,orr.resolved_source_fighter_id) IS NOT NULL THEN 1 ELSE 0 END) known_opponent_sides,
       SUM(CASE WHEN ((p.dob IS NOT NULL AND trim(p.dob)<>'')+(p.gym IS NOT NULL AND trim(p.gym)<>'')+(p.nationality IS NOT NULL AND trim(p.nationality)<>'')+(p.height_cm IS NOT NULL)+(p.reach_cm IS NOT NULL)+(p.stance IS NOT NULL AND trim(p.stance)<>''))>=2 THEN 1 ELSE 0 END) sides_with_2plus_bio_dimensions,
@@ -243,8 +255,8 @@ for(let lo=minRow;lo&&lo<=maxRow;lo+=BATCH_ROWS){
     WHERE p.rowid BETWEEN ${lo} AND ${hi} AND p.source_fighter_id IS NULL AND r.source_fight_id IS NULL
     GROUP BY p.source_key,p.snapshot_id,p.normalized_name`);
   for(const row of rows){
-    const key=String(row.normalized_name||'');
-    const current=backlogByName.get(key)||{normalized_name:key,fighter_name:String(row.fighter_name||''),unresolved_sides:0,completed_sides:0,known_opponent_sides:0,sides_with_2plus_bio_dimensions:0,master_candidates:Number(row.master_candidates||0),first_event_date:null,last_event_date:null};
+    const key=`${row.source_key}|${row.snapshot_id}|${row.normalized_name}`;
+    const current=backlogByName.get(key)||{source_key:String(row.source_key||''),snapshot_id:String(row.snapshot_id||''),normalized_name:String(row.normalized_name||''),fighter_name:String(row.fighter_name||''),unresolved_sides:0,completed_sides:0,known_opponent_sides:0,sides_with_2plus_bio_dimensions:0,master_candidates:Number(row.master_candidates||0),first_event_date:null,last_event_date:null};
     current.unresolved_sides+=Number(row.unresolved_sides||0);
     current.completed_sides+=Number(row.completed_sides||0);
     current.known_opponent_sides+=Number(row.known_opponent_sides||0);
