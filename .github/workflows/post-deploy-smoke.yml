@@ -1,4 +1,4 @@
-name: Diagnose MMA Scouts production endpoints
+name: Diagnose MMA Scouts scouting surfaces
 
 on:
   push:
@@ -13,47 +13,77 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe Worker and canonical MMA Scouts domain
+      - name: Probe core scouting APIs
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p diagnostics
           for base in https://cagemetrix.aarin54.workers.dev https://mmascouts.com; do
             key=$(echo "$base" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
-            for path in /api/health '/api/rankings?limit=1' /api/forecasts; do
+            for path in /api/health '/api/rankings?limit=1' '/api/events?limit=1' '/api/promotions'; do
               name=$(echo "$path" | sed 's#[/?=&]#_#g')
-              code=$(curl --silent --show-error --location --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/1.0' --output "diagnostics/${key}${name}.body" --dump-header "diagnostics/${key}${name}.headers" --write-out '%{http_code}' "${base}${path}")
+              code=$(curl --silent --show-error --location --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0' --output "diagnostics/${key}${name}.body" --dump-header "diagnostics/${key}${name}.headers" --write-out '%{http_code}' "${base}${path}")
               echo "$base$path -> $code"
               test "$code" = "200"
             done
           done
 
-      - name: Verify live research product surfaces
+      - name: Verify live scouting product surfaces
         shell: bash
         run: |
           set -euo pipefail
-          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/1.0'
+          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0'
           curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/ -o diagnostics/home.html
           curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/scout -o diagnostics/scout.html
+          curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/events -o diagnostics/events.html
+          curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/promotions -o diagnostics/promotions.html
           curl --silent --show-error --location --user-agent "$ua" https://mmascouts.com/sitemap.xml -o diagnostics/sitemap.xml
 
-          grep -Fq 'Research any fighter.' diagnostics/home.html
-          grep -Fq 'Understand any matchup.' diagnostics/home.html
-          grep -Fq 'Ask MMA Scouts' diagnostics/home.html
+          grep -Fq 'Evaluate any fighter.' diagnostics/home.html
+          grep -Fq 'Discover the next one.' diagnostics/home.html
           grep -Fq 'Fighter Reports' diagnostics/home.html
           grep -Fq 'Prospect Scout' diagnostics/home.html
           grep -Fq 'SCOUT RANKINGS · FIGHTER DATABASE' diagnostics/home.html
-          ! grep -Fq 'THE CROWD DISAGREES' diagnostics/home.html
+          ! grep -Fq 'Matchup Scout' diagnostics/home.html
 
-          grep -Fq '<link rel="canonical" href="https://mmascouts.com/scout"' diagnostics/scout.html
-          grep -Fq 'name="robots" content="index,follow,max-image-preview:large"' diagnostics/scout.html
           grep -Fq 'SCOUT AI · GROUNDED MMA RESEARCH' diagnostics/scout.html
-          ! grep -Fq 'RESEARCH PREVIEW' diagnostics/scout.html
+          grep -Fq 'GLOBAL MMA CALENDAR' diagnostics/events.html
+          grep -Fq 'GLOBAL SCOUTING NETWORK' diagnostics/promotions.html
 
           grep -Fq '<loc>https://mmascouts.com/scout</loc>' diagnostics/sitemap.xml
-          echo 'Homepage, Scout AI, and sitemap product checks passed.'
+          grep -Fq '<loc>https://mmascouts.com/events</loc>' diagnostics/sitemap.xml
+          grep -Fq '<loc>https://mmascouts.com/promotions</loc>' diagnostics/sitemap.xml
+          ! grep -Fq '/predictions' diagnostics/sitemap.xml
+          ! grep -Fq '/community' diagnostics/sitemap.xml
+          ! grep -Fq '/forum' diagnostics/sitemap.xml
+          ! grep -Fq '/fights/' diagnostics/sitemap.xml
+          echo 'Scouting homepage, Scout AI, events, promotions, and sitemap checks passed.'
 
-      - name: Verify legacy and www redirects are one hop
+      - name: Verify retired prediction and social surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          ua='Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0'
+          check_redirect() {
+            source="$1"
+            expected="$2"
+            key=$(echo "$source" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
+            headers="diagnostics/${key}.retired.headers"
+            code=$(curl --silent --show-error --user-agent "$ua" --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
+            location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
+            echo "$source -> $code $location"
+            test "$code" = "308"
+            test "$location" = "$expected"
+          }
+          check_redirect 'https://mmascouts.com/predictions.html' 'https://mmascouts.com/events'
+          check_redirect 'https://mmascouts.com/validation.html' 'https://mmascouts.com/#rankings'
+          check_redirect 'https://mmascouts.com/community' 'https://mmascouts.com/scout'
+          check_redirect 'https://mmascouts.com/forum' 'https://mmascouts.com/scout'
+          code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/forecasts-retired.body --write-out '%{http_code}' https://mmascouts.com/api/forecasts)
+          test "$code" = "410"
+          grep -Fq 'feature_retired' diagnostics/forecasts-retired.body
+
+      - name: Verify legacy and www canonical redirects
         shell: bash
         run: |
           set -euo pipefail
@@ -63,7 +93,7 @@ jobs:
             expected="$2"
             key=$(echo "$source" | sed 's#https://##;s#[^A-Za-z0-9]#_#g')
             headers="diagnostics/${key}.redirect.headers"
-            code=$(curl --silent --show-error --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/1.0' --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
+            code=$(curl --silent --show-error --user-agent 'Mozilla/5.0 MMA-Scouts-Production-Smoke/2.0' --output /dev/null --dump-header "$headers" --write-out '%{http_code}' "$source")
             location=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {sub(/\r$/,"",$2); print $2}' "$headers" | tail -1)
             echo "$source -> $code $location"
             test "$code" = "308"
@@ -71,12 +101,12 @@ jobs:
           }
           check_redirect 'https://cagemetrix.com/api/health?from=legacy' 'https://mmascouts.com/api/health?from=legacy'
           check_redirect 'https://www.cagemetrix.com/fighters/example?from=legacy' 'https://mmascouts.com/fighters/example?from=legacy'
-          check_redirect 'https://www.mmascouts.com/predictions.html?from=www' 'https://mmascouts.com/predictions.html?from=www'
+          check_redirect 'https://www.mmascouts.com/events?from=www' 'https://mmascouts.com/events?from=www'
           check_redirect 'https://cagemetrix.com/index.html?from=legacy' 'https://mmascouts.com/?from=legacy'
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: post-deploy-diagnostics
+          name: post-deploy-scouting-diagnostics
           path: diagnostics/
           retention-days: 7
