@@ -14,6 +14,7 @@ on:
       - 'migrations/0026_global_scout_fight_history.sql'
       - 'scripts/import-mma-master.py'
       - 'scripts/build-global-scout-rating-v2.py'
+      - 'scripts/prepare_d1_import.py'
       - 'scripts/data/scout-promotions.json'
       - 'scripts/refresh-ufc-history.py'
       - 'scripts/refresh-ufc-history-small.py'
@@ -22,6 +23,7 @@ on:
       - 'scripts/lib/warehouse-history.mjs'
       - 'tests/warehouse-history.test.mjs'
       - 'tests/global-scout-rating.test.mjs'
+      - 'tests/test_prepare_d1_import.py'
       - 'tests/test_canonicalize_ufc_history.py'
       - '.github/workflows/mma-master-sync.yml'
   push:
@@ -39,6 +41,7 @@ on:
       - 'migrations/0026_global_scout_fight_history.sql'
       - 'scripts/import-mma-master.py'
       - 'scripts/build-global-scout-rating-v2.py'
+      - 'scripts/prepare_d1_import.py'
       - 'scripts/data/scout-promotions.json'
       - 'scripts/refresh-ufc-history.py'
       - 'scripts/refresh-ufc-history-small.py'
@@ -47,6 +50,7 @@ on:
       - 'scripts/lib/warehouse-history.mjs'
       - 'tests/warehouse-history.test.mjs'
       - 'tests/global-scout-rating.test.mjs'
+      - 'tests/test_prepare_d1_import.py'
       - 'tests/test_canonicalize_ufc_history.py'
       - '.github/workflows/mma-master-sync.yml'
   workflow_dispatch:
@@ -80,7 +84,8 @@ jobs:
 
       - name: Validate global research pipeline
         run: |
-          python -m py_compile scripts/refresh-ufc-history.py scripts/refresh-ufc-history-small.py scripts/canonicalize-ufc-history.py scripts/build-global-scout-rating-v2.py tests/test_canonicalize_ufc_history.py
+          python -m py_compile scripts/refresh-ufc-history.py scripts/refresh-ufc-history-small.py scripts/canonicalize-ufc-history.py scripts/build-global-scout-rating-v2.py scripts/prepare_d1_import.py tests/test_prepare_d1_import.py tests/test_canonicalize_ufc_history.py
+          python tests/test_prepare_d1_import.py
           python tests/test_canonicalize_ufc_history.py
           node --check scripts/refresh-ufc-history.mjs
           node --test tests/warehouse-history.test.mjs tests/global-scout-rating.test.mjs
@@ -148,13 +153,12 @@ jobs:
             echo "Snapshot ${SNAPSHOT_ID} and global Scout layer are already complete; nothing to write."
           else
             D1_SQL_DIR=".cache/mma-master/d1-sql"
-            rm -rf "$D1_SQL_DIR" && mkdir -p "$D1_SQL_DIR"
-            for file in .cache/mma-master/sql/*.sql; do
-              output="$D1_SQL_DIR/$(basename "$file")"
-              sed -E '/^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT)[[:space:]]*;[[:space:]]*$/Id' "$file" > "$output"
-            done
-            if grep -RniE '^[[:space:]]*(BEGIN([[:space:]]+TRANSACTION)?|COMMIT|SAVEPOINT|RELEASE([[:space:]]+SAVEPOINT)?|ROLLBACK)[[:space:]]' "$D1_SQL_DIR"; then
-              echo "D1-incompatible transaction control remained in generated SQL." >&2; exit 1
+            rm -rf "$D1_SQL_DIR"
+            python scripts/prepare_d1_import.py --input .cache/mma-master/sql --output "$D1_SQL_DIR"
+            cat .cache/mma-master/d1-import-plan.json
+            MAX_PREPARED="$(jq -r '.max_prepared_statement_bytes' .cache/mma-master/d1-import-plan.json)"
+            if [ "$MAX_PREPARED" -gt 64000 ]; then
+              echo "D1 preflight emitted an oversized statement: ${MAX_PREPARED} bytes" >&2; exit 1
             fi
             for file in "$D1_SQL_DIR"/*.sql; do
               echo "Applying $(basename "$file")"
@@ -205,6 +209,7 @@ jobs:
           path: |
             .cache/mma-master/summary.json
             .cache/mma-master/scout-global-summary.json
+            .cache/mma-master/d1-import-plan.json
             .cache/mma-master/remote-verification.json
             .cache/mma-master/ufc-history-summary.json
             .cache/mma-master/ufc-history-canonical-summary.json
