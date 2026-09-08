@@ -8,7 +8,9 @@ on:
     paths:
       - 'scripts/sync-recent.mjs'
       - 'scripts/lib/recent-source.mjs'
+      - 'scripts/backfill-event-locations.mjs'
       - 'tests/recent-results.test.mjs'
+      - 'tests/event-location-backfill.test.mjs'
       - '.github/workflows/refresh-data.yml'
 concurrency:
   group: cagemetrix-production
@@ -30,10 +32,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Refresh ratings and lock or grade forecasts
+      - name: Refresh ratings, lock forecasts and backfill event locations
         run: |
           npm run data:refresh
           npm run forecasts:sync
+          node scripts/backfill-event-locations.mjs --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -45,5 +48,6 @@ jobs:
             .cache/refresh/summary.json
             .cache/refresh/before-refresh.sql
             .cache/forecasts/summary.json
+            .cache/event-locations/summary.json
             scripts/data/recent-bouts.json
           retention-days: 7
