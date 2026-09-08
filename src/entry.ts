@@ -7,12 +7,26 @@ import {eventsApi,eventsPage} from './events.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
 async function page(response:Response|Promise<Response>,request:Request,env:Env){return normalizeNavigation(await response,request,env);}
+const retiredJson=()=>new Response(JSON.stringify({error:'feature_retired',message:'MMA Scouts is focused on scouting research.'}),{status:410,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+
+async function legacyFightRedirect(path:string,request:Request,env:Env){
+  const match=path.match(/^\/fights\/([1-9]\d*)\/?$/);if(!match)return null;
+  const row=await env.DB.prepare(`SELECT e.slug FROM bouts b JOIN events e ON e.id=b.event_id WHERE b.id=? AND e.slug IS NOT NULL LIMIT 1`).bind(Number(match[1])).first<{slug:string}>();
+  return Response.redirect(new URL(row?.slug?`/events/${row.slug}`:'/scout',request.url),308);
+}
 
 export default {
   async scheduled(controller:ScheduledController,env:Env,context:ExecutionContext){return worker.scheduled(controller,env,context);},
   async fetch(request:Request,env:Env,context:ExecutionContext):Promise<Response>{
     const redirected=canonicalRedirect(request);if(redirected)return redirected;
     const url=new URL(request.url),path=url.pathname;
+
+    if(request.method==='GET'&&(path==='/predictions.html'||path==='/predictions'))return Response.redirect(new URL('/events',request.url),308);
+    if(request.method==='GET'&&(path==='/validation.html'||path==='/validation'))return Response.redirect(new URL('/#rankings',request.url),308);
+    if(request.method==='GET'&&(path==='/community'||path==='/community/'||path==='/forum'||path==='/forum/'||/^\/forum\//.test(path)||/^\/u\//.test(path)))return Response.redirect(new URL('/scout',request.url),308);
+    if(request.method==='GET'&&/^\/fights\/[1-9]\d*\/?$/.test(path))return (await legacyFightRedirect(path,request,env))!;
+
+    if(path==='/api/forecasts'||path.startsWith('/api/community')||path.startsWith('/api/forum')||path.startsWith('/api/fans')||/^\/api\/fights\/[1-9]\d*\/(fans|fan-prediction|fan-scorecard)$/.test(path))return retiredJson();
 
     if(path==='/api/events')return eventsApi(request,env);
     if(path==='/api/promotions')return promotionsApi(request,env);
