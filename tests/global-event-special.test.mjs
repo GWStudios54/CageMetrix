@@ -17,6 +17,18 @@ test('ONE upcoming template is parsed from official data timestamps without Java
   assert.match(events[0].sourceUrl,/one-friday-fights-170/);
 });
 
+test('CFFC homepage ticket blocks resolve the upcoming numbered card and venue',()=>{
+  const html=`<div class="sqs-row"><div class="sqs-col-6"><div><h3><strong>CFFC 161</strong></h3><h2><strong>SEPTEMBER 11th<br><em>Rockford, IL</em></strong></h2></div><a href="/tickets/cage-fury-161-september-11-2026-hard-rock-live-casino-rockford-illinois-mma-fights-show-event-tickets">LIMITED TICKETS REMAIN</a></div></div>`;
+  const events=usableUpcomingEvents(parseSpecialPromotion(source('cffc'),html,now),now);
+  assert.equal(events.length,1,JSON.stringify(events));
+  assert.equal(events[0].name,'CFFC 161');
+  assert.equal(events[0].eventDate,'2026-09-11');
+  assert.equal(events[0].venue,'Hard Rock Live Casino Rockford');
+  assert.equal(events[0].city,'Rockford');
+  assert.equal(events[0].country,'United States');
+  assert.match(events[0].sourceUrl,/cage-fury-161/);
+});
+
 test('KSW cards parse DD-MM-YYYY dates and physical venues',()=>{
   const html=`<a href="https://www.kswmma.com/en/event/xtb-ksw-121"><img alt="XTB KSW 121"><div class="row"><div class="col-sm-6 pt-2 ps-5 text-uppercase">XTB KSW 121</div><div class="col-sm-6 text-end pt-2 pe-5">19-09-2026</div></div><div class="row"><div class="col-sm-12 ps-5 text-uppercase"><h2>Vojčák <span>vs</span> Wójcik</h2></div></div><div class="row"><div class="col-sm-12 ps-5 text-uppercase">Home Credit Arena, Liberec</div></div></a>`;
   const events=usableUpcomingEvents(parseSpecialPromotion(source('ksw'),html,now),now);
@@ -33,6 +45,17 @@ test('OKTAGON future cards use subtitle date and arena fields',()=>{
   assert.equal(events[0].eventDate,'2026-09-12');
   assert.match(events[0].venue,/Winning Group Arena/);
   assert.match(events[0].sourceUrl,/oktagon-93/);
+});
+
+test('FNC upcoming hero supplies the current card, arena and city',()=>{
+  const html=`<div class="inner-text-wrap"><p>The biggest event is coming to Arena Zagreb on September 12, featuring 11 spectacular fights.</p></div><section class="upcomingEvent"><div class="fight-details"><div class="title-wrap"><h2>FNC 33 POWERED BY SUPERSPORT | ZAGREB</h2><p>12.09.2026. 19:00 HATEF VS. STOSIC</p></div><a class="btn-secondary dark" href="/en/event/fnc-33-powered-by-supersport-zagreb/">View event</a></div></section>`;
+  const events=usableUpcomingEvents(parseSpecialPromotion(source('fnc'),html,now),now);
+  assert.equal(events.length,1,JSON.stringify(events));
+  assert.equal(events[0].eventDate,'2026-09-12');
+  assert.equal(events[0].venue,'Arena Zagreb');
+  assert.equal(events[0].city,'ZAGREB');
+  assert.equal(events[0].country,'Croatia');
+  assert.match(events[0].sourceUrl,/fnc-33-powered-by-supersport-zagreb/);
 });
 
 test('Shooto schedule rows use row date, event label and venue',()=>{
