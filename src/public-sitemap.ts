@@ -20,6 +20,7 @@ export async function publicSitemap(env:Env){
   const urls:SitemapEntry[]=[
     [`${SITE}/`,null,'daily','1.0'],
     [`${SITE}/scout`,null,'daily','0.95'],
+    [`${SITE}/prospects`,null,'daily','0.96'],
     [`${SITE}/talent`,null,'daily','0.95'],
     [`${SITE}/events`,null,'hourly','0.95'],
     [`${SITE}/promotions`,null,'daily','0.9'],
