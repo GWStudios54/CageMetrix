@@ -1,4 +1,4 @@
-name: Refresh UFC data and grade predictions
+name: Refresh UFC scouting data
 on:
   schedule:
     - cron: '30 8 * * *'
@@ -13,7 +13,7 @@ on:
       - 'tests/event-location-backfill.test.mjs'
       - '.github/workflows/refresh-data.yml'
 concurrency:
-  group: cagemetrix-production
+  group: mmascouts-data-refresh
   cancel-in-progress: false
 jobs:
   refresh:
@@ -32,10 +32,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Refresh ratings, lock forecasts and backfill event locations
+      - name: Refresh Scout Ratings and event locations
         run: |
           npm run data:refresh
-          npm run forecasts:sync
           node scripts/backfill-event-locations.mjs --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -43,11 +42,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: refresh-audit
+          name: scouting-refresh-audit
           path: |
             .cache/refresh/summary.json
             .cache/refresh/before-refresh.sql
-            .cache/forecasts/summary.json
             .cache/event-locations/summary.json
             scripts/data/recent-bouts.json
           retention-days: 7
