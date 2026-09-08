@@ -26,6 +26,7 @@ export function sitemapXml({ fighters = [], events = [], promotions = [], agenci
   const urls = [
     entry(`${base}/`),
     entry(`${base}/scout`),
+    entry(`${base}/prospects`),
     entry(`${base}/events`),
     entry(`${base}/promotions`),
     entry(`${base}/talent`),

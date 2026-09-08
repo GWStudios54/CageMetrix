@@ -57,5 +57,5 @@ const agencies = query(`
 
 mkdirSync('public', { recursive: true });
 writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, promotions, agencies }));
-const total = 6 + fighters.length + events.length + promotions.length + agencies.length;
+const total = 7 + fighters.length + events.length + promotions.length + agencies.length;
 console.log(`Generated sitemap with ${total} URLs (${fighters.length} fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies).`);
