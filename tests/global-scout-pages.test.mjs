@@ -1,0 +1,49 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const read=path=>fs.readFileSync(path,'utf8');
+
+test('global scouting routes are isolated ahead of the legacy Worker',()=>{
+  const entry=read('src/entry.ts'),config=read('wrangler.jsonc');
+  assert.match(config,/"main": "src\/entry\.ts"/);
+  assert.match(config,/"\/promotions\/\*"/);
+  assert.match(config,/"\/scout\/\*"/);
+  assert.match(entry,/canonicalRedirect\(request\)/);
+  assert.match(entry,/\/api\/promotions/);
+  assert.match(entry,/\/api\/scout\/fighters/);
+  assert.match(entry,/\/promotions/);
+  assert.match(entry,/\/scout\/fighters/);
+  assert.match(entry,/return worker\.fetch\(request,env,context\)/);
+});
+
+test('promotion rosters and global dossiers use the materialized global model',()=>{
+  const source=read('src/global-scout.ts');
+  assert.match(source,/GLOBAL_MODEL='global-1\.0\.0'/);
+  assert.match(source,/FROM scout_active_global_profiles/);
+  assert.match(source,/scout_active_global_ratings/);
+  assert.match(source,/scout_active_global_fights/);
+  assert.match(source,/opponent_pre_elo/);
+  assert.match(source,/Résumé anchors/);
+  assert.match(source,/A logo does not add points/);
+  assert.doesNotMatch(source,/career_finishes/);
+  assert.doesNotMatch(source,/mma_active_participants/);
+});
+
+test('regional directory is first-class navigation and crawl surface without dumping every profile',()=>{
+  const nav=read('src/navigation.ts'),sitemap=read('src/public-sitemap.ts');
+  assert.match(nav,/href="\/promotions">Promotions/);
+  assert.match(sitemap,/\$\{SITE\}\/promotions/);
+  assert.match(sitemap,/scout\/fighters/);
+  assert.match(sitemap,/p\.current_promotion_slug IS NOT NULL/);
+  assert.match(sitemap,/p\.data_completeness>=60/);
+  assert.match(sitemap,/r\.evidence_strength>=40/);
+});
+
+test('regional directory has dedicated responsive presentation',()=>{
+  const css=read('public/scout-directory.css');
+  assert.match(css,/directory-promo-grid/);
+  assert.match(css,/directory-fighter-row/);
+  assert.match(css,/dossier-component-grid/);
+  assert.match(css,/@media\(max-width:760px\)/);
+});

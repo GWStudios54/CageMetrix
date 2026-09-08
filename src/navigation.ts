@@ -4,7 +4,7 @@ import {BRAND_NAME,SITE_ORIGIN} from './brand.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 
 export function primaryNavigation(admin=false){
-  return `<a href="/scout">Scout AI</a><a href="/predictions.html">Matchups</a><a href="/#rankings">Rankings</a><a href="/scout?q=Find%20the%20best%20regional%20MMA%20prospects%20under%2025">Prospects</a><a href="/watchlist">Saved</a>${admin?'<a href="/admin" class="admin-link">Admin</a>':''}`;
+  return `<a href="/scout">Scout AI</a><a href="/predictions.html">Matchups</a><a href="/#rankings">Rankings</a><a href="/promotions">Promotions</a><a href="/scout?q=Find%20the%20best%20regional%20MMA%20prospects%20under%2025">Prospects</a><a href="/watchlist">Saved</a>${admin?'<a href="/admin" class="admin-link">Admin</a>':''}`;
 }
 
 function publicBrandText(value:string){
