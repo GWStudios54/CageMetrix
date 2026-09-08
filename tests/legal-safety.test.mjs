@@ -43,7 +43,9 @@ test('removal requests are verified before publication suppression',()=>{
   const source=read('src/legal-safety.ts');
   assert.match(source,/status='pending'/);
   assert.match(source,/\['approve','reject'\]/);
-  assert.match(source,/public_status,'removed'/);
+  assert.match(source,/public_status,basis,removal_request_id/);
+  assert.match(source,/VALUES\(\?,\?,\?,'removed'/);
+  assert.match(source,/public_status='removed'/);
   assert.match(source,/fighter_request/);
   assert.match(source,/authorized_representative/);
   assert.match(source,/abuse_key_hash/);
