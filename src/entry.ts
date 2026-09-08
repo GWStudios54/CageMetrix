@@ -6,7 +6,7 @@ import {eventsApi,eventsPage} from './events.ts';
 import {eventPage} from './event-page.ts';
 import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
-import {endManagementApi} from './talent-admin.ts';
+import {endManagementApi,setManagementApi} from './talent-admin.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -53,8 +53,9 @@ export default {
     if(managementApiMatch)return managementAgencyApi(request,env,managementApiMatch[1]);
     const fighterTalentMatch=path.match(/^\/api\/talent\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(fighterTalentMatch)return fighterTalentApi(request,env,fighterTalentMatch[1]);
+    if(path==='/api/admin/talent/management'||path==='/api/admin/talent/management/')return setManagementApi(request,env);
     if(path==='/api/admin/talent/management/end'||path==='/api/admin/talent/management/end/')return endManagementApi(request,env);
-    const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|management|opportunity)\/?$/);
+    const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
 
     if(request.method==='GET'&&(path==='/events'||path==='/events/')){
