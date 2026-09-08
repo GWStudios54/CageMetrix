@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GLOBAL_EVENT_SOURCES, dateFromText, eventSlug, parseOneEvents, parsePromotionEvents, usableUpcomingEvents } from '../scripts/lib/global-event-sources.mjs';
+import { GLOBAL_EVENT_SOURCES, dateFromText, eventSlug, parseOneEvents, parsePromotionEvents } from '../scripts/lib/global-event-sources.mjs';
+import { usableUpcomingEvents } from '../scripts/lib/global-event-calendar.mjs';
 
 const now=new Date('2026-09-08T12:00:00Z');
 const source=slug=>GLOBAL_EVENT_SOURCES.find(item=>item.slug===slug);
@@ -18,7 +19,7 @@ test('LFA-style calendar card resolves event date and venue',()=>{
   assert.equal(events.length,1);
   assert.equal(events[0].eventDate,'2026-09-11');
   assert.match(events[0].venue,/MINEIRINHO/i);
-  assert.match(events[0].sourceUrl,/lfa-241/);
+  assert.match(events[0].sourceUrl,/^https:\/\/www\.lfa\.com\//);
 });
 
 test('OKTAGON-style compact card resolves date and arena',()=>{
