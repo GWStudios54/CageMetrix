@@ -40,6 +40,16 @@ test('regional directory is first-class navigation and crawl surface without dum
   assert.match(sitemap,/r\.evidence_strength>=40/);
 });
 
+test('regional roster presentation does not invent zeroes or mislabel roster activity',()=>{
+  const source=read('src/global-scout.ts');
+  assert.match(source,/value===null\|\|value===undefined\|\|value===''/);
+  assert.match(source,/searchParams\.set\('limit','250'\)/);
+  assert.match(source,/indexed fighters/);
+  assert.doesNotMatch(source,/active\/recent/);
+  assert.doesNotMatch(source,/recently active indexed fighters/);
+  assert.match(source,/const factRows:\[string,unknown\]\[\]/);
+});
+
 test('regional directory has dedicated responsive presentation',()=>{
   const css=read('public/scout-directory.css');
   assert.match(css,/directory-promo-grid/);
