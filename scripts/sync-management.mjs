@@ -34,7 +34,7 @@ for(const agency of MANAGEMENT_SOURCES){
     try{
       const html=await fetchHtml(url);reachable++;
       writeFileSync(`${cache}/${agency.slug}-${index+1}.html`,html);
-      const names=parseManagementRoster(html);
+      const names=parseManagementRoster(html,agency);
       for(const rawName of names){
         const canonical=applyManagementAliases(rawName,aliases),normalized=normalizeManagementName(canonical);
         if(normalized)entries.push({agency_slug:agency.slug,agency_name:agency.name,confidence:agency.confidence,source_url:url,raw_name:rawName,canonical_name:canonical,normalized_name:normalized});
