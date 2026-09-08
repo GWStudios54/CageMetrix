@@ -6,9 +6,9 @@ const source=fs.readFileSync('scripts/recover-global-fight-history.mjs','utf8');
 const workflow=fs.readFileSync('.github/workflows/fight-history-recovery.yml','utf8');
 
 test('history recovery materializes trustworthy one-sided results without changing the rating graph',()=>{
-  assert.match(source,/p\.source_fighter_id IS NOT NULL/);
+  assert.match(source,/p\.effective_source_fighter_id IS NOT NULL/);
   assert.match(source,/p\.result IN \('W','L','D','NC'\)/);
-  assert.match(source,/o\.source_fighter_id IS NULL OR o\.source_fighter_id<>p\.source_fighter_id/);
+  assert.match(source,/o\.effective_source_fighter_id IS NULL OR o\.effective_source_fighter_id<>p\.effective_source_fighter_id/);
   assert.match(source,/INSERT OR IGNORE INTO scout_global_fights/);
   assert.match(source,/opponent_source_fighter_id/);
   assert.match(source,/opponent_pre_elo/);
@@ -24,7 +24,8 @@ test('profile aggregates are recomputed from the richer materialized fight histo
   assert.match(source,/data_completeness=MIN\(100,55\+7\.5/);
 });
 
-test('recovery audits the pair-or-nothing hole while quarantining source rows that resolve both corners to one fighter',()=>{
+test('recovery audits the pair-or-nothing hole while quarantining rows that resolve both corners to one fighter',()=>{
+  assert.match(source,/overlay_resolved_participant_sides/);
   assert.match(source,/one_sided_completed_fights/);
   assert.match(source,/zero_sided_completed_fights/);
   assert.match(source,/unsafe_self_identity_sides/);
@@ -39,6 +40,7 @@ test('history recovery automatically follows every completed master-database ref
   assert.match(workflow,/workflow_run:/);
   assert.match(workflow,/Sync MMA master database/);
   assert.match(workflow,/workflow_dispatch:/);
+  assert.match(workflow,/resolve-participant-identities\.mjs --remote/);
   assert.match(workflow,/recover-global-fight-history\.mjs --remote/);
   assert.match(workflow,/fight-history-recovery\.test\.mjs/);
 });
