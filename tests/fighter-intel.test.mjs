@@ -64,7 +64,8 @@ test('fighter dossier exposes intel endpoint and appends intelligence context',(
   assert.match(intel,/INTELLIGENCE COVERAGE/);
   assert.match(intel,/CAREER INTELLIGENCE/);
   assert.match(intel,/Missing evidence stays unknown/);
-  assert.match(intel,/no_private_contact_collection:true/);
+  assert.match(intel,/no_private_contact_publication:true/);
+  assert.match(intel,/fighter_removal_supported:true/);
 });
 
 test('D1 intel sync executes idempotent statements individually and fixes SELECT UPSERT ambiguity',()=>{
