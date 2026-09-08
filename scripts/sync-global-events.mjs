@@ -91,6 +91,19 @@ writeFileSync(`${cacheDir}/summary.json`,JSON.stringify(summary,null,2)+'\n');
 if(!okSources)throw new Error('Every official event source failed; refusing to write an empty calendar');
 
 const sql=[];
+// Reconcile only promotions for which this run produced at least one verified
+// current card. This removes stale no-bout shell rows (including old archive
+// mis-parses) without deleting curated cards that already have bout records.
+for(const source of sources.filter(item=>item.status==='ok'&&item.events>0)){
+  const keep=events.filter(event=>event.promotionSlug===source.slug).map(event=>q(event.slug));
+  if(!keep.length)continue;
+  sql.push(`DELETE FROM events
+WHERE promotion_slug=${q(source.slug)}
+  AND status='scheduled'
+  AND event_date>=date('now','-3 day')
+  AND slug NOT IN (${keep.join(',')})
+  AND NOT EXISTS (SELECT 1 FROM bouts WHERE bouts.event_id=events.id);`);
+}
 for(const event of events){
   const startsAt=clean(event.startsAt)||event.eventDate;
   sql.push(`INSERT INTO events (promotion,promotion_slug,slug,name,event_date,venue,city,region,country,status,source_url,starts_at)
