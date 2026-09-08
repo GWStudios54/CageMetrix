@@ -14,7 +14,7 @@ test('global scouting routes are isolated ahead of the legacy Worker',()=>{
   assert.match(entry,/\/api\/scout\/fighters/);
   assert.match(entry,/\/promotions/);
   assert.match(entry,/\/scout\/fighters/);
-  assert.match(entry,/return worker\.fetch\(request,env,context\)/);
+  assert.match(entry,/stripRetiredPersonalUi\(await worker\.fetch\(request,env,context\)\)/);
 });
 
 test('promotion rosters and global dossiers use the materialized global model',()=>{
