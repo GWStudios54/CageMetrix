@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { GLOBAL_EVENT_SOURCES, eventSlug, parseOneEvents, parsePromotionEvents } from './lib/global-event-sources.mjs';
+import { GLOBAL_EVENT_SOURCES, eventDetailUrls, eventSlug, parseOneEvents, parsePromotionEvents } from './lib/global-event-sources.mjs';
 import { usableUpcomingEvents } from './lib/global-event-calendar.mjs';
 
 const args=process.argv.slice(2);
@@ -39,22 +39,36 @@ for(const source of GLOBAL_EVENT_SOURCES){
   try{
     const primary=await html(source.url);
     writeFileSync(`${cacheDir}/${source.slug}.html`,primary);
-    let events;
+    let discovered=[];
+    const detailFailures=[];
     if(source.slug==='one'){
       const live=await html(source.liveUrl);
       writeFileSync(`${cacheDir}/${source.slug}-live.html`,live);
-      events=parseOneEvents(primary,live,now);
+      discovered=parseOneEvents(primary,live,now);
     }else{
-      events=parsePromotionEvents(source,primary,now);
+      // Detail-driven calendars such as DEEP and Pancrase keep dates/venues on
+      // the event page. Do not infer those cards from nearby news timestamps.
+      if(!source.detailUrlPattern)discovered.push(...parsePromotionEvents(source,primary,now));
+      const details=eventDetailUrls(source,primary);
+      for(const [index,url] of details.entries()){
+        try{
+          const detail=await html(url);
+          writeFileSync(`${cacheDir}/${source.slug}-detail-${index+1}.html`,detail);
+          discovered.push(...parsePromotionEvents({...source,url,detailUrlPattern:null},detail,now));
+        }catch(error){detailFailures.push({url,error:error instanceof Error?error.message:String(error)});}
+      }
     }
-    events=usableUpcomingEvents(events,now);
-    if(!events.length)throw new Error('No dated event with a usable location was parsed');
+    const events=usableUpcomingEvents(discovered,now);
     parsed.push(...events);
-    sources.push({slug:source.slug,url:source.url,status:'ok',events:events.length,names:events.map(e=>e.name)});
-    console.log(`${source.name}: ${events.length} upcoming event(s)`);
+    sources.push({
+      slug:source.slug,url:source.url,status:'ok',discovered:discovered.length,events:events.length,
+      names:events.map(e=>e.name),detail_failures:detailFailures.length?detailFailures:undefined,
+      note:events.length?undefined:'No upcoming event with a verified physical location is currently published.'
+    });
+    console.log(`${source.name}: ${events.length} upcoming event(s) from ${discovered.length} parsed candidate(s)`);
   }catch(error){
     const message=error instanceof Error?error.message:String(error);
-    sources.push({slug:source.slug,url:source.url,status:'error',events:0,error:message});
+    sources.push({slug:source.slug,url:source.url,status:'error',discovered:0,events:0,error:message});
     console.warn(`${source.name}: ${message}`);
   }
 }
@@ -68,7 +82,7 @@ for(const event of parsed){
 }
 const events=[...bySlug.values()].sort((a,b)=>a.eventDate.localeCompare(b.eventDate)||a.name.localeCompare(b.name));
 const okSources=sources.filter(source=>source.status==='ok').length;
-const summary={checked_at:now.toISOString(),sources_ok:okSources,sources_failed:sources.length-okSources,events:events.length,sources,event_rows:events};
+const summary={checked_at:now.toISOString(),sources_ok:okSources,sources_failed:sources.length-okSources,sources_quiet:sources.filter(source=>source.status==='ok'&&!source.events).length,events:events.length,sources,event_rows:events};
 writeFileSync(`${cacheDir}/summary.json`,JSON.stringify(summary,null,2)+'\n');
 if(!okSources)throw new Error('Every official event source failed; refusing to write an empty calendar');
 
@@ -79,7 +93,7 @@ for(const event of events){
 VALUES (${q(event.promotionName)},${q(event.promotionSlug)},${q(event.slug)},${q(event.name)},${q(event.eventDate)},${q(event.venue)},${q(event.city)},${q(event.region)},${q(event.country)},'scheduled',${q(event.sourceUrl)},${q(startsAt)})
 ON CONFLICT(slug) DO UPDATE SET promotion=excluded.promotion,promotion_slug=excluded.promotion_slug,name=excluded.name,event_date=excluded.event_date,venue=COALESCE(excluded.venue,events.venue),city=COALESCE(excluded.city,events.city),region=COALESCE(excluded.region,events.region),country=COALESCE(excluded.country,events.country),source_url=excluded.source_url,starts_at=excluded.starts_at,updated_at=CURRENT_TIMESTAMP;`);
 }
-sql.push(`INSERT INTO bootstrap_state(key,value,updated_at) VALUES ('global-events:last-sync',${q(JSON.stringify({checked_at:summary.checked_at,sources_ok:summary.sources_ok,sources_failed:summary.sources_failed,events:summary.events}))},CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP;`);
+sql.push(`INSERT INTO bootstrap_state(key,value,updated_at) VALUES ('global-events:last-sync',${q(JSON.stringify({checked_at:summary.checked_at,sources_ok:summary.sources_ok,sources_failed:summary.sources_failed,sources_quiet:summary.sources_quiet,events:summary.events}))},CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP;`);
 writeFileSync(`${cacheDir}/sync.sql`,sql.join('\n')+'\n');
 
 if(!dry){
@@ -87,4 +101,4 @@ if(!dry){
   const verification=wrangler(['d1','execute','cagemetrix',target,'--command',"SELECT promotion_slug,COUNT(*) events,MIN(event_date) next_date,MAX(event_date) last_date FROM events WHERE promotion_slug IS NOT NULL AND event_date>=date('now','-3 day') GROUP BY promotion_slug ORDER BY promotion_slug",'--json'],true);
   writeFileSync(`${cacheDir}/remote-verification.json`,verification);
 }
-console.log(`Global event calendar prepared ${events.length} event(s) from ${okSources}/${sources.length} official promotion sources.`);
+console.log(`Global event calendar prepared ${events.length} event(s) from ${okSources}/${sources.length} reachable official promotion sources.`);
