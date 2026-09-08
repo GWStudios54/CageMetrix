@@ -15,6 +15,8 @@ type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:strin
 
 async function page(response:Response|Promise<Response>,request:Request,env:Env){return normalizeNavigation(await response,request,env);}
 const retiredJson=()=>new Response(JSON.stringify({error:'feature_retired',message:'MMA Scouts is focused on scouting research.'}),{status:410,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+const removedJson=()=>new Response(JSON.stringify({error:'fighter_not_found'}),{status:404,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex'}});
+const removedPage=()=>new Response('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>Not found | MMA Scouts</title></head><body><main><h1>Fighter profile not found.</h1><p><a href="/scout">Return to MMA Scouts</a></p></main></body></html>',{status:404,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-robots-tag':'noindex'}});
 
 function stripRetiredPersonalUi(response:Response){
   if(!response.headers.get('content-type')?.includes('text/html'))return response;
@@ -28,6 +30,15 @@ async function legacyFightRedirect(path:string,request:Request,env:Env){
   const match=path.match(/^\/fights\/([1-9]\d*)\/?$/);if(!match)return null;
   const row=await env.DB.prepare(`SELECT e.slug FROM bouts b JOIN events e ON e.id=b.event_id WHERE b.id=? AND e.slug IS NOT NULL LIMIT 1`).bind(Number(match[1])).first<{slug:string}>();
   return Response.redirect(new URL(row?.slug?`/events/${row.slug}`:'/scout',request.url),308);
+}
+
+async function canonicalFighterRemoved(slug:string,env:Env){
+  const row=await env.DB.prepare(`SELECT 1 removed
+    FROM fighters f
+    JOIN mma_identity_links l ON CAST(l.cagemetrix_fighter_id AS INTEGER)=f.id AND l.confidence>=0.90
+    JOIN fighter_publication_controls c ON c.source_key=l.source_key AND c.source_fighter_id=l.source_fighter_id AND c.public_status='removed'
+    WHERE f.slug=? LIMIT 1`).bind(slug).first<{removed:number}>();
+  return !!row;
 }
 
 export default {
@@ -124,6 +135,11 @@ export default {
       dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
       return page(dossier,request,env);
     }
+
+    const legacyApiFighter=path.match(/^\/api\/fighters\/([a-z0-9-]{1,180})\/?$/);
+    if(request.method==='GET'&&legacyApiFighter&&await canonicalFighterRemoved(legacyApiFighter[1],env))return removedJson();
+    const legacyPageFighter=path.match(/^\/fighters\/([a-z0-9-]{1,180})\/?$/);
+    if(request.method==='GET'&&legacyPageFighter&&await canonicalFighterRemoved(legacyPageFighter[1],env))return removedPage();
 
     return stripRetiredPersonalUi(await worker.fetch(request,env,context));
   }
