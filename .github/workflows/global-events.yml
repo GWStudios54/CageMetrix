@@ -8,6 +8,8 @@ on:
     paths:
       - 'migrations/0027_global_event_calendar.sql'
       - 'scripts/sync-global-events.mjs'
+      - 'scripts/generate-sitemap.mjs'
+      - 'scripts/lib/sitemap.mjs'
       - 'scripts/lib/global-event-sources.mjs'
       - 'scripts/lib/global-event-calendar.mjs'
       - 'scripts/lib/global-event-html.mjs'
@@ -19,6 +21,7 @@ on:
       - 'tests/global-event-special.test.mjs'
       - 'tests/global-event-quality.test.mjs'
       - 'tests/global-event-sync.test.mjs'
+      - 'tests/sitemap.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
   push:
@@ -27,6 +30,8 @@ on:
     paths:
       - 'migrations/0027_global_event_calendar.sql'
       - 'scripts/sync-global-events.mjs'
+      - 'scripts/generate-sitemap.mjs'
+      - 'scripts/lib/sitemap.mjs'
       - 'scripts/lib/global-event-sources.mjs'
       - 'scripts/lib/global-event-calendar.mjs'
       - 'scripts/lib/global-event-html.mjs'
@@ -38,6 +43,7 @@ on:
       - 'tests/global-event-special.test.mjs'
       - 'tests/global-event-quality.test.mjs'
       - 'tests/global-event-sync.test.mjs'
+      - 'tests/sitemap.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
 
@@ -57,8 +63,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
-      - name: Validate event source parsers and reconciliation
-        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-quality.test.mjs tests/global-event-sync.test.mjs
+      - name: Validate event source parsers, reconciliation and sitemap
+        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-quality.test.mjs tests/global-event-sync.test.mjs tests/sitemap.test.mjs
       - name: Probe official calendars without D1 writes
         if: github.event_name == 'pull_request'
         run: node scripts/sync-global-events.mjs --dry-run
@@ -71,6 +77,18 @@ jobs:
       - name: Sync official promotion calendars
         if: github.event_name != 'pull_request'
         run: npm run events:sync-global
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Regenerate sitemap from synchronized D1 data
+        if: github.event_name != 'pull_request'
+        run: node scripts/generate-sitemap.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Publish refreshed sitemap
+        if: github.event_name != 'pull_request'
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

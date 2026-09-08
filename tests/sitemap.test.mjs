@@ -3,17 +3,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sitemapXml } from '../scripts/lib/sitemap.mjs';
 
-test('sitemap publishes canonical MMA Scouts scouting, event and fighter URLs', () => {
+test('sitemap publishes canonical MMA Scouts scouting, promotion, event and fighter URLs', () => {
   const xml = sitemapXml({
     fighters: [
       { slug: 'alpha-fighter', last_fight_date: '2026-08-29' },
       { slug: 'a&b', updated_at: '2026-09-03 12:34:56' }
     ],
-    events: [
-      { slug: 'ufc-example-event', event_date: '2026-09-10' }
+    promotions: [
+      { slug: 'one', verified_at: '2026-09-08' },
+      { slug: 'cage-warriors', verified_at: '2026-09-08' }
     ],
-    fights: [
-      { id: 42, updated_at: '2026-09-03 13:00:00' }
+    events: [
+      { slug: 'ufc-example-event', event_date: '2026-09-10' },
+      { slug: 'one-friday-fights-170-2026-09-11', event_date: '2026-09-11' }
     ]
   });
 
@@ -21,14 +23,29 @@ test('sitemap publishes canonical MMA Scouts scouting, event and fighter URLs', 
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/scout<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions\/one<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions\/cage-warriors<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events\/ufc-example-event<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events\/one-friday-fights-170-2026-09-11<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/fighters\/alpha-fighter<\/loc>/);
   assert.match(xml, /<lastmod>2026-08-29<\/lastmod>/);
+  assert.match(xml, /<lastmod>2026-09-08<\/lastmod>/);
   assert.match(xml, /fighters\/a%26b/);
   assert.doesNotMatch(xml, /\/predictions|\/validation|\/community|\/forum|\/fights\//);
   assert.doesNotMatch(xml, /cagemetrix\.com/);
   assert.doesNotMatch(xml, /\/api\//);
   assert.doesNotMatch(xml, /\/admin|\/watchlist/);
+});
+
+test('sitemap generator indexes global event shells without requiring predictions', () => {
+  const source = readFileSync(new URL('../scripts/generate-sitemap.mjs', import.meta.url), 'utf8');
+  assert.match(source, /e\.promotion_slug IS NOT NULL/);
+  assert.match(source, /e\.promotion = 'UFC'/);
+  assert.match(source, /EXISTS \(SELECT 1 FROM bouts b WHERE b\.event_id = e\.id\)/);
+  assert.doesNotMatch(source, /JOIN predictions p/);
+  assert.match(source, /FROM scout_promotions/);
+  assert.match(source, /WHERE active = 1/);
+  assert.match(source, /sitemapXml\(\{ fighters, events, promotions \}\)/);
 });
 
 test('robots.txt points crawlers at the MMA Scouts sitemap and keeps API/template routes out of search', () => {

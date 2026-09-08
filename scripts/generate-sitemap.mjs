@@ -30,23 +30,25 @@ const fighters = query(`
 `);
 
 const events = query(`
-  SELECT DISTINCT e.slug, e.event_date
+  SELECT DISTINCT e.slug, e.event_date, e.updated_at
   FROM events e
   WHERE e.slug IS NOT NULL AND e.slug <> ''
-    AND EXISTS (
-      SELECT 1 FROM bouts b JOIN predictions p ON p.bout_id = b.id WHERE b.event_id = e.id
+    AND (
+      e.promotion_slug IS NOT NULL
+      OR e.promotion = 'UFC'
+      OR EXISTS (SELECT 1 FROM bouts b WHERE b.event_id = e.id)
     )
-  ORDER BY e.event_date DESC
+  ORDER BY e.event_date DESC, e.slug
 `);
 
-const fights = query(`
-  SELECT DISTINCT b.id, b.updated_at, e.event_date
-  FROM bouts b
-  JOIN events e ON e.id = b.event_id
-  WHERE EXISTS (SELECT 1 FROM predictions p WHERE p.bout_id = b.id)
-  ORDER BY e.event_date DESC, b.id
+const promotions = query(`
+  SELECT slug, verified_at
+  FROM scout_promotions
+  WHERE active = 1 AND slug IS NOT NULL AND slug <> ''
+  ORDER BY slug
 `);
 
 mkdirSync('public', { recursive: true });
-writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, fights }));
-console.log(`Generated sitemap with ${5 + fighters.length + events.length + fights.length} URLs (${fighters.length} fighters, ${events.length} events, ${fights.length} predicted fights).`);
+writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, promotions }));
+const total = 4 + fighters.length + events.length + promotions.length;
+console.log(`Generated sitemap with ${total} URLs (${fighters.length} fighters, ${events.length} events, ${promotions.length} promotions).`);

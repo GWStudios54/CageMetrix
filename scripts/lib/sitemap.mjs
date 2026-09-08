@@ -21,16 +21,19 @@ function entry(loc, lastmod = null) {
   return lines.join('\n');
 }
 
-export function sitemapXml({ fighters = [], events = [], origin = SITEMAP_ORIGIN } = {}) {
+export function sitemapXml({ fighters = [], events = [], promotions = [], origin = SITEMAP_ORIGIN } = {}) {
   const base = origin.replace(/\/$/, '');
   const urls = [
     entry(`${base}/`),
     entry(`${base}/scout`),
     entry(`${base}/events`),
     entry(`${base}/promotions`),
+    ...promotions
+      .filter(row => row?.slug)
+      .map(row => entry(`${base}/promotions/${encodeURIComponent(row.slug)}`, row.verified_at || row.updated_at)),
     ...events
       .filter(row => row?.slug)
-      .map(row => entry(`${base}/events/${encodeURIComponent(row.slug)}`, row.event_date)),
+      .map(row => entry(`${base}/events/${encodeURIComponent(row.slug)}`, row.event_date || row.updated_at)),
     ...fighters
       .filter(row => row?.slug)
       .map(row => entry(`${base}/fighters/${encodeURIComponent(row.slug)}`, row.last_fight_date || row.updated_at))
