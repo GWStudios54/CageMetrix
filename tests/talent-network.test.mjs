@@ -54,8 +54,8 @@ test('representation context never feeds the fighter performance rating',()=>{
 });
 
 test('admin curation is authenticated and source-ranked',()=>{
-  const source=read('src/talent-network.ts');
+  const source=read('src/talent-network.ts'),entry=read('src/entry.ts');
   assert.match(source,/adminAccount\(request,env\.DB\)/);
   assert.match(source,/CONFIDENCE=new Set\(\['A','B','C'\]\)/);
-  assert.match(source,/\/api\/admin\/talent/);
+  assert.match(entry,/\/api\\\/admin\\\/talent/);
 });
