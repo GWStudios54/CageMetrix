@@ -24,11 +24,12 @@ test('profile aggregates are recomputed from the richer materialized fight histo
   assert.match(source,/data_completeness=MIN\(100,55\+7\.5/);
 });
 
-test('recovery audits the exact pair-or-nothing history hole and refuses silent leftovers',()=>{
+test('recovery audits the pair-or-nothing hole while quarantining source rows that resolve both corners to one fighter',()=>{
   assert.match(source,/one_sided_completed_fights/);
   assert.match(source,/zero_sided_completed_fights/);
-  assert.match(source,/resolved_history_rows_missing/);
-  assert.match(source,/remaining_resolved_history_rows_missing/);
+  assert.match(source,/unsafe_self_identity_sides/);
+  assert.match(source,/safe_resolved_history_rows_missing/);
+  assert.match(source,/remaining_safe_resolved_history_rows_missing/);
   assert.match(source,/if\(remaining!==0\)throw new Error/);
   assert.match(source,/top_recovered_fighters/);
   assert.match(source,/coverage_bands/);
