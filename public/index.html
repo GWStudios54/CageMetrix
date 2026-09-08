@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="MMA Scouts is the MMA research engine for fighter reports, matchup analysis, opponent-adjusted ratings, prospect discovery and grounded AI research." />
-  <title>MMA Scouts — The MMA Research Engine</title>
+  <meta name="description" content="MMA Scouts is the MMA scouting engine for fighter reports, opponent-adjusted ratings, prospect discovery, promotion research and grounded AI research." />
+  <title>MMA Scouts — The MMA Scouting Engine</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-  <meta property="og:title" content="MMA Scouts — The MMA Research Engine" />
-  <meta property="og:description" content="Research any fighter. Understand any matchup." />
+  <meta property="og:title" content="MMA Scouts — The MMA Scouting Engine" />
+  <meta property="og:description" content="Evaluate fighters. Discover prospects. Scout the sport." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://mmascouts.com/" />
   <meta property="og:image" content="https://mmascouts.com/og.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="MMA Scouts — The MMA Research Engine" />
-  <meta name="twitter:description" content="Research any fighter. Understand any matchup." />
+  <meta name="twitter:title" content="MMA Scouts — The MMA Scouting Engine" />
+  <meta name="twitter:description" content="Evaluate fighters. Discover prospects. Scout the sport." />
   <meta name="twitter:image" content="https://mmascouts.com/og.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/explorer.css" />
@@ -28,8 +28,9 @@
     </a>
     <nav>
       <a href="/scout">Scout AI</a>
-      <a href="/predictions.html">Matchups</a>
       <a href="#rankings">Rankings</a>
+      <a href="/promotions">Promotions</a>
+      <a href="/events">Events</a>
     </nav>
   </header>
 
@@ -37,33 +38,33 @@
     <section class="hero" id="research">
       <div class="home-hero-grid">
         <div class="home-hero-copy">
-          <div class="eyebrow">THE MMA RESEARCH ENGINE</div>
-          <h1>Research any fighter.<br /><span>Understand any matchup.</span></h1>
-          <p class="lede">Search fighter dossiers, compare résumés, interrogate MMA history, discover prospects and ask research questions in plain English. MMA Scouts grounds the answer in recorded fight data first.</p>
+          <div class="eyebrow">THE MMA SCOUTING ENGINE</div>
+          <h1>Evaluate any fighter.<br /><span>Discover the next one.</span></h1>
+          <p class="lede">Search fighter dossiers, compare résumés, trace career paths, discover prospects and ask scouting questions in plain English. MMA Scouts grounds the answer in recorded fight data first.</p>
           <div class="home-proofline" aria-label="MMA Scouts research principles">
             <span>Opponent-adjusted Scout Ratings</span>
-            <span>Evidence-linked Scout AI</span>
-            <span>UFC + regional career history</span>
+            <span>Evidence-grounded Scout AI</span>
+            <span>Global promotion and career context</span>
           </div>
         </div>
 
         <aside class="home-research-console" aria-label="Ask MMA Scouts">
           <div class="home-console-head">
             <strong>Ask MMA Scouts</strong>
-            <span>Grounded research</span>
+            <span>Grounded scouting research</span>
           </div>
           <form class="home-research-form" id="home-research-form">
             <div class="home-search-field">
-              <input id="home-research-input" type="search" maxlength="500" autocomplete="off" placeholder="Search a fighter or ask an MMA question…" aria-label="Search fighters or ask MMA Scouts" />
-              <button class="button primary" type="submit">Research →</button>
+              <input id="home-research-input" type="search" maxlength="500" autocomplete="off" placeholder="Search a fighter or ask a scouting question…" aria-label="Search fighters or ask MMA Scouts" />
+              <button class="button primary" type="submit">Scout →</button>
             </div>
             <div class="home-fighter-suggestions" id="home-fighter-suggestions" hidden></div>
             <p class="home-search-hint">Type a fighter name for direct reports. Submit any question to Scout AI.</p>
           </form>
-          <div class="home-prompts" id="home-dynamic-prompts" aria-label="Suggested research questions">
+          <div class="home-prompts" id="home-dynamic-prompts" aria-label="Suggested scouting questions">
             <button class="home-prompt" type="button" data-home-question="Which active lightweights have the strongest strength of schedule?">Strongest lightweight schedules</button>
             <button class="home-prompt" type="button" data-home-question="Which regional prospects have faced the strongest opposition?">Best-tested regional prospects</button>
-            <button class="home-prompt" type="button" data-home-question="Who beat the most opponents before those opponents later reached the UFC?">Most future-UFC wins</button>
+            <button class="home-prompt" type="button" data-home-question="Who are the highest-rated prospects under 25 outside the UFC?">Top prospects under 25</button>
           </div>
         </aside>
       </div>
@@ -73,9 +74,9 @@
       <div class="home-section-head">
         <div>
           <div class="eyebrow">FIVE WAYS IN</div>
-          <h2 id="products-title">One research database. Different questions.</h2>
+          <h2 id="products-title">One scouting database. Different questions.</h2>
         </div>
-        <p>MMA Scouts is built around research, comparison and discovery—not a feed, fantasy game or betting screen.</p>
+        <p>MMA Scouts is built around fighter evaluation, prospect discovery and promotion intelligence—not picks, betting or a social feed.</p>
       </div>
       <div class="home-products">
         <a class="home-product" href="/scout">
@@ -84,29 +85,29 @@
           <div class="home-product-footer"><span>Research assistant</span><b>→</b></div>
         </a>
         <a class="home-product" href="#rankings">
-          <span class="home-product-number">02 · RESEARCH</span>
+          <span class="home-product-number">02 · EVALUATE</span>
           <div><h3>Fighter Reports</h3><p>Open a fighter dossier with opponent-adjusted ratings, résumé context, recent bouts and career history.</p></div>
           <div class="home-product-footer"><span>Search fighters</span><b>→</b></div>
         </a>
-        <a class="home-product" href="/predictions.html">
-          <span class="home-product-number">03 · COMPARE</span>
-          <div><h3>Matchup Scout</h3><p>Study scheduled fights with model context, fighter profiles and matchup-specific evidence.</p></div>
-          <div class="home-product-footer"><span>Upcoming fights</span><b>→</b></div>
+        <a class="home-product" href="/events">
+          <span class="home-product-number">03 · TRACK</span>
+          <div><h3>Event Scout</h3><p>Follow upcoming cards across major and regional promotions, then research the fighters and organizations around them.</p></div>
+          <div class="home-product-footer"><span>Upcoming events</span><b>→</b></div>
         </a>
         <a class="home-product" href="#rankings">
           <span class="home-product-number">04 · RANK</span>
-          <div><h3>Scout Rankings</h3><p>Sort active fighters by overall Scout Rating, résumé, schedule strength, striking, wrestling and form.</p></div>
+          <div><h3>Scout Rankings</h3><p>Sort fighters by overall Scout Rating, résumé, schedule strength, striking, wrestling and recent form.</p></div>
           <div class="home-product-footer"><span>Explore ratings</span><b>→</b></div>
         </a>
         <a class="home-product" href="/scout?q=Find%20the%20best%20regional%20MMA%20prospects%20under%2025">
           <span class="home-product-number">05 · DISCOVER</span>
-          <div><h3>Prospect Scout</h3><p>Find emerging fighters by age, record, division, opposition quality and pre-UFC résumé.</p></div>
+          <div><h3>Prospect Scout</h3><p>Find emerging fighters by age, record, division, opposition quality and career trajectory.</p></div>
           <div class="home-product-footer"><span>Discover talent</span><b>→</b></div>
         </a>
       </div>
     </section>
 
-    <section class="home-section home-matchup-section" id="home-matchup-slot" aria-label="Upcoming matchup research"></section>
+    <section class="home-section home-matchup-section" id="home-matchup-slot" aria-label="Upcoming event scouting"></section>
 
     <section class="home-section home-rankings-wrap">
       <div class="rankings" id="rankings">
@@ -115,7 +116,7 @@
             <div class="eyebrow">SCOUT RANKINGS · FIGHTER DATABASE</div>
             <h2>Find the fighter. Then inspect the evidence.</h2>
           </div>
-          <p>Search the active UFC roster or change the metric to see how opponent quality, résumé and performance alter the order.</p>
+          <p>Search the active UFC dataset here, then use Promotions and Scout AI for regional and global fighter research.</p>
         </div>
         <div class="ranking-controls">
           <label class="search-control">Find a fighter
@@ -161,7 +162,7 @@
           <summary>How to read Scout Ratings</summary>
           <p><strong>Scout Rating</strong> combines opponent-adjusted performance, results, schedule strength and recent form on a 0–100 scale. Category scores are normalized within each fighter’s division.</p>
           <p><strong>Sample strength</strong> is a 0–100 evidence index based on bout count and cage time. It is not a win probability. Fighters with limited evidence are labeled provisional.</p>
-          <p>Search preserves each fighter’s rank within the selected division and metric. “Data through” identifies the latest included event date. <a href="/validation.html">See model validation →</a></p>
+          <p>Search preserves each fighter’s rank within the selected division and metric. “Data through” identifies the latest included event date.</p>
         </details>
       </div>
     </section>
@@ -191,8 +192,8 @@
       <div class="home-trust-copy">
         <div class="eyebrow">WHY TRUST THE OUTPUT?</div>
         <h2>The AI does not get to invent the fight history.</h2>
-        <p>The language model interprets the question and explains the result. MMA Scouts retrieves the fighters, bouts, ratings and relationships from structured data first.</p>
-        <a class="button secondary" href="/validation.html">Model validation →</a>
+        <p>The language model interprets the question and explains the result. MMA Scouts retrieves fighters, bouts, ratings and relationships from structured data first.</p>
+        <a class="button secondary" href="/scout?q=Explain%20how%20MMA%20Scouts%20rates%20fighters%20and%20handles%20limited%20evidence">Ask about methodology →</a>
       </div>
       <div class="home-principles">
         <div class="home-principle"><span>01</span><strong>Retrieve first</strong><p>Scout AI plans a query, retrieves structured evidence, then synthesizes the answer.</p></div>
@@ -203,14 +204,14 @@
     </section>
 
     <section class="status-panel">
-      <div><span class="status-dot" id="status-dot"></span><strong id="status-label">Checking research engine…</strong></div>
+      <div><span class="status-dot" id="status-dot"></span><strong id="status-label">Checking scouting engine…</strong></div>
       <span class="muted" id="database-label">MMA Scouts research database</span>
     </section>
   </main>
 
   <footer>
     <span>MMA Scouts</span>
-    <span>The MMA research engine.</span>
+    <span>The MMA scouting engine.</span>
   </footer>
   <script src="/fighter-media.js?v=initials-1" defer></script>
   <script src="/app.js?v=home-1" defer></script>
