@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MANAGEMENT_SOURCES,applyManagementAliases,normalizeManagementName,parseManagementRoster} from '../scripts/lib/management-sources.mjs';
 
-test('management source registry starts with current official agency rosters',()=>{
-  assert.ok(MANAGEMENT_SOURCES.length>=4);
+test('management source registry covers multiple major US and European agencies',()=>{
+  assert.ok(MANAGEMENT_SOURCES.length>=8);
+  const slugs=new Set(MANAGEMENT_SOURCES.map(source=>source.slug));
+  for(const expected of ['first-round-management','ruby-sports-entertainment','dominance-mma','iridium-sports-agency','knock-out-representation','lca-sports-management','3mgt','guerilla-sportsmanagement'])assert.ok(slugs.has(expected),`missing ${expected}`);
   for(const source of MANAGEMENT_SOURCES){
     assert.ok(source.slug&&source.name&&source.website);
     assert.ok(['A','B','C'].includes(source.confidence));
@@ -24,6 +26,13 @@ test('roster parser extracts athlete names but not page furniture',()=>{
   for(const expected of ['ilia topuria','mayra bueno silva','lone er kavanagh','kamaru usman'])assert.ok(normalized.includes(expected),`missing ${expected}: ${JSON.stringify(names)}`);
   assert.ok(!normalized.includes('first round management'));
   assert.ok(!normalized.includes('our services'));
+});
+
+test('heading-only agency parsers avoid body copy and repeated page furniture',()=>{
+  const source={headingOnly:true};
+  const html=`<main><h2>Our Athletes</h2><h5>Islam Dulatov</h5><p>UFC Fighter - islam@example.com</p><h5>Losene Keita</h5><p>MMA Champion</p><h2>Beyond Management</h2><p>Some Person Who Is Not An Athlete</p></main>`;
+  const names=parseManagementRoster(html,source).map(normalizeManagementName);
+  assert.deepEqual(names.sort(),['islam dulatov','losene keita'].sort());
 });
 
 test('official roster promotion labels are stripped before matching',()=>{
