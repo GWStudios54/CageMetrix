@@ -1,19 +1,10 @@
-name: Validate Predictor 0.2.1 common holdout
+name: Archived Predictor 0.2.1 validation
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'scripts/validate-predictor-v02-common.mjs'
-      - 'scripts/lib/warehouse-prior.mjs'
-      - 'scripts/lib/predictor_v02.mjs'
-      - 'scripts/lib/model-validation.mjs'
-      - '.github/workflows/predictor-v02-common-validation.yml'
   workflow_dispatch:
 
 concurrency:
-  group: cagemetrix-predictor-v02-validation
+  group: archived-predictor-v02-validation
   cancel-in-progress: true
 
 jobs:
@@ -31,18 +22,18 @@ jobs:
           node-version: '24'
       - name: Install dependencies
         run: npm ci
-      - name: Validate code
+      - name: Validate archived predictor code
         run: node --check scripts/validate-predictor-v02-common.mjs
-      - name: Run corrected common-holdout validation
+      - name: Run archived common-holdout validation
         run: node scripts/validate-predictor-v02-common.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Upload corrected validation
+      - name: Upload archived validation
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: predictor-v02-1-common-validation
+          name: archived-predictor-v02-1-common-validation
           path: .cache/predictor-v02-common-validation.json
           if-no-files-found: ignore
           retention-days: 30
