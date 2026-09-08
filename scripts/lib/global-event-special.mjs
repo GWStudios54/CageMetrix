@@ -2,6 +2,12 @@ import { JSDOM } from 'jsdom';
 import { dateFromText, parseLocation } from './global-event-sources.mjs';
 
 const clean=value=>String(value??'').replace(/\s+/g,' ').trim();
+function textWithBreaks(element){
+  if(!element)return '';
+  const clone=element.cloneNode(true);
+  for(const br of clone.querySelectorAll?.('br')||[])br.replaceWith(' ');
+  return clean(clone.textContent);
+}
 
 function countryHint(location,slug){
   const text=clean(location).toLowerCase();
@@ -48,16 +54,15 @@ function parseKsw(html,source){
   const events=[];
   for(const anchor of doc.querySelectorAll('a[href*="/event/"]')){
     const alt=clean(anchor.querySelector('img[alt]')?.getAttribute('alt'));
-    const text=clean(anchor.textContent);
+    const text=[...anchor.children].map(textWithBreaks).filter(Boolean).join(' ');
     const name=(alt.match(/^(?:XTB\s+)?KSW\s+\d+/i)||text.match(/(?:XTB\s+)?KSW\s+\d+/i))?.[0];
     if(!name)continue;
-    const match=text.match(/\b(\d{2})-(\d{2})-(20\d{2})\b/);
+    const match=text.match(/(?:^|\s)(\d{2})-(\d{2})-(20\d{2})(?=\s|$)/);
     if(!match)continue;
     const eventDate=`${match[3]}-${match[2]}-${match[1]}`;
-    const venueNodes=[...anchor.querySelectorAll('.col-sm-12.ps-5.text-uppercase')]
-      .filter(node=>!node.querySelector('h2'));
-    const venue=clean(venueNodes.at(-1)?.textContent);
-    if(!venue)continue;
+    const rows=[...anchor.children].filter(element=>element.classList?.contains('row'));
+    const venue=textWithBreaks(rows.at(-1));
+    if(!venue||/\bvs\b/i.test(venue))continue;
     events.push({
       promotionSlug:source.slug,promotionName:source.name,name:clean(name),eventDate,startsAt:eventDate,
       ...withCountry(venue,'ksw'),sourceUrl:anchor.href||source.url
@@ -104,7 +109,7 @@ function parseCffc(html,source,now){
     const name=clean(heading.textContent);
     if(!/^CFFC\s+\d+$/i.test(name))continue;
     const column=heading.closest('.sqs-col-6')||heading.parentElement?.parentElement||heading.parentElement;
-    const details=clean(column?.querySelector('h2')?.textContent);
+    const details=textWithBreaks(column?.querySelector('h2'));
     const eventDate=dateFromText(details,now);if(!eventDate)continue;
     const location=stripNamedDate(details);
     if(!location)continue;
