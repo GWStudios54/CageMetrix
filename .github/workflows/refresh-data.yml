@@ -1,4 +1,4 @@
-name: Refresh UFC scouting data
+name: Refresh MMA scouting data
 on:
   schedule:
     - cron: '30 8 * * *'
@@ -9,8 +9,12 @@ on:
       - 'scripts/sync-recent.mjs'
       - 'scripts/lib/recent-source.mjs'
       - 'scripts/backfill-event-locations.mjs'
+      - 'scripts/sync-global-events.mjs'
+      - 'scripts/lib/global-event-sources.mjs'
+      - 'scripts/lib/global-event-calendar.mjs'
       - 'tests/recent-results.test.mjs'
       - 'tests/event-location-backfill.test.mjs'
+      - 'tests/global-events.test.mjs'
       - '.github/workflows/refresh-data.yml'
 concurrency:
   group: mmascouts-data-refresh
@@ -18,7 +22,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -32,9 +36,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Refresh Scout Ratings and event locations
+      - name: Refresh Scout Ratings, global calendars and event locations
         run: |
           npm run data:refresh
+          npm run events:sync-global
           node scripts/backfill-event-locations.mjs --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -47,5 +52,7 @@ jobs:
             .cache/refresh/summary.json
             .cache/refresh/before-refresh.sql
             .cache/event-locations/summary.json
+            .cache/global-events/summary.json
+            .cache/global-events/remote-verification.json
             scripts/data/recent-bouts.json
           retention-days: 7
