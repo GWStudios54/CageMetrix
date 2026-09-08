@@ -1,4 +1,7 @@
 [
+  {"slug":"pfl","name":"Professional Fighters League","region":"United States","country":"United States","scope":"global_major","official_url":"https://pflmma.com/","aliases":["pfl","professional fighters league","world series of fighting","wsof","pfl mena","pfl europe","pfl africa"]},
+  {"slug":"one","name":"ONE Championship","region":"Asia","country":"Singapore","scope":"global_major","official_url":"https://www.onefc.com/","aliases":["one","one championship","one fc"]},
+
   {"slug":"lfa","name":"Legacy Fighting Alliance","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://www.lfa.com/","aliases":["lfa","legacy fighting alliance"]},
   {"slug":"cffc","name":"Cage Fury Fighting Championships","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://cffc.tv/","aliases":["cffc","cage fury fighting championships","cage fury fc"]},
   {"slug":"fury-fc","name":"Fury Fighting Championship","region":"United States","country":"United States","scope":"regional_feeder","official_url":"https://www.furyfc.tv/","aliases":["fury","fury fc","fury fighting championship","fury fighting championships"]},
