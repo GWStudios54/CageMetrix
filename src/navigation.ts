@@ -20,8 +20,9 @@ export async function normalizeNavigation(response:Response,request:Request,env:
   if(!response.headers.get('content-type')?.includes('text/html'))return response;
   const admin=!!await adminAccount(request,env.DB);
   const nav=`<nav class="global-nav" aria-label="Primary">${primaryNavigation(admin)}</nav>`;
+  const legal=`<nav class="policy-nav" aria-label="Data and privacy"><a href="/data-policy">Data &amp; Sourcing</a><a href="/privacy">Privacy</a><a href="/profile-removal">Remove my fighter profile</a></nav>`;
   const transformed=new HTMLRewriter()
-    .on('head',{element(el){el.append('<link rel="stylesheet" href="/brand.css?v=identity-1"><link rel="stylesheet" href="/navigation.css?v=identity-1">',{html:true});}})
+    .on('head',{element(el){el.append('<link rel="stylesheet" href="/brand.css?v=identity-1"><link rel="stylesheet" href="/navigation.css?v=identity-1"><style>.policy-nav{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:.78rem}.policy-nav a{opacity:.76;text-decoration:none}.policy-nav a:hover{opacity:1;text-decoration:underline}</style>',{html:true});}})
     .on('title',{text(text){if(text.text)text.replace(publicBrandText(text.text));}})
     .on('meta[name="description"]',{element(el){const value=el.getAttribute('content');if(value)el.setAttribute('content',publicBrandText(value));}})
     .on('meta[property="og:title"]',{element(el){const value=el.getAttribute('content');if(value)el.setAttribute('content',publicBrandText(value));}})
@@ -36,6 +37,7 @@ export async function normalizeNavigation(response:Response,request:Request,env:
     .on('.brand .brand-mark',{element(el){el.setAttribute('src','/logo.svg');el.setAttribute('alt','');el.setAttribute('width','42');el.setAttribute('height','42');}})
     .on('.brand span',{element(el){el.setInnerContent(BRAND_NAME);}})
     .on('footer span:first-child',{element(el){el.setInnerContent(BRAND_NAME);}})
+    .on('footer',{element(el){el.append(legal,{html:true});}})
     .on('.topbar nav',{element(el){el.remove();}})
     .on('.topbar',{element(el){el.append(nav,{html:true});}})
     .transform(response);
