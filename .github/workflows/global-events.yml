@@ -16,6 +16,7 @@ on:
       - 'tests/global-events.test.mjs'
       - 'tests/global-event-html.test.mjs'
       - 'tests/global-event-special.test.mjs'
+      - 'tests/global-event-sync.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
   push:
@@ -32,6 +33,7 @@ on:
       - 'tests/global-events.test.mjs'
       - 'tests/global-event-html.test.mjs'
       - 'tests/global-event-special.test.mjs'
+      - 'tests/global-event-sync.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
 
@@ -51,8 +53,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
-      - name: Validate event source parsers
-        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs
+      - name: Validate event source parsers and reconciliation
+        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-sync.test.mjs
       - name: Probe official calendars without D1 writes
         if: github.event_name == 'pull_request'
         run: node scripts/sync-global-events.mjs --dry-run
