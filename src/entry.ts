@@ -10,6 +10,14 @@ type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:strin
 async function page(response:Response|Promise<Response>,request:Request,env:Env){return normalizeNavigation(await response,request,env);}
 const retiredJson=()=>new Response(JSON.stringify({error:'feature_retired',message:'MMA Scouts is focused on scouting research.'}),{status:410,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 
+function stripRetiredPersonalUi(response:Response){
+  if(!response.headers.get('content-type')?.includes('text/html'))return response;
+  return new HTMLRewriter()
+    .on('.cm-follow-slot',{element(el){el.remove();}})
+    .on('.home-watchlist',{element(el){el.remove();}})
+    .transform(response);
+}
+
 async function legacyFightRedirect(path:string,request:Request,env:Env){
   const match=path.match(/^\/fights\/([1-9]\d*)\/?$/);if(!match)return null;
   const row=await env.DB.prepare(`SELECT e.slug FROM bouts b JOIN events e ON e.id=b.event_id WHERE b.id=? AND e.slug IS NOT NULL LIMIT 1`).bind(Number(match[1])).first<{slug:string}>();
@@ -24,7 +32,7 @@ export default {
 
     if(request.method==='GET'&&(path==='/predictions.html'||path==='/predictions'))return Response.redirect(new URL('/events',request.url),308);
     if(request.method==='GET'&&(path==='/validation.html'||path==='/validation'))return Response.redirect(new URL('/#rankings',request.url),308);
-    if(request.method==='GET'&&(path==='/community'||path==='/community/'||path==='/forum'||path==='/forum/'||/^\/forum\//.test(path)||/^\/u\//.test(path)))return Response.redirect(new URL('/scout',request.url),308);
+    if(request.method==='GET'&&(path==='/community'||path==='/community/'||path==='/forum'||path==='/forum/'||path==='/watchlist'||path==='/watchlist/'||/^\/forum\//.test(path)||/^\/u\//.test(path)))return Response.redirect(new URL('/scout',request.url),308);
     if(request.method==='GET'&&/^\/fights\/[1-9]\d*\/?$/.test(path))return (await legacyFightRedirect(path,request,env))!;
 
     if(path==='/api/forecasts'||path.startsWith('/api/community')||path.startsWith('/api/forum')||path.startsWith('/api/fans')||/^\/api\/fights\/[1-9]\d*\/(fans|fan-prediction|fan-scorecard)$/.test(path))return retiredJson();
@@ -61,6 +69,6 @@ export default {
       return page(globalFighterPage(request,env,fighterPageMatch[1]),request,env);
     }
 
-    return worker.fetch(request,env,context);
+    return stripRetiredPersonalUi(await worker.fetch(request,env,context));
   }
 };
