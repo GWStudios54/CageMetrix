@@ -54,14 +54,16 @@ function parseKsw(html,source){
   const events=[];
   for(const anchor of doc.querySelectorAll('a[href*="/event/"]')){
     const alt=clean(anchor.querySelector('img[alt]')?.getAttribute('alt'));
-    const text=[...anchor.children].map(textWithBreaks).filter(Boolean).join(' ');
-    const name=(alt.match(/^(?:XTB\s+)?KSW\s+\d+/i)||text.match(/(?:XTB\s+)?KSW\s+\d+/i))?.[0];
+    const pieces=[...anchor.querySelectorAll('*')].map(element=>textWithBreaks(element)).filter(Boolean);
+    const name=(alt.match(/^(?:XTB\s+)?KSW\s+\d+/i)||pieces.map(value=>value.match(/(?:XTB\s+)?KSW\s+\d+/i)).find(Boolean))?.[0];
     if(!name)continue;
-    const match=text.match(/(?:^|\s)(\d{2})-(\d{2})-(20\d{2})(?=\s|$)/);
+    const dateText=pieces.find(value=>/^\d{2}-\d{2}-20\d{2}$/.test(value));
+    const match=dateText?.match(/^(\d{2})-(\d{2})-(20\d{2})$/);
     if(!match)continue;
     const eventDate=`${match[3]}-${match[2]}-${match[1]}`;
+    const venueNodes=[...anchor.querySelectorAll('.col-sm-12.ps-5.text-uppercase')].filter(node=>!node.querySelector('h2'));
     const rows=[...anchor.children].filter(element=>element.classList?.contains('row'));
-    const venue=textWithBreaks(rows.at(-1));
+    const venue=textWithBreaks(venueNodes.at(-1))||textWithBreaks(rows.at(-1));
     if(!venue||/\bvs\b/i.test(venue))continue;
     events.push({
       promotionSlug:source.slug,promotionName:source.name,name:clean(name),eventDate,startsAt:eventDate,
