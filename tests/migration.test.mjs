@@ -18,21 +18,23 @@ test('public SEO surfaces use the shared MMA Scouts origin',()=>{
     assert.match(source,/SITE_ORIGIN/,`${path} must use the shared site origin`);
   }
   const robots=read('public/robots.txt');
-  const validation=read('public/validation.html');
   assert.match(robots,/https:\/\/mmascouts\.com\/sitemap\.xml/);
-  assert.match(validation,/rel="canonical" href="https:\/\/mmascouts\.com\/validation\.html"/);
 });
 
-test('migration preserves existing internal model and database identifiers',()=>{
+test('migration preserves existing internal model and database identifiers without exposing predictions publicly',()=>{
   const config=read('wrangler.jsonc');
   const core=read('src/index.ts');
   const seo=read('src/seo.ts');
+  const forecasts=read('src/forecasts.ts');
   const staticSeo=read('src/static-seo.ts');
+  const eventPage=read('src/event-page.ts');
   assert.match(config,/"name": "cagemetrix"/);
   assert.match(config,/"database_name": "cagemetrix"/);
   assert.match(core,/CageMetrix Opponent-Adjusted Rating/);
   assert.match(seo,/CageMetrix Opponent-Adjusted Rating/);
-  assert.match(staticSeo,/CageMetrix Win Probability/);
+  assert.match(forecasts,/CageMetrix Win Probability/);
+  assert.doesNotMatch(staticSeo,/CageMetrix Win Probability|fighter_a_probability|picked_fighter_id/);
+  assert.doesNotMatch(eventPage,/CageMetrix Win Probability|fighter_a_probability|picked_fighter_id/);
 });
 
 test('legacy hosts remain attached so every old URL can redirect one-to-one',()=>{
@@ -45,7 +47,7 @@ test('legacy hosts remain attached so every old URL can redirect one-to-one',()=
   assert.doesNotMatch(canonical,/pathname='\/'[^\n]*LEGACY_HOSTS/);
 });
 
-test('indexable fighter, fight and event pages emit MMA Scouts canonical metadata',()=>{
+test('indexable fighter and event pages emit MMA Scouts canonical metadata',()=>{
   const seo=read('src/seo.ts');
   const events=read('src/event-page.ts');
   assert.match(seo,/link rel=\"canonical\" href=\"\$\{canonical\}\"/);
@@ -70,19 +72,19 @@ test('MMA Scouts visual identity is independent from the old CageMetrix mark',()
   const logo=read('public/logo.svg');
   const visual=read('public/brand.css');
   const navigation=read('src/navigation.ts');
-  const home=read('public/home-dashboard.js');
+  const home=read('public/index.html');
   assert.match(logo,/MMA Scouts mark/);
   assert.match(logo,/#D8B76F/);
   assert.doesNotMatch(logo,/CageMetrix|octagon|#e43b34/i);
   assert.match(visual,/--accent:#d8b76f/);
-  assert.match(visual,/THE MMA RESEARCH ENGINE/);
   assert.match(navigation,/\/brand\.css\?v=identity-1/);
   assert.doesNotMatch(navigation,/\.on\('\.brand \.brand-mark',\{element\(el\)\{el\.remove\(\);\}\}\)/);
   assert.match(navigation,/\.brand \.brand-mark/);
   assert.match(navigation,/setAttribute\('src','\/logo\.svg'\)/);
   assert.match(home,/Fighter Reports/);
-  assert.match(home,/Matchup Scout/);
+  assert.match(home,/Event Scout/);
   assert.match(home,/Prospect Scout/);
+  assert.doesNotMatch(home,/Matchup Scout/);
   for(const asset of ['public/favicon.ico','public/favicon-48.png','public/og.png','public/og.svg']){
     assert.equal(fs.existsSync(asset),true,`${asset} must exist`);
     assert.ok(fs.statSync(asset).size>0,`${asset} must not be empty`);
