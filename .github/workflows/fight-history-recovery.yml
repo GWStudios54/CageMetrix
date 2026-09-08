@@ -13,6 +13,7 @@ on:
       - 'migrations/0032_participant_identity_resolutions.sql'
       - 'migrations/0033_participant_identity_seed_facts.sql'
       - 'migrations/0034_source_name_history_coverage.sql'
+      - 'migrations/0035_source_master_name_identities.sql'
       - 'scripts/resolve-participant-identities.mjs'
       - 'scripts/derive-source-name-history-identities.mjs'
       - 'scripts/recover-global-fight-history.mjs'
