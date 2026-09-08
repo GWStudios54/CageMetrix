@@ -28,7 +28,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/index.html", "/scout", "/scout/", "/scout/*", "/promotions", "/promotions/*", "/predictions.html", "/api/*", "/fighters/*", "/fights/*", "/events/*", "/sitemap.xml"]
+    "run_worker_first": ["/", "/index.html", "/scout", "/scout/*", "/promotions", "/promotions/*", "/predictions.html", "/api/*", "/fighters/*", "/fights/*", "/events/*", "/sitemap.xml"]
   },
   "ai": {
     "binding": "AI"
