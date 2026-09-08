@@ -6,23 +6,6 @@ on:
       - Sync MMA master database
     types:
       - completed
-  push:
-    branches:
-      - main
-    paths:
-      - 'migrations/0032_participant_identity_resolutions.sql'
-      - 'migrations/0033_participant_identity_seed_facts.sql'
-      - 'migrations/0034_source_name_history_coverage.sql'
-      - 'migrations/0035_source_master_name_identities.sql'
-      - 'scripts/resolve-participant-identities.mjs'
-      - 'scripts/derive-source-name-history-identities.mjs'
-      - 'scripts/recover-global-fight-history.mjs'
-      - 'scripts/backfill-history-opponent-identities.mjs'
-      - 'scripts/audit-fighter-history-coverage.mjs'
-      - 'tests/participant-identity-recovery.test.mjs'
-      - 'tests/fight-history-recovery.test.mjs'
-      - 'tests/full-history-coverage.test.mjs'
-      - '.github/workflows/fight-history-recovery.yml'
   workflow_dispatch:
 
 concurrency:
@@ -31,7 +14,7 @@ concurrency:
 
 jobs:
   recover:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'pull_request' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
