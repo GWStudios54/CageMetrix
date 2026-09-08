@@ -27,8 +27,9 @@ CREATE INDEX IF NOT EXISTS idx_mma_participants_exact_name
   ON mma_fight_participants(source_key,snapshot_id,fighter_name);
 
 -- Prefer explicit source ids, then reviewed resolutions, then exact unique master-name
--- resolution. Legacy MD5-derived overlays are honored only when the snapshot's runtime
--- contract was actually verified; a failed/unknown hash contract can never resolve a row.
+-- resolution. The old MD5-derived overlay remains in the database as historical audit
+-- evidence, but it no longer participates in identity resolution because the upstream
+-- public schema does not promise that hash contract.
 DROP VIEW IF EXISTS mma_unresolved_participants;
 DROP VIEW IF EXISTS mma_effective_participants;
 CREATE VIEW mma_effective_participants AS
@@ -36,21 +37,18 @@ SELECT p.*,
        COALESCE(
          p.source_fighter_id,
          r.resolved_source_fighter_id,
-         m.source_fighter_id,
-         CASE WHEN c.status='verified' THEN h.derived_source_fighter_id ELSE NULL END
+         m.source_fighter_id
        ) AS effective_source_fighter_id,
        CASE
          WHEN p.source_fighter_id IS NOT NULL THEN 'source_unique_name'
          WHEN r.resolved_source_fighter_id IS NOT NULL THEN r.match_method
          WHEN m.source_fighter_id IS NOT NULL THEN m.identity_basis
-         WHEN c.status='verified' AND h.derived_source_fighter_id IS NOT NULL THEN h.identity_basis
          ELSE NULL
        END AS identity_match_method,
        CASE
          WHEN p.source_fighter_id IS NOT NULL THEN 1.0
          WHEN r.resolved_source_fighter_id IS NOT NULL THEN r.confidence
          WHEN m.source_fighter_id IS NOT NULL THEN m.confidence
-         WHEN c.status='verified' AND h.derived_source_fighter_id IS NOT NULL THEN h.confidence
          ELSE NULL
        END AS identity_confidence
 FROM mma_active_participants p
@@ -63,15 +61,7 @@ LEFT JOIN mma_participant_identity_resolutions r
 LEFT JOIN mma_source_master_name_identities m
   ON m.source_key=p.source_key
  AND m.snapshot_id=p.snapshot_id
- AND m.fighter_name=p.fighter_name
-LEFT JOIN mma_source_name_identities h
-  ON h.source_key=p.source_key
- AND h.snapshot_id=p.snapshot_id
- AND h.fighter_name=p.fighter_name
-LEFT JOIN mma_source_identity_contracts c
-  ON c.source_key=p.source_key
- AND c.snapshot_id=p.snapshot_id
- AND c.status='verified';
+ AND m.fighter_name=p.fighter_name;
 
 CREATE VIEW mma_unresolved_participants AS
 SELECT * FROM mma_effective_participants WHERE effective_source_fighter_id IS NULL;
