@@ -50,7 +50,7 @@ test('accepted identities can propagate only hard same-name biography fingerprin
   assert.match(resolver,/score-second_score>=4/);
   assert.match(resolver,/if\(added===0\)break/);
   assert.match(resolver,/fingerprint_added:fingerprintAdded/);
-  assert.doesNotMatch(resolver,/global_rating|scout_score|elo|promotion_prestige/i);
+  assert.doesNotMatch(resolver,/global_rating|scout_score|opponent_pre_elo|rating_score|promotion_prestige/i);
 });
 
 test('remaining history holes are classified by fighter-master candidate count',()=>{
