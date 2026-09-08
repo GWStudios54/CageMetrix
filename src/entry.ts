@@ -5,6 +5,7 @@ import {globalFighterApi,globalFighterPage,globalFightersApi,promotionApi,promot
 import {eventsApi,eventsPage} from './events.ts';
 import {eventPage} from './event-page.ts';
 import {enhancePromotionEvents} from './promotion-events.ts';
+import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -45,6 +46,14 @@ export default {
     if(path==='/api/scout/fighters')return globalFightersApi(request,env);
     const fighterApiMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(fighterApiMatch)return globalFighterApi(request,env,fighterApiMatch[1]);
+    if(path==='/api/talent')return talentSearchApi(request,env);
+    if(path==='/api/management')return managementAgenciesApi(request,env);
+    const managementApiMatch=path.match(/^\/api\/management\/([a-z0-9-]{1,120})\/?$/);
+    if(managementApiMatch)return managementAgencyApi(request,env,managementApiMatch[1]);
+    const fighterTalentMatch=path.match(/^\/api\/talent\/fighters\/([a-z0-9-]{1,180})\/?$/);
+    if(fighterTalentMatch)return fighterTalentApi(request,env,fighterTalentMatch[1]);
+    const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|management|opportunity)\/?$/);
+    if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
 
     if(request.method==='GET'&&(path==='/events'||path==='/events/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/events',request.url),308);
@@ -65,10 +74,24 @@ export default {
       const promotionResponse=await promotionPage(request,env,promotionPageMatch[1]);
       return page(enhancePromotionEvents(promotionResponse,env,promotionPageMatch[1]),request,env);
     }
+    if(request.method==='GET'&&(path==='/talent'||path==='/talent/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/talent',request.url),308);
+      return page(talentPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/management'||path==='/management/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/management',request.url),308);
+      return page(managementAgenciesPage(request,env),request,env);
+    }
+    const managementPageMatch=path.match(/^\/management\/([a-z0-9-]{1,120})\/?$/);
+    if(request.method==='GET'&&managementPageMatch){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/management/${managementPageMatch[1]}`,request.url),308);
+      return page(managementAgencyPage(request,env,managementPageMatch[1]),request,env);
+    }
     const fighterPageMatch=path.match(/^\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(request.method==='GET'&&fighterPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/scout/fighters/${fighterPageMatch[1]}`,request.url),308);
-      return page(globalFighterPage(request,env,fighterPageMatch[1]),request,env);
+      const dossier=await globalFighterPage(request,env,fighterPageMatch[1]);
+      return page(enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]),request,env);
     }
 
     return stripRetiredPersonalUi(await worker.fetch(request,env,context));
