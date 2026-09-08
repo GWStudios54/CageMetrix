@@ -25,7 +25,7 @@
     "forecasts:sync": "node scripts/sync-forecasts.mjs --remote",
     "events:sync-global": "node scripts/sync-global-events.mjs --remote",
     "management:sync": "node scripts/sync-management.mjs --remote",
-    "intel:sync": "node scripts/sync-fighter-intel.mjs --remote",
+    "intel:sync": "node scripts/apply-fighter-intel.mjs --remote",
     "warehouse:refresh-ufc-history": "node scripts/refresh-ufc-history.mjs --remote",
     "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv",
     "predictor:validate": "node scripts/validate-predictor.mjs --stats .cache/refresh/stats.csv --output .cache/predictor-validation.json"

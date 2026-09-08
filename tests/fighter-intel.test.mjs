@@ -66,3 +66,13 @@ test('fighter dossier exposes intel endpoint and appends intelligence context',(
   assert.match(intel,/Missing evidence stays unknown/);
   assert.match(intel,/no_private_contact_collection:true/);
 });
+
+test('D1 intel sync executes idempotent statements individually and fixes SELECT UPSERT ambiguity',()=>{
+  const pkg=JSON.parse(read('package.json'));
+  const apply=read('scripts/apply-fighter-intel.mjs');
+  assert.equal(pkg.scripts['intel:sync'],'node scripts/apply-fighter-intel.mjs --remote');
+  assert.match(apply,/sync-fighter-intel\.mjs','--dry-run'/);
+  assert.match(apply,/WHERE 1=1/);
+  assert.match(apply,/for\(const \[index,statement\] of statements\.entries\(\)\)/);
+  assert.doesNotMatch(apply,/--file/);
+});
