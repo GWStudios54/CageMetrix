@@ -4,6 +4,7 @@ import { GLOBAL_EVENT_SOURCES, eventDetailUrls, eventSlug, parsePromotionEvents 
 import { usableUpcomingEvents } from './lib/global-event-calendar.mjs';
 import { scopePromotionHtml } from './lib/global-event-html.mjs';
 import { parseSpecialPromotion } from './lib/global-event-special.mjs';
+import { parseExtendedPromotion } from './lib/global-event-special-extended.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
@@ -15,6 +16,7 @@ mkdirSync(cacheDir,{recursive:true});
 
 const q=value=>value===null||value===undefined||value===''?'NULL':`'${String(value).replaceAll("'","''")}'`;
 const clean=value=>String(value??'').replace(/\s+/g,' ').trim();
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 function wrangler(params,capture=false){
   return execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js',...params],{
@@ -22,30 +24,54 @@ function wrangler(params,capture=false){
   })||'';
 }
 
-async function html(url){
-  const response=await fetch(url,{
-    redirect:'follow',
-    signal:AbortSignal.timeout(45000),
-    headers:{
-      'accept':'text/html,application/xhtml+xml',
-      'accept-language':'en-US,en;q=0.8',
-      'user-agent':'Mozilla/5.0 (compatible; MMA Scouts event research; +https://mmascouts.com/)'
+async function html(url,attempts=3){
+  let lastError;
+  for(let attempt=1;attempt<=attempts;attempt++){
+    try{
+      const response=await fetch(url,{
+        redirect:'follow',
+        signal:AbortSignal.timeout(45000),
+        headers:{
+          'accept':'text/html,application/xhtml+xml',
+          'accept-language':'en-US,en;q=0.8',
+          'user-agent':'Mozilla/5.0 (compatible; MMA Scouts event research; +https://mmascouts.com/)'
+        }
+      });
+      if(!response.ok)throw new Error(`HTTP ${response.status}`);
+      return response.text();
+    }catch(error){
+      lastError=error;
+      if(attempt<attempts)await wait(500*attempt);
     }
-  });
-  if(!response.ok)throw new Error(`HTTP ${response.status}`);
-  return response.text();
+  }
+  throw lastError instanceof Error?lastError:new Error(String(lastError||'fetch failed'));
+}
+
+async function primaryHtml(source){
+  const urls=[source.url];
+  if(source.slug==='grachan')urls.push('https://grachan.jp/schedule/');
+  let lastError;
+  for(const url of urls){
+    try{return {body:await html(url),fetchedUrl:url};}
+    catch(error){lastError=error;}
+  }
+  throw lastError instanceof Error?lastError:new Error(String(lastError||'fetch failed'));
 }
 
 const parsed=[],sources=[];
 for(const source of GLOBAL_EVENT_SOURCES){
   try{
-    const primary=await html(source.url);
+    const primaryResult=await primaryHtml(source);
+    const primary=primaryResult.body;
     writeFileSync(`${cacheDir}/${source.slug}.html`,primary);
     let discovered=[];
     const detailFailures=[];
     const special=parseSpecialPromotion(source,primary,now);
+    const extended=special===null?parseExtendedPromotion(source,primary,now):null;
     if(special!==null){
       discovered.push(...special);
+    }else if(extended!==null){
+      discovered.push(...extended);
     }else{
       // Detail-driven calendars such as DEEP and Pancrase keep dates/venues on
       // the event page. Do not infer those cards from nearby news timestamps.
@@ -58,14 +84,17 @@ for(const source of GLOBAL_EVENT_SOURCES){
         try{
           const detail=await html(url);
           writeFileSync(`${cacheDir}/${source.slug}-detail-${index+1}.html`,detail);
-          discovered.push(...parsePromotionEvents({...source,url,detailUrlPattern:null},detail,now));
+          const detailSource={...source,url,detailUrlPattern:null};
+          const detailExtended=parseExtendedPromotion(detailSource,detail,now);
+          if(detailExtended!==null)discovered.push(...detailExtended);
+          else discovered.push(...parsePromotionEvents(detailSource,detail,now));
         }catch(error){detailFailures.push({url,error:error instanceof Error?error.message:String(error)});}
       }
     }
     const events=usableUpcomingEvents(discovered,now);
     parsed.push(...events);
     sources.push({
-      slug:source.slug,url:source.url,status:'ok',discovered:discovered.length,events:events.length,
+      slug:source.slug,url:source.url,fetched_url:primaryResult.fetchedUrl,status:'ok',discovered:discovered.length,events:events.length,
       names:events.map(e=>e.name),detail_failures:detailFailures.length?detailFailures:undefined,
       note:events.length?undefined:'No upcoming event with a verified physical location is currently published.'
     });
