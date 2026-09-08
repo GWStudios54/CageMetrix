@@ -37,7 +37,7 @@ const STOP=new Set([
 const BAD=/\b(?:management|athletes?|roster|clients?|services?|contact|copyright|champion|record|ranked|weight|division|media|marketing|sports|official|company|agency|fight(?:er|ing)?|mma|ufc|pfl|bellator|one championship|oktagon|regional|family|news|blog|podcast|sponsor|lbs?|email|phone|website|home|about|team)\b/i;
 
 export function normalizeManagementName(value){
-  return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[“”"‘’'`]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
 
 function cleanedCandidate(value){
