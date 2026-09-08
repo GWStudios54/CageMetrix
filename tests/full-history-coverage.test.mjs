@@ -34,7 +34,7 @@ test('ambiguous or absent exact names remain unresolved rather than being normal
   assert.match(derive,/names_without_exact_master_row_remaining/);
   assert.match(derive,/remain intentionally unresolved rather than guessed/);
   assert.match(derive,/unresolved_examples/);
-  assert.match(repairMigration,/f\.fighter_name/);
+  assert.match(repairMigration,/m\.fighter_name=p\.fighter_name/);
 });
 
 test('source-grounded history ids cannot enter the rating graph here',()=>{
