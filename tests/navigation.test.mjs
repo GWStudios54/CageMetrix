@@ -8,8 +8,7 @@ test('one canonical scouting-first top menu is used across rendered pages',()=>{
   const nav=read('src/navigation.ts');
   const session=read('src/admin-session.ts');
   const worker=read('src/worker.ts');
-  for(const href of ['/scout','/#rankings','/promotions','/events'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
-  assert.ok(nav.includes('Find%20the%20best%20regional%20MMA%20prospects'),'prospect scouting link missing');
+  for(const href of ['/scout','/#rankings','/prospects','/talent','/promotions','/events'])assert.ok(nav.includes(`href=\"${href}\"`),`missing ${href}`);
   assert.ok(nav.includes('href=\"/admin\"'),'admin link missing');
   for(const retired of ['/predictions.html','/community','/forum','/watchlist'])assert.ok(!nav.includes(`href=\"${retired}\"`),`${retired} should not be primary navigation`);
   assert.ok(nav.includes('adminAccount(request,env.DB)'),'navigation must ask the shared session layer for admin status');
