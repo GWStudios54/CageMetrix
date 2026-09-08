@@ -17,14 +17,16 @@ function query(sql){return blocks(sql).flatMap(block=>block?.results||[]);}
 function run(sql){wrangler(['d1','execute','cagemetrix',target,'--command',sql]);}
 
 const completedFilter=`p.result IN ('W','L','D','NC') AND f.outcome<>'unknown' AND f.event_date<=date('now')`;
-const resolvedMissingSql=`SELECT COUNT(*) n FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id WHERE ${completedFilter} AND p.source_fighter_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM scout_active_global_fights g WHERE g.source_key=p.source_key AND g.snapshot_id=p.snapshot_id AND g.source_fighter_id=p.source_fighter_id AND g.source_fight_id=p.source_fight_id)`;
+const safeSideFilter=`p.source_fighter_id IS NOT NULL AND (o.source_fighter_id IS NULL OR o.source_fighter_id<>p.source_fighter_id)`;
+const resolvedMissingSql=`SELECT COUNT(*) n FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id JOIN mma_active_participants o ON o.source_key=p.source_key AND o.snapshot_id=p.snapshot_id AND o.source_fight_id=p.source_fight_id AND o.side<>p.side WHERE ${completedFilter} AND ${safeSideFilter} AND NOT EXISTS(SELECT 1 FROM scout_active_global_fights g WHERE g.source_key=p.source_key AND g.snapshot_id=p.snapshot_id AND g.source_fighter_id=p.source_fighter_id AND g.source_fight_id=p.source_fight_id)`;
 
 const before={
   completed_participant_sides:Number(query(`SELECT COUNT(*) n FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id WHERE ${completedFilter}`)[0]?.n||0),
   resolved_participant_sides:Number(query(`SELECT COUNT(*) n FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id WHERE ${completedFilter} AND p.source_fighter_id IS NOT NULL`)[0]?.n||0),
   unresolved_participant_sides:Number(query(`SELECT COUNT(*) n FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id WHERE ${completedFilter} AND p.source_fighter_id IS NULL`)[0]?.n||0),
+  unsafe_self_identity_sides:Number(query(`SELECT COUNT(*) n FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id JOIN mma_active_participants o ON o.source_key=p.source_key AND o.snapshot_id=p.snapshot_id AND o.source_fight_id=p.source_fight_id AND o.side<>p.side WHERE ${completedFilter} AND p.source_fighter_id IS NOT NULL AND o.source_fighter_id=p.source_fighter_id`)[0]?.n||0),
   materialized_history_rows:Number(query(`SELECT COUNT(*) n FROM scout_active_global_fights`)[0]?.n||0),
-  resolved_history_rows_missing:Number(query(resolvedMissingSql)[0]?.n||0),
+  safe_resolved_history_rows_missing:Number(query(resolvedMissingSql)[0]?.n||0),
   one_sided_completed_fights:Number(query(`SELECT COUNT(*) n FROM (SELECT p.source_key,p.snapshot_id,p.source_fight_id,SUM(CASE WHEN p.source_fighter_id IS NOT NULL THEN 1 ELSE 0 END) resolved_sides FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id WHERE ${completedFilter} GROUP BY p.source_key,p.snapshot_id,p.source_fight_id HAVING resolved_sides=1)`)[0]?.n||0),
   zero_sided_completed_fights:Number(query(`SELECT COUNT(*) n FROM (SELECT p.source_key,p.snapshot_id,p.source_fight_id,SUM(CASE WHEN p.source_fighter_id IS NOT NULL THEN 1 ELSE 0 END) resolved_sides FROM mma_active_participants p JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id WHERE ${completedFilter} GROUP BY p.source_key,p.snapshot_id,p.source_fight_id HAVING resolved_sides=0)`)[0]?.n||0)
 };
@@ -37,8 +39,7 @@ FROM mma_active_participants p
 JOIN mma_active_fights f ON f.source_key=p.source_key AND f.snapshot_id=p.snapshot_id AND f.source_fight_id=p.source_fight_id
 JOIN mma_active_participants o ON o.source_key=p.source_key AND o.snapshot_id=p.snapshot_id AND o.source_fight_id=p.source_fight_id AND o.side<>p.side
 WHERE ${completedFilter}
-  AND p.source_fighter_id IS NOT NULL
-  AND (o.source_fighter_id IS NULL OR o.source_fighter_id<>p.source_fighter_id)
+  AND ${safeSideFilter}
   AND NOT EXISTS(SELECT 1 FROM scout_global_fights g WHERE g.source_key=p.source_key AND g.snapshot_id=p.snapshot_id AND g.source_fighter_id=p.source_fighter_id AND g.source_fight_id=p.source_fight_id);`);
 
 // Public dossier aggregates should describe every trustworthy fighter-side result we can
@@ -72,10 +73,10 @@ WHERE EXISTS(SELECT 1 FROM mma_source_registry r WHERE r.source_key=p.source_key
 
 const afterHistory=Number(query(`SELECT COUNT(*) n FROM scout_active_global_fights`)[0]?.n||0);
 const remaining=Number(query(resolvedMissingSql)[0]?.n||0);
-if(remaining!==0)throw new Error(`History recovery left ${remaining} completed participant sides with known fighter identity unmaterialized`);
+if(remaining!==0)throw new Error(`History recovery left ${remaining} safe completed participant sides with known fighter identity unmaterialized`);
 const topRecovered=query(`SELECT p.profile_slug,p.fighter_name,COUNT(*) recovered_rows FROM scout_public_global_profiles p JOIN scout_active_global_fights g ON g.source_key=p.source_key AND g.snapshot_id=p.snapshot_id AND g.source_fighter_id=p.source_fighter_id WHERE g.opponent_source_fighter_id IS NULL GROUP BY p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name ORDER BY recovered_rows DESC,p.fighter_name LIMIT 50`);
 const coverage=query(`SELECT CASE WHEN career_bouts>=20 THEN '20+' WHEN career_bouts>=10 THEN '10-19' WHEN career_bouts>=5 THEN '5-9' WHEN career_bouts>=1 THEN '1-4' ELSE '0' END history_band,COUNT(*) fighters FROM scout_public_global_profiles GROUP BY history_band ORDER BY CASE history_band WHEN '20+' THEN 1 WHEN '10-19' THEN 2 WHEN '5-9' THEN 3 WHEN '1-4' THEN 4 ELSE 5 END`);
-const summary={checked_at:checkedAt,mode:remote?'remote':'local',before,after:{materialized_history_rows:afterHistory,inserted_history_rows:afterHistory-before.materialized_history_rows,remaining_resolved_history_rows_missing:remaining},coverage_bands:coverage,top_recovered_fighters:topRecovered};
+const summary={checked_at:checkedAt,mode:remote?'remote':'local',before,after:{materialized_history_rows:afterHistory,inserted_history_rows:afterHistory-before.materialized_history_rows,remaining_safe_resolved_history_rows_missing:remaining},coverage_bands:coverage,top_recovered_fighters:topRecovered};
 writeFileSync(`${cache}/summary.json`,JSON.stringify(summary,null,2)+'\n');
 console.log(JSON.stringify(summary,null,2));
-console.log(`Recovered ${summary.after.inserted_history_rows} fighter-side history rows; every completed participant side with a known source fighter ID now has a public history row.`);
+console.log(`Recovered ${summary.after.inserted_history_rows} fighter-side history rows; every safe completed participant side with a known source fighter ID now has a public history row.`);
