@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { GLOBAL_EVENT_SOURCES, eventSlug, parseOneEvents, parsePromotionEvents, usableUpcomingEvents } from './lib/global-event-sources.mjs';
+import { GLOBAL_EVENT_SOURCES, eventSlug, parseOneEvents, parsePromotionEvents } from './lib/global-event-sources.mjs';
+import { usableUpcomingEvents } from './lib/global-event-calendar.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
