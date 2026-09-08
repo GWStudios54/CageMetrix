@@ -73,7 +73,7 @@ async function talentRows(request:Request,env:Env){
            COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
            o.preferred_weight_class,o.base_city,o.base_region,o.base_country,o.public_contact_url,o.availability_note,
            o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
-    FROM scout_active_global_profiles p
+    FROM scout_public_global_profiles p
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
     LEFT JOIN scout_active_global_ratings r
       ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
@@ -122,11 +122,11 @@ export async function talentPage(request:Request,env:Env){
 async function agencyRows(env:Env){
   return (await env.DB.prepare(`
     SELECT a.id,a.slug,a.name,a.country,a.website_url,a.description,a.verified_at,
-           COUNT(cm.source_fighter_id) represented_fighters,
+           COUNT(p.source_fighter_id) represented_fighters,
            ROUND(AVG(r.scout_rating),2) average_global_rating,ROUND(MAX(r.scout_rating),2) top_global_rating
     FROM management_agencies a
     LEFT JOIN scout_current_management cm ON cm.agency_id=a.id
-    LEFT JOIN scout_active_global_profiles p ON p.source_key=cm.source_key AND p.source_fighter_id=cm.source_fighter_id
+    LEFT JOIN scout_public_global_profiles p ON p.source_key=cm.source_key AND p.source_fighter_id=cm.source_fighter_id
     LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
     WHERE a.active=1
     GROUP BY a.id,a.slug,a.name,a.country,a.website_url,a.description,a.verified_at
@@ -143,7 +143,7 @@ export async function managementAgencyApi(request:Request,env:Env,slug:string){
     SELECT p.profile_slug,p.fighter_name,p.current_weight_class,p.current_promotion_slug,p.career_wins,p.career_losses,p.career_draws,p.last_fight_date,
            sp.name promotion_name,r.scout_rating global_rating,r.evidence_strength,cm.manager_name,cm.started_at,cm.confidence,cm.verified_at
     FROM scout_current_management cm
-    JOIN scout_active_global_profiles p ON p.source_key=cm.source_key AND p.source_fighter_id=cm.source_fighter_id
+    JOIN scout_public_global_profiles p ON p.source_key=cm.source_key AND p.source_fighter_id=cm.source_fighter_id
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
     LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
     WHERE cm.agency_id=?
@@ -173,7 +173,7 @@ async function fighterTalent(env:Env,slug:string){
            COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
            COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
            o.preferred_weight_class,o.base_city,o.base_region,o.base_country,o.public_contact_url,o.availability_note,o.source_url opportunity_source_url,o.source_type opportunity_source_type,o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
-    FROM scout_active_global_profiles p
+    FROM scout_public_global_profiles p
     LEFT JOIN fighter_opportunity_status o ON o.source_key=p.source_key AND o.source_fighter_id=p.source_fighter_id
     LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
     WHERE p.profile_slug=? LIMIT 1
@@ -197,6 +197,7 @@ export async function enhanceFighterTalentContext(response:Response,env:Env,slug
 async function requireAdmin(request:Request,env:Env){return !!await adminAccount(request,env.DB);}
 async function body(request:Request){try{return await request.json() as Row}catch{return null;}}
 function validUrl(value:unknown){if(!value)return null;try{const url=new URL(String(value));return /^https?:$/.test(url.protocol)?url.href:null}catch{return null;}}
+function validPublicContact(value:unknown){if(!value)return null;try{const url=new URL(String(value));return url.protocol==='https:'?url.href:null}catch{return null;}}
 
 export async function talentAdminApi(request:Request,env:Env,action:string){
   if(!await requireAdmin(request,env))return json({error:'unauthorized'},401,NO_STORE);
@@ -232,7 +233,8 @@ export async function talentAdminApi(request:Request,env:Env,action:string){
     const confidence=CONFIDENCE.has(String(input.confidence))?String(input.confidence):'C';
     if(management==='unmanaged'&&!validUrl(input.source_url)&&String(input.source_type||'')!=='verified_profile')return json({error:'unmanaged_requires_source'},400,NO_STORE);
     if(contract==='free_agent'&&!validUrl(input.source_url)&&String(input.source_type||'')!=='verified_profile')return json({error:'free_agent_requires_source'},400,NO_STORE);
-    await env.DB.prepare(`INSERT INTO fighter_opportunity_status(source_key,source_fighter_id,management_status,contract_status,open_to_fights,open_to_management,open_to_team,preferred_weight_class,base_city,base_region,base_country,public_contact_url,availability_note,source_url,source_type,confidence,verified_at,last_checked_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(source_key,source_fighter_id) DO UPDATE SET management_status=excluded.management_status,contract_status=excluded.contract_status,open_to_fights=excluded.open_to_fights,open_to_management=excluded.open_to_management,open_to_team=excluded.open_to_team,preferred_weight_class=excluded.preferred_weight_class,base_city=excluded.base_city,base_region=excluded.base_region,base_country=excluded.base_country,public_contact_url=excluded.public_contact_url,availability_note=excluded.availability_note,source_url=excluded.source_url,source_type=excluded.source_type,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP`).bind(fighter.source_key,fighter.source_fighter_id,management,contract,fights,mgmt,team,String(input.preferred_weight_class||'').trim().slice(0,80)||null,String(input.base_city||'').trim().slice(0,120)||null,String(input.base_region||'').trim().slice(0,120)||null,String(input.base_country||'').trim().slice(0,120)||null,validUrl(input.public_contact_url),String(input.availability_note||'').trim().slice(0,1000)||null,validUrl(input.source_url),String(input.source_type||'public_record').trim().slice(0,80),confidence,String(input.verified_at||'').trim()||new Date().toISOString()).run();
+    const publicContact=validPublicContact(input.public_contact_url);if(input.public_contact_url&&!publicContact)return json({error:'public_contact_requires_https_url'},400,NO_STORE);
+    await env.DB.prepare(`INSERT INTO fighter_opportunity_status(source_key,source_fighter_id,management_status,contract_status,open_to_fights,open_to_management,open_to_team,preferred_weight_class,base_city,base_region,base_country,public_contact_url,availability_note,source_url,source_type,confidence,verified_at,last_checked_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(source_key,source_fighter_id) DO UPDATE SET management_status=excluded.management_status,contract_status=excluded.contract_status,open_to_fights=excluded.open_to_fights,open_to_management=excluded.open_to_management,open_to_team=excluded.open_to_team,preferred_weight_class=excluded.preferred_weight_class,base_city=excluded.base_city,base_region=excluded.base_region,base_country=excluded.base_country,public_contact_url=excluded.public_contact_url,availability_note=excluded.availability_note,source_url=excluded.source_url,source_type=excluded.source_type,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP`).bind(fighter.source_key,fighter.source_fighter_id,management,contract,fights,mgmt,team,String(input.preferred_weight_class||'').trim().slice(0,80)||null,String(input.base_city||'').trim().slice(0,120)||null,String(input.base_region||'').trim().slice(0,120)||null,String(input.base_country||'').trim().slice(0,120)||null,publicContact,String(input.availability_note||'').trim().slice(0,1000)||null,validUrl(input.source_url),String(input.source_type||'public_record').trim().slice(0,80),confidence,String(input.verified_at||'').trim()||new Date().toISOString()).run();
     return json({ok:true,profile_slug:profile,management_status:management,contract_status:contract},200,NO_STORE);
   }
   return json({error:'unknown_action'},404,NO_STORE);
