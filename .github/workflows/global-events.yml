@@ -12,10 +12,12 @@ on:
       - 'scripts/lib/global-event-calendar.mjs'
       - 'scripts/lib/global-event-html.mjs'
       - 'scripts/lib/global-event-special.mjs'
+      - 'scripts/lib/global-event-special-extended.mjs'
       - 'scripts/data/scout-promotions.json'
       - 'tests/global-events.test.mjs'
       - 'tests/global-event-html.test.mjs'
       - 'tests/global-event-special.test.mjs'
+      - 'tests/global-event-quality.test.mjs'
       - 'tests/global-event-sync.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
@@ -29,10 +31,12 @@ on:
       - 'scripts/lib/global-event-calendar.mjs'
       - 'scripts/lib/global-event-html.mjs'
       - 'scripts/lib/global-event-special.mjs'
+      - 'scripts/lib/global-event-special-extended.mjs'
       - 'scripts/data/scout-promotions.json'
       - 'tests/global-events.test.mjs'
       - 'tests/global-event-html.test.mjs'
       - 'tests/global-event-special.test.mjs'
+      - 'tests/global-event-quality.test.mjs'
       - 'tests/global-event-sync.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
@@ -54,7 +58,7 @@ jobs:
           node-version: '24'
       - run: npm ci
       - name: Validate event source parsers and reconciliation
-        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-sync.test.mjs
+        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-quality.test.mjs tests/global-event-sync.test.mjs
       - name: Probe official calendars without D1 writes
         if: github.event_name == 'pull_request'
         run: node scripts/sync-global-events.mjs --dry-run
