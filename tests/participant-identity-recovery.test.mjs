@@ -91,12 +91,14 @@ test('history recovery consumes the effective identity overlay but still leaves 
   assert.doesNotMatch(recovery,/UPDATE scout_global_ratings|INSERT .*scout_global_ratings|DELETE FROM scout_global_ratings/);
 });
 
-test('production workflow applies schema, resolves identities, then repairs histories',()=>{
-  const migrate=workflow.indexOf('Apply identity-resolution schema');
+test('production workflow applies schema, resolves identities, derives source history ids, then repairs histories',()=>{
+  const migrate=workflow.indexOf('Apply history identity and coverage schema');
   const resolve=workflow.indexOf('Resolve ambiguous participant identities');
-  const recover=workflow.indexOf('Recover completed fighter-side history rows');
-  assert.ok(migrate>=0&&resolve>migrate&&recover>resolve);
+  const derive=workflow.indexOf('Derive source-consistent exact-name history identities');
+  const recover=workflow.indexOf('Recover every safe completed fighter-side history row');
+  assert.ok(migrate>=0&&resolve>migrate&&derive>resolve&&recover>derive);
   assert.match(workflow,/resolve-participant-identities\.mjs --remote/);
+  assert.match(workflow,/derive-source-name-history-identities\.mjs --remote/);
   assert.match(workflow,/participant-identity-recovery\.test\.mjs/);
   assert.match(workflow,/participant-identity\/summary\.json/);
 });
