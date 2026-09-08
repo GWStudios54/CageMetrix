@@ -21,7 +21,7 @@
   {"slug":"shooto","name":"Professional Shooto","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":"https://www.shooto-mma.com/","aliases":["shooto","professional shooto","shooto japan"]},
   {"slug":"deep","name":"DEEP","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":"https://www.deep2001.com/","aliases":["deep","deep impact"]},
   {"slug":"road-fc","name":"ROAD FC","region":"Asia","country":"South Korea","scope":"regional_feeder","official_url":"https://www.roadfc.com/","aliases":["road fc","road fighting championship"]},
-  {"slug":"black-combat","name":"BLACK COMBAT","region":"Asia","country":"South Korea","scope":"regional_feeder","official_url":"https://blackcombat-official.com/","aliases":["black","black combat","blackcombat"]},
-  {"slug":"grachan","name":"GRACHAN","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":null,"aliases":["grachan"]},
+  {"slug":"black-combat","name":"BLACK COMBAT","region":"Asia","country":"South Korea","scope":"regional_feeder","official_url":"https://www.blackcombat-official.com/","aliases":["black","black combat","blackcombat"]},
+  {"slug":"grachan","name":"GRACHAN","region":"Asia","country":"Japan","scope":"regional_feeder","official_url":"https://grachan.jp/","aliases":["grachan"]},
   {"slug":"brave-cf","name":"BRAVE Combat Federation","region":"Asia","country":"Bahrain","scope":"international_feeder","official_url":"https://www.bravecf.com/","aliases":["brave","brave cf","brave combat federation"]}
 ]
