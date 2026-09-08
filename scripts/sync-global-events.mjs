@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { GLOBAL_EVENT_SOURCES, eventDetailUrls, eventSlug, parseOneEvents, parsePromotionEvents } from './lib/global-event-sources.mjs';
 import { usableUpcomingEvents } from './lib/global-event-calendar.mjs';
+import { scopePromotionHtml } from './lib/global-event-html.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
@@ -48,7 +49,10 @@ for(const source of GLOBAL_EVENT_SOURCES){
     }else{
       // Detail-driven calendars such as DEEP and Pancrase keep dates/venues on
       // the event page. Do not infer those cards from nearby news timestamps.
-      if(!source.detailUrlPattern)discovered.push(...parsePromotionEvents(source,primary,now));
+      if(!source.detailUrlPattern){
+        const scoped=scopePromotionHtml(source,primary);
+        discovered.push(...parsePromotionEvents(source,scoped,now));
+      }
       const details=eventDetailUrls(source,primary);
       for(const [index,url] of details.entries()){
         try{
