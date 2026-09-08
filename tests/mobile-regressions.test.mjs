@@ -4,16 +4,19 @@ import {readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
-test('featured UFC card uses dedicated mobile-safe layout and readable CTA',()=>{
+test('featured event scouting uses the responsive home card layout and readable CTA',()=>{
   const seo=read('src/static-seo.ts');
-  assert.match(seo,/class=\"event-spotlight\"/);
-  assert.match(seo,/class=\"button primary\"/);
-  assert.match(seo,/@media\(max-width:760px\)\{\.event-spotlight\{display:grid\}\.event-spotlight \.button\{width:100%;text-align:center\}/);
-  assert.doesNotMatch(seo,/class=\"status-panel\" aria-label=\"Featured upcoming UFC predictions\"/);
-  assert.doesNotMatch(seo,/class=\"status-dot\"/);
+  const css=read('public/home.css');
+  assert.match(seo,/home-matchup-shell/);
+  assert.match(seo,/NEXT EVENT/);
+  assert.match(seo,/Scout full card/);
+  assert.match(seo,/Compare .* as MMA fighters/);
+  assert.match(css,/home-matchup/);
+  assert.doesNotMatch(seo,/fighter_a_probability|model_probability|MODEL PICK|Win Probability/);
+  assert.doesNotMatch(seo,/Featured upcoming UFC predictions/);
 });
 
-test('fan comparison follows the preferred current public predictor instead of pinning 0.1',()=>{
+test('archived fan comparison still follows the preferred preserved predictor',()=>{
   const api=read('src/fans.ts');
   const ui=read('public/fans.js');
   assert.doesNotMatch(api,/PUBLIC_VERSION='0\.1\.0'/);
@@ -23,7 +26,7 @@ test('fan comparison follows the preferred current public predictor instead of p
   assert.doesNotMatch(ui,/CageMetrix Predictor 0\.1/);
 });
 
-test('fight page does not mislabel model contributions as literal experience edges',()=>{
+test('archived fight page does not mislabel model contributions as literal experience edges',()=>{
   const html=read('public/fight.html');
   const presentation=read('public/fight-presentation.js');
   assert.doesNotMatch(html,/graded against Predictor 0\.1/);
