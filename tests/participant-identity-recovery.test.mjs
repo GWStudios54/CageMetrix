@@ -18,7 +18,8 @@ test('identity resolutions are an auditable overlay and never mutate the immutab
 });
 
 test('automatic resolution requires exact normalized name plus strong independent biography evidence',()=>{
-  assert.match(resolver,/JOIN mma_active_fighters f ON f\.normalized_name=u\.normalized_name/);
+  assert.match(resolver,/JOIN mma_fighters f/);
+  assert.match(resolver,/f\.source_key=u\.source_key AND f\.snapshot_id=u\.snapshot_id AND f\.normalized_name=u\.normalized_name/);
   assert.match(resolver,/dob_match/);
   assert.match(resolver,/gym_match/);
   assert.match(resolver,/nationality_match/);
@@ -29,6 +30,14 @@ test('automatic resolution requires exact normalized name plus strong independen
   assert.match(resolver,/dob_match=1 OR evidence_dimensions>=2/);
   assert.match(resolver,/score-second_score>=3/);
   assert.doesNotMatch(resolver,/levenshtein\s*\(|soundex\s*\(|jaro[_a-z]*\s*\(|fuzzy[_a-z]*\s*\(/i);
+});
+
+test('resolver bounds expensive identity work to rowid batches for D1',()=>{
+  assert.match(resolver,/const BATCH_ROWS=5000/);
+  assert.match(resolver,/SELECT MIN\(p\.rowid\) min_rowid,MAX\(p\.rowid\) max_rowid/);
+  assert.match(resolver,/for\(let lo=minRow;lo&&lo<=maxRow;lo\+=BATCH_ROWS\)/);
+  assert.ok((resolver.match(/p\.rowid BETWEEN \$\{lo\} AND \$\{hi\}/g)||[]).length>=2);
+  assert.match(resolver,/batches_processed:batches/);
 });
 
 test('manual verified resolutions survive auto rebuilds and self-opponent collisions are excluded',()=>{
