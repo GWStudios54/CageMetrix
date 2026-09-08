@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import sqlite3
+import sys
 import tempfile
 from pathlib import Path
 
@@ -11,6 +12,7 @@ MODULE_PATH = ROOT / "scripts" / "prepare_d1_import.py"
 spec = importlib.util.spec_from_file_location("prepare_d1_import", MODULE_PATH)
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 
