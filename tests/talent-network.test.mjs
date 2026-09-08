@@ -13,6 +13,7 @@ test('talent schema stores agencies, historical representation and explicit oppo
   assert.match(migration,/contract_status IN \('unknown','under_contract','free_agent','non_exclusive'\)/);
   assert.match(migration,/idx_fighter_management_one_current/);
   assert.match(migration,/WHERE is_current=1/);
+  assert.match(migration,/source_url IS NOT NULL OR source_type='verified_profile'/);
   assert.match(migration,/scout_current_management/);
 });
 
@@ -53,9 +54,12 @@ test('representation context never feeds the fighter performance rating',()=>{
   assert.match(talent,/Agency affiliation is context only and never increases a fighter's rating/);
 });
 
-test('admin curation is authenticated and source-ranked',()=>{
-  const source=read('src/talent-network.ts'),entry=read('src/entry.ts');
+test('admin curation is authenticated, source-ranked and can close historical representation',()=>{
+  const source=read('src/talent-network.ts'),entry=read('src/entry.ts'),close=read('src/talent-admin.ts');
   assert.match(source,/adminAccount\(request,env\.DB\)/);
   assert.match(source,/CONFIDENCE=new Set\(\['A','B','C'\]\)/);
-  assert.match(entry,/\/api\\\/admin\\\/talent/);
+  assert.match(entry,/api\/admin\/talent\/management\/end/);
+  assert.match(close,/SET is_current=0/);
+  assert.match(close,/management_status='unknown'/);
+  assert.match(close,/source_required/);
 });
