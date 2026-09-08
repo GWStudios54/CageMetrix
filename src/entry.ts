@@ -4,6 +4,7 @@ import {normalizeNavigation} from './navigation.ts';
 import {globalFighterApi,globalFighterPage,globalFightersApi,promotionApi,promotionPage,promotionsApi,promotionsPage} from './global-scout.ts';
 import {eventsApi,eventsPage} from './events.ts';
 import {eventPage} from './event-page.ts';
+import {enhancePromotionEvents} from './promotion-events.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -61,7 +62,8 @@ export default {
     const promotionPageMatch=path.match(/^\/promotions\/([a-z0-9-]{1,100})\/?$/);
     if(request.method==='GET'&&promotionPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/promotions/${promotionPageMatch[1]}`,request.url),308);
-      return page(promotionPage(request,env,promotionPageMatch[1]),request,env);
+      const promotionResponse=await promotionPage(request,env,promotionPageMatch[1]);
+      return page(enhancePromotionEvents(promotionResponse,env,promotionPageMatch[1]),request,env);
     }
     const fighterPageMatch=path.match(/^\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(request.method==='GET'&&fighterPageMatch){
