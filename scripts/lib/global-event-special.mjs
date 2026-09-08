@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import { dateFromText, parseLocation } from './global-event-sources.mjs';
+import { parseExtendedPromotion } from './global-event-special-extended.mjs';
 
 const clean=value=>String(value??'').replace(/\s+/g,' ').trim();
 function textWithBreaks(element){
@@ -173,6 +174,8 @@ function parseShooto(html,source,now){
 }
 
 export function parseSpecialPromotion(source,html,now=new Date()){
+  const extended=parseExtendedPromotion(source,html,now);
+  if(extended!==null)return extended;
   switch(source?.slug){
     case 'one': return parseOne(html);
     case 'cffc': return parseCffc(html,source,now);
