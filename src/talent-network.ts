@@ -6,7 +6,7 @@ type Row=Record<string,any>;
 const GLOBAL_MODEL='global-1.0.0';
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'public, max-age=30, s-maxage=120','x-content-type-options':'nosniff'};
 const NO_STORE={'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'};
-const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]||ch));
+const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]||ch));
 const json=(value:unknown,status=200,headers=JSON_HEADERS)=>new Response(JSON.stringify(value),{status,headers});
 const limit=(value:string|null,fallback=25,max=100)=>Math.min(max,Math.max(1,Number.parseInt(value||'',10)||fallback));
 const offset=(value:string|null)=>Math.max(0,Number.parseInt(value||'',10)||0);
