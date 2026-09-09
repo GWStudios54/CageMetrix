@@ -65,7 +65,6 @@ test('ACA structured main and prelim rows yield full fighter names',()=>{
     </div>`;
   const bouts=parseGlobalEventBouts(html,{sourceSlug:'aca',sourceUrl:'https://www.aca-mma.com/en'});
   assert.equal(bouts.length,3);
-  assert.deepEqual(bouts[0],[bouts[0]][0]);
   assert.equal(bouts[0].fighterAName,'Evgeniy Goncharov');
   assert.equal(bouts[0].fighterBName,'Jailton Almeida');
   assert.equal(bouts[0].weightClass,'Heavyweight');
@@ -85,15 +84,21 @@ test('RIZIN parser accepts MMA rules and rejects kickboxing cards',()=>{
   assert.equal(bouts[0].titleFight,true);
 });
 
-test('VS-marker card parser captures Cage Warriors names and ignores TBA opponents',()=>{
+test('Cage Warriors parser scopes names and division to the same matchup row and rejects TBA',()=>{
   const html=`<main>
-    <div>Middleweight Title Fight</div><div>Paddy McCorry</div><div>VS.</div><div>Julio Spadaccini</div>
-    <div>Featherweight Bout</div><div>Maximus Lally</div><div>VS.</div><div>Aidan Stephen</div>
-    <div>Featherweight Bout</div><div>Keith Keogh</div><div>VS.</div><div>TBA</div>
+    <div class="et_pb_row"><div class="et_pb_text_inner"><p>Middleweight Title Fight</p></div></div>
+    <div class="et_pb_row"><div class="et_pb_text_inner"><p>Paddy McCorry</p></div><div class="et_pb_text_inner"><p>VS.</p></div><div class="et_pb_text_inner"><p>Julio Spadaccini</p></div></div>
+    <div class="et_pb_row"><div class="et_pb_text_inner"><p>Featherweight Bout</p></div></div>
+    <div class="et_pb_row"><div class="et_pb_text_inner"><p>Keith Keogh</p></div><div class="et_pb_text_inner"><p>VS.</p></div><div class="et_pb_text_inner"><p>TBA</p></div></div>
+    <div class="et_pb_row"><div class="et_pb_text_inner"><p>Flyweight Bout</p></div></div>
+    <div class="et_pb_row"><div class="et_pb_text_inner"><p>Ger Harris</p></div><div class="et_pb_text_inner"><p>VS.</p></div><div class="et_pb_text_inner"><p>Michelangelo Lupoli</p></div></div>
   </main>`;
   const bouts=parseGlobalEventBouts(html,{sourceSlug:'cage-warriors',sourceUrl:'https://cagewarriors.com/cw-210-dublin/'});
   assert.equal(bouts.length,2);
-  assert.deepEqual(bouts.map(bout=>[bout.fighterAName,bout.fighterBName]),[['Paddy McCorry','Julio Spadaccini'],['Maximus Lally','Aidan Stephen']]);
+  assert.deepEqual(bouts.map(bout=>[bout.fighterAName,bout.fighterBName]),[['Paddy McCorry','Julio Spadaccini'],['Ger Harris','Michelangelo Lupoli']]);
+  assert.equal(bouts[0].weightClass,'Middleweight');
+  assert.equal(bouts[0].titleFight,true);
+  assert.equal(bouts[1].weightClass,'Flyweight');
 });
 
 test('FNC VS-marker parser excludes explicit UB kickboxing matchups',()=>{
