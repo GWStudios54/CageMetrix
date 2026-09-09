@@ -104,8 +104,9 @@ function parseVsMarkerCards(doc,out,seen,sourceUrl,sourceSlug){
   const nearest=(start,step)=>{for(let i=start,seenCount=0;i>=0&&i<tokens.length&&seenCount<12;i+=step,seenCount++){const candidate=markerCandidate(tokens[i]);if(candidate)return candidate;}return null;};
   for(let i=0;i<tokens.length;i++){
     if(!/^(?:VS\.?|V\s*S)$/i.test(tokens[i]))continue;
+    const before=tokens.slice(Math.max(0,i-8),i+1).join(' · ');
     const context=tokens.slice(Math.max(0,i-10),Math.min(tokens.length,i+11)).join(' · ');
-    if(sourceSlug==='fnc'&&/(?:^|\s)UB\s*\d|kickbox/i.test(context))continue;
+    if(sourceSlug==='fnc'&&/(?:^|\s)UB\s*\d|kickbox/i.test(before))continue;
     const a=nearest(i-1,-1),b=nearest(i+1,1);if(!a||!b)continue;
     add(out,seen,a,b,context,sourceUrl,{weightClass:weightClass(context)});
   }
