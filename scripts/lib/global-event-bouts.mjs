@@ -84,6 +84,17 @@ function parseRizin(doc,out,seen,sourceUrl){
     add(out,seen,pair[0],pair[1],text,sourceUrl,{weightClass:kg?`${kg} kg`:null,titleFight:/TITLE|Championship/i.test(text)});
   }
 }
+function parseCageWarriors(doc,out,seen,sourceUrl){
+  for(const row of doc.querySelectorAll('.et_pb_row')){
+    const cells=[...row.querySelectorAll('.et_pb_text_inner')].map(node=>clean(node.textContent)).filter(Boolean);
+    const marker=cells.findIndex(value=>/^VS\.?$/i.test(value));if(marker<0)continue;
+    const a=[...cells.slice(0,marker)].reverse().map(validName).find(Boolean);
+    const b=cells.slice(marker+1).map(validName).find(Boolean);
+    if(!a||!b)continue;
+    const division=clean(row.previousElementSibling?.textContent);
+    add(out,seen,a,b,division,sourceUrl,{weightClass:weightClass(division),titleFight:/title\s*fight/i.test(division)});
+  }
+}
 function directTextTokens(root){
   const tokens=[];
   const walk=node=>{
@@ -99,15 +110,15 @@ function markerCandidate(value){
   if(/^\d+(?:[-:.]\d+)+(?:\s*\([^)]*\))?$/.test(text))return null;
   return validName(text);
 }
-function parseVsMarkerCards(doc,out,seen,sourceUrl,sourceSlug){
+function parseFnc(doc,out,seen,sourceUrl){
   const tokens=directTextTokens(doc.body);
   const nearest=(start,step)=>{for(let i=start,seenCount=0;i>=0&&i<tokens.length&&seenCount<12;i+=step,seenCount++){const candidate=markerCandidate(tokens[i]);if(candidate)return candidate;}return null;};
   for(let i=0;i<tokens.length;i++){
     if(!/^(?:VS\.?|V\s*S)$/i.test(tokens[i]))continue;
     const before=tokens.slice(Math.max(0,i-8),i+1).join(' · ');
-    const context=tokens.slice(Math.max(0,i-10),Math.min(tokens.length,i+11)).join(' · ');
-    if(sourceSlug==='fnc'&&/(?:^|\s)UB\s*\d|kickbox/i.test(before))continue;
+    if(/(?:^|\s)UB\s*\d|kickbox/i.test(before))continue;
     const a=nearest(i-1,-1),b=nearest(i+1,1);if(!a||!b)continue;
+    const context=tokens.slice(Math.max(0,i-10),Math.min(tokens.length,i+11)).join(' · ');
     add(out,seen,a,b,context,sourceUrl,{weightClass:weightClass(context)});
   }
 }
@@ -116,10 +127,11 @@ export function parseGlobalEventBouts(html,{sourceSlug='',sourceUrl=''}={}){
   const doc=new JSDOM(String(html||'')).window.document;
   const out=[],seen=new Set();
 
-  if(sourceSlug==='deep')parseDeep(doc,out,seen,sourceUrl);
-  if(sourceSlug==='aca')parseAca(doc,out,seen,sourceUrl);
-  if(sourceSlug==='rizin')parseRizin(doc,out,seen,sourceUrl);
-  if(sourceSlug==='fnc'||sourceSlug==='cage-warriors')parseVsMarkerCards(doc,out,seen,sourceUrl,sourceSlug);
+  if(sourceSlug==='deep'){parseDeep(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
+  if(sourceSlug==='aca'){parseAca(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
+  if(sourceSlug==='rizin'){parseRizin(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
+  if(sourceSlug==='cage-warriors'){parseCageWarriors(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
+  if(sourceSlug==='fnc'){parseFnc(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
 
   for(const script of doc.querySelectorAll('script[type="application/ld+json"]')){
     let parsed;try{parsed=JSON.parse(script.textContent||'null')}catch{continue;}
