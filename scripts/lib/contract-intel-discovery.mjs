@@ -30,6 +30,7 @@ export function detectContractSignal(value){
 function absoluteUrl(href,base){try{return new URL(href,base).href}catch{return null;}}
 function approvedUrl(url,source){try{const parsed=new URL(url);return parsed.protocol==='https:'&&parsed.hostname===source.host&&source.path.test(parsed.pathname);}catch{return false;}}
 function clean(value){return String(value??'').replace(/\s+/g,' ').trim();}
+function escapeRe(value){return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
 export function parseContractListing(body,source){
   if(source.kind==='rss'){
@@ -54,9 +55,14 @@ function dedupeArticles(rows){const seen=new Set();return rows.filter(row=>{if(s
 
 export function articleText(html){
   const dom=new JSDOM(String(html||'')),doc=dom.window.document;
-  for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form'))node.remove();
-  const root=doc.querySelector('article,main')||doc.body;const text=clean(root?.textContent);
-  dom.window.close();return text;
+  for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form,aside,[role="complementary"]'))node.remove();
+  const root=doc.querySelector('article,main')||doc.body;
+  const blocks=[];const seen=new Set();
+  for(const node of root?.querySelectorAll('h2,h3,p,li')||[]){
+    const value=clean(node.textContent);if(value.length<12||seen.has(value))continue;seen.add(value);blocks.push(value);
+  }
+  if(!blocks.length){const fallback=clean(root?.textContent);if(fallback)blocks.push(fallback);}
+  dom.window.close();return blocks.join('\n');
 }
 
 export function exactFighterMatches(value,profiles){
@@ -67,14 +73,31 @@ export function exactFighterMatches(value,profiles){
   return matches;
 }
 
+function incidentalMention(block,normalizedName){
+  const text=normalizeContractText(block),name=escapeRe(normalizedName);
+  const patterns=[
+    new RegExp(`\\b(?:compared|comparing)\\b[^.]{0,40}\\bto\\s+(?:a\\s+young\\s+)?${name}\\b`),
+    new RegExp(`\\b(?:remind(?:s|ed)?(?:\\s+\\w+){0,5}\\s+of|memories\\s+of|similar\\s+to|like)\\s+(?:a\\s+young\\s+)?${name}\\b`),
+    new RegExp(`\\b(?:take(?:s|n)?\\s+on|took\\s+on|face(?:s|d)?|facing|against|versus|vs|v|defeats?|def)\\s+${name}\\b`),
+    new RegExp(`\\b${name}\\s+(?:vs|versus|v|against)\\b`)
+  ];
+  return patterns.some(pattern=>pattern.test(text));
+}
+
 export function contractCandidateKey(sourceUrl,normalizedName,eventType){return createHash('sha256').update(`${sourceUrl}\n${normalizedName}\n${eventType}`).digest('hex');}
 
 export function candidateRows(article,source,body,profiles){
-  const combined=`${article.title}\n${article.summary||''}\n${body||''}`;if(!hasContractSignal(combined))return [];
-  const signal=detectContractSignal(combined),matches=exactFighterMatches(combined,profiles),out=[];
-  for(const match of matches){
-    if(match.ambiguous){out.push({candidateKey:contractCandidateKey(article.url,match.name,signal.eventType),sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:match.profiles[0]?.fighter_name||match.name,normalizedName:match.name,sourceKey:null,sourceFighterId:null,promotionSlug:source.promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:article.summary||article.title,reviewStatus:'needs_identity'});continue;}
-    const profile=match.profiles[0];out.push({candidateKey:contractCandidateKey(article.url,match.name,signal.eventType),sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:profile.fighter_name,normalizedName:match.name,sourceKey:profile.source_key,sourceFighterId:profile.source_fighter_id,promotionSlug:source.promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:article.summary||article.title,reviewStatus:'pending'});
+  const blocks=String(body||'').split(/\n+/).map(clean).filter(Boolean).filter(hasContractSignal);if(!blocks.length)return [];
+  const out=[],seen=new Set();
+  for(const block of blocks){
+    const signal=detectContractSignal(block),matches=exactFighterMatches(block,profiles);
+    for(const match of matches){
+      if(incidentalMention(block,match.name))continue;
+      const key=contractCandidateKey(article.url,match.name,signal.eventType);if(seen.has(key))continue;seen.add(key);
+      const base={candidateKey:key,sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:match.profiles[0]?.fighter_name||match.name,normalizedName:match.name,promotionSlug:source.promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:block.slice(0,1600),extractionMethod:'signal_block_exact_name_v2'};
+      if(match.ambiguous){out.push({...base,sourceKey:null,sourceFighterId:null,reviewStatus:'needs_identity'});continue;}
+      const profile=match.profiles[0];out.push({...base,sourceKey:profile.source_key,sourceFighterId:profile.source_fighter_id,reviewStatus:'pending'});
+    }
   }
   return out;
 }
