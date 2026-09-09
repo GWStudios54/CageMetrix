@@ -3,7 +3,9 @@ import {JSDOM} from 'jsdom';
 export const MANAGEMENT_SOURCES=[
   {
     slug:'first-round-management',name:'First Round Management',country:'United States',website:'https://1str.com/',confidence:'A',
-    description:'Full-service athlete management company with dedicated UFC, PFL and regional MMA rosters.',
+    description:'Full-service athlete management company with dedicated UFC, PFL and regional MMA rosters. Its official site emphasizes career management, contract negotiation, sponsorship and brand partnerships, media guidance and long-term athlete development.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://1str.com/'],
     urls:[
       'https://1str.com/clients/mixed-martial-arts/ufc/',
       'https://1str.com/clients/mixed-martial-arts/pfl/',
@@ -12,7 +14,9 @@ export const MANAGEMENT_SOURCES=[
   },
   {
     slug:'ruby-sports-entertainment',name:'Ruby Sports & Entertainment',country:'United States',website:'https://www.rubyse.com/',confidence:'A',
-    description:'Combat-sports management agency with publicly listed UFC, PFL and OKTAGON athlete rosters.',
+    description:'Full-service combat-sports agency with publicly listed UFC, PFL and OKTAGON rosters. Official services include career management, contract negotiation, financial management, immigration and visas, sponsorships and endorsements, and social-media/brand building.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://www.rubyse.com/services'],
     urls:[
       'https://www.rubyse.com/ufc-athletes',
       'https://www.rubyse.com/pfl-athletes',
@@ -21,13 +25,31 @@ export const MANAGEMENT_SOURCES=[
   },
   {
     slug:'dominance-mma',name:'Dominance MMA Management',country:'United States',website:'https://dominancemma.com/',confidence:'B',
-    description:'MMA management company with an official public athlete roster.',
+    description:'MMA management company based in Las Vegas and New York City. Its official company page lists Ali Abdelaziz as President & Founder, Rizvan Magomedov as President International Development, regional leadership in Brazil and additional managers; it highlights contract negotiation, sponsorships and relationship-building across major MMA organizations.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://dominancemma.com/our-company/'],
     urls:['https://dominancemma.com/roster/']
   },
   {
     slug:'iridium-sports-agency',name:'Iridium Sports Agency',country:'United States',website:'https://www.iridiumsportsagency.com/',confidence:'B',
-    description:'Full-service combat-sports agency founded by Jason House with a public roster page.',
+    description:'Full-service combat-sports agency founded by attorney Jason House. Its official site lists fight opportunities, sponsorships, training and nutrition support, appearances, social-media management, commission compliance, PR, legal support, financial management and contract negotiation, with a multi-role agent and operations team.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://www.iridiumsportsagency.com/'],
     urls:['https://www.iridiumsportsagency.com/roster']
+  },
+  {
+    slug:'suckerpunch-entertainment',name:'SuckerPunch Entertainment',country:'United States',website:'https://suckerpunchent.com/',confidence:'A',
+    description:'Established in 2007, SuckerPunch Entertainment describes itself as an MMA athlete management and marketing company. Its current official team page lists Brian Butler-Au as CEO, Bryan Hamper as President, athlete-relations/agent, operations, marketing/PR and Eastern Europe leadership roles.',
+    rosterScope:'profile_only',
+    profileUrls:['https://suckerpunchent.com/','https://suckerpunchent.com/about-us/'],
+    urls:[]
+  },
+  {
+    slug:'paradigm-sports',name:'Paradigm Sports',country:'United States',website:'https://www.paradigmsports.com/',confidence:'A',
+    description:'Full-service sports representation agency active in combat sports. Its official representation page currently reports a 19-person team, 9 agents, 137 combat-sports titles and belts, and more than $1 billion in athlete representation contracts while emphasizing brand, value and revenue growth for clients.',
+    rosterScope:'profile_only',
+    profileUrls:['https://www.paradigmsports.com/representation'],
+    urls:[]
   }
 ];
 
