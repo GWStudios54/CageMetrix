@@ -31,8 +31,13 @@ on:
       - 'package.json'
       - '.github/workflows/management-sync.yml'
 
+# Keep management refreshes from overlapping each other, but do not put this
+# independent/idempotent sync in the generic Worker release lane. GitHub only
+# keeps one pending run per concurrency group; sharing cagemetrix-production
+# caused a valid management push run to be discarded when deploy + contract
+# discovery were queued from the same commit.
 concurrency:
-  group: cagemetrix-production
+  group: mmascouts-management-sync
   cancel-in-progress: false
 
 jobs:
