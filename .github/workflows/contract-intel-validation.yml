@@ -33,6 +33,13 @@ jobs:
         run: npm run typecheck
       - name: Contract and management tests
         run: node --test tests/contract-intelligence.test.mjs tests/contract-source-wave2.test.mjs tests/management-sources.test.mjs tests/talent-network.test.mjs
+      - name: Validate lightweight discovery schema preflight
+        run: |
+          if grep -q "d1 migrations apply" .github/workflows/contract-intel-discovery.yml; then
+            echo "Contract discovery must not rescan the full D1 migration history on every crawl."
+            exit 1
+          fi
+          grep -Fq 'SELECT 1 FROM contract_intel_candidates LIMIT 1;' .github/workflows/contract-intel-discovery.yml
       - name: Production build
         run: npm run build
       - name: Probe public contract sources without D1 reads or writes
