@@ -39,6 +39,15 @@ const fighters = query(`
   ORDER BY f.id
 `);
 
+const scoutFighters = query(`
+  SELECT p.profile_slug, p.last_fight_date, p.updated_at
+  FROM scout_public_global_profiles p
+  WHERE p.profile_slug IS NOT NULL AND p.profile_slug <> ''
+    AND p.career_bouts >= 1
+    AND p.data_completeness >= 35
+  ORDER BY COALESCE(p.last_fight_date, '') DESC, p.profile_slug
+`);
+
 const events = query(`
   SELECT DISTINCT e.slug, e.event_date, e.updated_at
   FROM events e
@@ -66,6 +75,6 @@ const agencies = query(`
 `);
 
 mkdirSync('public', { recursive: true });
-writeFileSync('public/sitemap.xml', sitemapXml({ fighters, events, promotions, agencies }));
-const total = 9 + fighters.length + events.length + promotions.length + agencies.length;
-console.log(`Generated sitemap with ${total} URLs (${fighters.length} fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies).`);
+writeFileSync('public/sitemap.xml', sitemapXml({ fighters, scoutFighters, events, promotions, agencies }));
+const total = 9 + fighters.length + scoutFighters.length + events.length + promotions.length + agencies.length;
+console.log(`Generated sitemap with ${total} URLs (${scoutFighters.length} global scout fighters, ${fighters.length} legacy fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies).`);
