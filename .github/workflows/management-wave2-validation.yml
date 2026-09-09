@@ -1,0 +1,22 @@
+name: Validate management source expansion
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/management-sources.mjs'
+      - 'tests/management-sources-wave2.test.mjs'
+      - '.github/workflows/management-wave2-validation.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: node --test tests/management-sources.test.mjs tests/management-sources-wave2.test.mjs
+      - name: Probe official agency sources without writes
+        run: node scripts/sync-management.mjs --dry-run
