@@ -27,12 +27,12 @@ function boutResult(row:Row){
   return `${winner} won${detail?` · ${detail}`:''}`;
 }
 
-async function eventBouts(env:Env,eventId:number){
+async function eventBouts(env:Env,eventId:number):Promise<Row[]>{
   const core=await env.DB.prepare(`SELECT b.id,b.bout_order,b.weight_class,b.status,b.winner_id,b.result_method,b.result_round,b.result_time_seconds,
       a.id fighter_a_id,a.name fighter_a_name,a.slug fighter_a_slug,z.id fighter_b_id,z.name fighter_b_name,z.slug fighter_b_slug
     FROM bouts b JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id
     WHERE b.event_id=? ORDER BY b.bout_order,b.id`).bind(eventId).all<Row>();
-  if(core.results?.length)return core.results.map(row=>({...row,card_source:'core'}));
+  if(core.results?.length)return core.results.map((row:Row):Row=>({...row,card_source:'core'}));
   try{
     const scouting=await env.DB.prepare(`SELECT sb.id,sb.bout_order,sb.weight_class,sb.status,NULL winner_id,NULL result_method,NULL result_round,NULL result_time_seconds,
         NULL fighter_a_id,sb.fighter_a_name,NULL fighter_a_slug,NULL fighter_b_id,sb.fighter_b_name,NULL fighter_b_slug,
@@ -41,7 +41,7 @@ async function eventBouts(env:Env,eventId:number){
       FROM scout_event_bouts sb
       WHERE sb.event_id=? AND sb.discipline='MMA' AND sb.status<>'cancelled'
       ORDER BY sb.bout_order,sb.id`).bind(eventId).all<Row>();
-    return (scouting.results||[]).map(row=>({...row,card_source:'scout'}));
+    return (scouting.results||[]).map((row:Row):Row=>({...row,card_source:'scout'}));
   }catch{return [];}
 }
 
