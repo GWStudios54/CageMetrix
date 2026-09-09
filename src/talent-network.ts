@@ -6,7 +6,7 @@ type Row=Record<string,any>;
 const GLOBAL_MODEL='global-1.0.0';
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'public, max-age=30, s-maxage=120','x-content-type-options':'nosniff'};
 const NO_STORE={'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'};
-const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]!));
+const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]||ch));
 const json=(value:unknown,status=200,headers=JSON_HEADERS)=>new Response(JSON.stringify(value),{status,headers});
 const limit=(value:string|null,fallback=25,max=100)=>Math.min(max,Math.max(1,Number.parseInt(value||'',10)||fallback));
 const offset=(value:string|null)=>Math.max(0,Number.parseInt(value||'',10)||0);
@@ -25,7 +25,7 @@ const CONFIDENCE=new Set(['A','B','C']);
 function canonical(path:string){return `${SITE_ORIGIN}${path}`;}
 function shell(title:string,description:string,path:string,body:string){
   const url=canonical(path);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(url)}"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:type" content="website"><meta property="og:site_name" content="${BRAND_NAME}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${SITE_ORIGIN}/og.png"><meta name="twitter:card" content="summary_large_image"><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/talent.css?v=1"></head><body><header class="topbar"><a class="brand" href="/" aria-label="${BRAND_NAME} home"><img class="brand-mark" src="/logo.svg" alt="" width="44" height="44"><span>${BRAND_NAME}</span></a></header><main class="talent-main">${body}</main><footer><span>${BRAND_NAME}</span><span>The MMA research engine.</span></footer></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${esc(url)}"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:type" content="website"><meta property="og:site_name" content="${BRAND_NAME}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${SITE_ORIGIN}/og.png"><meta name="twitter:card" content="summary_large_image"><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/talent.css?v=2"></head><body><header class="topbar"><a class="brand" href="/" aria-label="${BRAND_NAME} home"><img class="brand-mark" src="/logo.svg" alt="" width="44" height="44"><span>${BRAND_NAME}</span></a></header><main class="talent-main">${body}</main><footer><span>${BRAND_NAME}</span><span>The MMA research engine.</span></footer></body></html>`;
 }
 
 function managementExpression(){return `CASE WHEN cm.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE(o.management_status,'unknown') END`;}
@@ -75,8 +75,7 @@ async function talentRows(request:Request,env:Env){
            o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
     FROM scout_public_global_profiles p
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
-    LEFT JOIN scout_active_global_ratings r
-      ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
+    LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
     LEFT JOIN fighter_opportunity_status o ON o.source_key=p.source_key AND o.source_fighter_id=p.source_fighter_id
     LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
     WHERE ${clauses.join(' AND ')}
@@ -119,11 +118,32 @@ export async function talentPage(request:Request,env:Env){
   return new Response(shell('MMA Talent Search for Promotions, Managers & Teams | MMA Scouts','Search MMA fighters by Global Rating, age, division, promotion, representation and verified availability on MMA Scouts.','/talent',body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=30, s-maxage=120'}});
 }
 
+function average(values:number[]){return values.length?values.reduce((sum,value)=>sum+value,0)/values.length:null;}
+function rosterMix(rows:Row[],key:string,labelKey?:string){
+  const map=new Map<string,{key:string;name:string;count:number}>();
+  for(const row of rows){const value=String(row[key]||'').trim();if(!value)continue;const name=String(labelKey?row[labelKey]:value||value).trim()||value;const current=map.get(value)||{key:value,name,count:0};current.count++;map.set(value,current);}
+  return [...map.values()].sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name));
+}
+function agencyRosterSummary(rows:Row[]){
+  const now=Date.now(),year=365.2425*86400000;
+  const ratings=rows.map(row=>Number(row.global_rating)).filter(Number.isFinite);
+  const evidence=rows.map(row=>Number(row.evidence_strength)).filter(Number.isFinite);
+  const active=rows.filter(row=>{const time=Date.parse(String(row.last_fight_date||''));return Number.isFinite(time)&&now-time<=year;}).length;
+  const under26=rows.filter(row=>{const value=age(row.dob);return value!==null&&value<26;}).length;
+  const managers=[...new Set(rows.map(row=>String(row.manager_name||'').trim()).filter(Boolean))].sort();
+  const verified=rows.map(row=>String(row.verified_at||'')).filter(Boolean).sort().at(-1)||null;
+  return {count:rows.length,active_last_12_months:active,under_26:under26,average_global_rating:average(ratings),top_global_rating:ratings.length?Math.max(...ratings):null,average_evidence:average(evidence),promotions:rosterMix(rows,'current_promotion_slug','promotion_name'),divisions:rosterMix(rows,'current_weight_class'),managers,latest_verified_at:verified};
+}
+
 async function agencyRows(env:Env){
   return (await env.DB.prepare(`
     SELECT a.id,a.slug,a.name,a.country,a.website_url,a.description,a.verified_at,
            COUNT(p.source_fighter_id) represented_fighters,
-           ROUND(AVG(r.scout_rating),2) average_global_rating,ROUND(MAX(r.scout_rating),2) top_global_rating
+           SUM(CASE WHEN p.last_fight_date>=date('now','-365 day') THEN 1 ELSE 0 END) active_last_12_months,
+           COUNT(DISTINCT NULLIF(p.current_promotion_slug,'')) promotion_count,
+           COUNT(DISTINCT NULLIF(p.current_weight_class,'')) division_count,
+           ROUND(AVG(r.scout_rating),2) average_global_rating,ROUND(MAX(r.scout_rating),2) top_global_rating,
+           ROUND(AVG(r.evidence_strength),2) average_evidence
     FROM management_agencies a
     LEFT JOIN scout_current_management cm ON cm.agency_id=a.id
     LEFT JOIN scout_public_global_profiles p ON p.source_key=cm.source_key AND p.source_fighter_id=cm.source_fighter_id
@@ -134,14 +154,18 @@ async function agencyRows(env:Env){
   `).bind(GLOBAL_MODEL).all<Row>()).results||[];
 }
 
-export async function managementAgenciesApi(request:Request,env:Env){if(request.method!=='GET')return json({error:'method_not_allowed'},405);const rows=await agencyRows(env);return json({data:rows,meta:{count:rows.length}});}
+export async function managementAgenciesApi(request:Request,env:Env){
+  if(request.method!=='GET')return json({error:'method_not_allowed'},405);
+  const rows=await agencyRows(env);return json({data:rows,meta:{count:rows.length,policy:'Verified fighter counts reflect source-backed relationships in MMA Scouts, not an estimate of an agency’s complete client roster.'}});
+}
 
 export async function managementAgencyApi(request:Request,env:Env,slug:string){
   if(request.method!=='GET')return json({error:'method_not_allowed'},405);
-  const agency=await env.DB.prepare(`SELECT * FROM management_agencies WHERE slug=? AND active=1 LIMIT 1`).bind(slug).first<Row>();if(!agency)return json({error:'agency_not_found'},404);
+  const agency=await env.DB.prepare(`SELECT * FROM management_agencies WHERE slug=? AND active=1 LIMIT 1`).bind(slug).first<Row>();
+  if(!agency)return json({error:'agency_not_found'},404);
   const roster=(await env.DB.prepare(`
-    SELECT p.profile_slug,p.fighter_name,p.current_weight_class,p.current_promotion_slug,p.career_wins,p.career_losses,p.career_draws,p.last_fight_date,
-           sp.name promotion_name,r.scout_rating global_rating,r.evidence_strength,cm.manager_name,cm.started_at,cm.confidence,cm.verified_at
+    SELECT p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,p.current_promotion_slug,p.career_wins,p.career_losses,p.career_draws,p.last_fight_date,
+           sp.name promotion_name,r.scout_rating global_rating,r.evidence_strength,cm.manager_name,cm.started_at,cm.confidence,cm.verified_at,cm.source_url management_source_url
     FROM scout_current_management cm
     JOIN scout_public_global_profiles p ON p.source_key=cm.source_key AND p.source_fighter_id=cm.source_fighter_id
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
@@ -149,21 +173,33 @@ export async function managementAgencyApi(request:Request,env:Env,slug:string){
     WHERE cm.agency_id=?
     ORDER BY r.scout_rating IS NULL,r.scout_rating DESC,p.fighter_name
   `).bind(GLOBAL_MODEL,agency.id).all<Row>()).results||[];
-  return json({agency,data:roster,meta:{count:roster.length,model_version:GLOBAL_MODEL}});
+  return json({agency,data:roster,meta:{...agencyRosterSummary(roster),model_version:GLOBAL_MODEL,policy:'A verified roster is only the set of current relationships supported by MMA Scouts sources; it may be incomplete.'}});
 }
 
 export async function managementAgenciesPage(_request:Request,env:Env){
   const rows=await agencyRows(env);
-  const cards=rows.map(row=>`<a class="agency-card" href="/management/${esc(row.slug)}"><span class="eyebrow">${esc(row.country||'GLOBAL')}</span><h2>${esc(row.name)}</h2><div><span><strong>${Number(row.represented_fighters||0)}</strong> verified fighters</span><span><strong>${score(row.top_global_rating)}</strong> top rating</span></div></a>`).join('');
-  const body=`<section class="talent-hero"><span class="eyebrow">REPRESENTATION INTELLIGENCE</span><h1>MMA management directory.</h1><p>Source-backed representation relationships across the MMA Scouts fighter graph. Agency affiliation is context only and never increases a fighter's rating.</p><a class="button primary" href="/talent?management=unmanaged">Find verified unmanaged talent</a></section><section class="agency-grid">${cards||'<div class="talent-empty"><strong>No management agencies are published yet.</strong><p>The schema is live; agencies appear only after a source-backed relationship is verified.</p></div>'}</section>`;
-  return new Response(shell('MMA Management Agencies & Fighter Rosters | MMA Scouts','Research MMA management agencies and source-backed represented fighter rosters on MMA Scouts.','/management',body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60, s-maxage=300'}});
+  const cards=rows.map(row=>{
+    const count=Number(row.represented_fighters||0);
+    const rosterStat=count?`<span><strong>${count}</strong> verified fighters</span><span><strong>${Number(row.active_last_12_months||0)}</strong> active / 12 mo</span>`:`<span><strong>Profile verified</strong> roster not publicly ingested</span>`;
+    return `<a class="agency-card" href="/management/${esc(row.slug)}"><span class="eyebrow">${esc(row.country||'GLOBAL')}</span><h2>${esc(row.name)}</h2><div>${rosterStat}${count?`<span><strong>${score(row.average_global_rating)}</strong> avg rating</span><span><strong>${score(row.top_global_rating)}</strong> top rating</span>`:''}</div><p>${esc(row.description||'')}</p><small>Profile checked ${esc(pretty(row.verified_at))}</small></a>`;
+  }).join('');
+  const body=`<section class="talent-hero"><span class="eyebrow">REPRESENTATION INTELLIGENCE</span><h1>MMA management directory.</h1><p>Research verified agency profiles, source-backed fighter relationships, roster strength, activity and organizational footprint. Agency affiliation is context only and never increases a fighter's rating.</p><a class="button primary" href="/talent?management=unmanaged">Find verified unmanaged talent</a></section><section class="agency-grid">${cards||'<div class="talent-empty"><strong>No management agencies are published yet.</strong><p>Agency profiles appear only after an official source is verified.</p></div>'}</section><p class="talent-policy"><strong>Roster rule:</strong> a displayed fighter count is the number of source-backed relationships MMA Scouts can currently verify. It is not a claim that the agency has no other clients.</p>`;
+  return new Response(shell('MMA Management Agencies, Rosters & Representation Intelligence | MMA Scouts','Research MMA management agencies, verified fighter rosters, roster strength, activity and representation intelligence on MMA Scouts.','/management',body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60, s-maxage=300'}});
 }
 
 export async function managementAgencyPage(request:Request,env:Env,slug:string){
-  const response=await managementAgencyApi(new Request(request.url,{method:'GET'}),env,slug);if(!response.ok)return new Response('Not found',{status:404});const payload:any=await response.json(),agency:Row=payload.agency,rows:Row[]=payload.data||[];
-  const roster=rows.map(row=>`<a class="agency-fighter" href="/scout/fighters/${esc(row.profile_slug)}"><span><strong>${esc(row.fighter_name)}</strong><small>${esc(row.current_weight_class||'Unknown')} · ${esc(record(row))}${row.promotion_name?` · ${esc(row.promotion_name)}`:''}</small></span><span><small>Global Rating</small><b>${score(row.global_rating)}</b><em>Evidence ${percent(row.evidence_strength)}</em></span></a>`).join('');
-  const body=`<section class="talent-hero"><a class="directory-back" href="/management">← Management directory</a><span class="eyebrow">VERIFIED REPRESENTATION</span><h1>${esc(agency.name)}</h1><p>${esc(agency.country||'')}${agency.website_url?` · <a href="${esc(agency.website_url)}" rel="nofollow noopener">Official site ↗</a>`:''}</p><p>${esc(agency.description||'')}</p></section><section class="talent-results"><div class="talent-section-head"><span class="eyebrow">CURRENT ROSTER</span><h2>${rows.length} source-backed fighter${rows.length===1?'':'s'}</h2></div>${roster||'<div class="talent-empty">No current fighter relationships are verified for this agency.</div>'}</section>`;
-  return new Response(shell(`${agency.name} MMA Fighter Roster | MMA Scouts`,`Source-backed ${agency.name} MMA representation roster, fighter records and Global Ratings on MMA Scouts.`,`/management/${slug}`,body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60, s-maxage=300'}});
+  const response=await managementAgencyApi(new Request(request.url,{method:'GET'}),env,slug);
+  if(!response.ok)return new Response('Not found',{status:404});
+  const payload:any=await response.json(),agency:Row=payload.agency,rows:Row[]=payload.data||[],meta:Row=payload.meta||{};
+  const roster=rows.map(row=>`<a class="agency-fighter" href="/scout/fighters/${esc(row.profile_slug)}"><span><strong>${esc(row.fighter_name)}</strong><small>${esc(row.current_weight_class||'Unknown')} · ${esc(record(row))}${age(row.dob)!==null?` · Age ${age(row.dob)}`:''}${row.promotion_name?` · ${esc(row.promotion_name)}`:''}</small></span><span><small>Global Rating</small><b>${score(row.global_rating)}</b><em>Evidence ${percent(row.evidence_strength)}</em></span></a>`).join('');
+  const stats=rows.length?`<section class="agency-grid"><div class="agency-card"><span class="eyebrow">VERIFIED ROSTER</span><h2>${rows.length}</h2><p>Source-backed current fighter relationships.</p></div><div class="agency-card"><span class="eyebrow">ACTIVE / 12 MONTHS</span><h2>${Number(meta.active_last_12_months||0)}</h2><p>Verified roster fighters with a recorded bout in the last year.</p></div><div class="agency-card"><span class="eyebrow">AVERAGE RATING</span><h2>${score(meta.average_global_rating)}</h2><p>Average Global Rating across rated roster fighters.</p></div><div class="agency-card"><span class="eyebrow">TOP RATING</span><h2>${score(meta.top_global_rating)}</h2><p>Highest current Global Rating on the verified roster.</p></div><div class="agency-card"><span class="eyebrow">AVERAGE EVIDENCE</span><h2>${percent(meta.average_evidence)}</h2><p>Average evidence strength behind the current ratings.</p></div><div class="agency-card"><span class="eyebrow">UNDER 26</span><h2>${Number(meta.under_26||0)}</h2><p>Younger fighters on the verified roster; not a prospect ranking.</p></div></section>`:'';
+  const promotions=(meta.promotions||[]).map((item:Row)=>`<span class="talent-badge">${esc(item.name||item.key)} · ${Number(item.count||0)}</span>`).join('');
+  const divisions=(meta.divisions||[]).map((item:Row)=>`<span class="talent-badge">${esc(item.name||item.key)} · ${Number(item.count||0)}</span>`).join('');
+  const managers=(meta.managers||[]).map((name:string)=>`<span class="talent-badge">${esc(name)}</span>`).join('');
+  const footprint=rows.length?`<section class="talent-results"><div class="talent-section-head"><span class="eyebrow">ROSTER FOOTPRINT</span><h2>Where the verified roster competes</h2></div>${promotions?`<h3>Promotions</h3><div class="talent-statuses">${promotions}</div>`:''}${divisions?`<h3>Divisions</h3><div class="talent-statuses">${divisions}</div>`:''}${managers?`<h3>Named managers</h3><div class="talent-statuses">${managers}</div>`:''}</section>`:'';
+  const empty=`<div class="talent-empty"><strong>Agency profile verified; complete roster not publicly ingested.</strong><p>MMA Scouts does not interpret an empty verified roster as zero clients. Fighter relationships will appear only when an official roster or another sufficiently strong public source supports them.</p></div>`;
+  const body=`<section class="talent-hero"><a class="directory-back" href="/management">← Management directory</a><span class="eyebrow">REPRESENTATION INTELLIGENCE</span><h1>${esc(agency.name)}</h1><p>${esc(agency.country||'')}${agency.website_url?` · <a href="${esc(agency.website_url)}" rel="nofollow noopener">Official site ↗</a>`:''}${agency.verified_at?` · Profile checked ${esc(pretty(agency.verified_at))}`:''}</p><p>${esc(agency.description||'')}</p></section>${stats}${footprint}<section class="talent-results"><div class="talent-section-head"><span class="eyebrow">SOURCE-BACKED ROSTER</span><h2>${rows.length?`${rows.length} verified fighter${rows.length===1?'':'s'}`:'No complete verified roster yet'}</h2></div>${roster||empty}</section><p class="talent-policy"><strong>Verification rule:</strong> roster membership is published only when a source supports the relationship. Missing public evidence never means a fighter is unmanaged, and a missing fighter never automatically ends historical representation.</p>`;
+  return new Response(shell(`${agency.name} MMA Management Intelligence | MMA Scouts`,`Source-backed ${agency.name} agency profile, verified MMA roster, Global Ratings, activity and promotion/division footprint on MMA Scouts.`,`/management/${slug}`,body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60, s-maxage=300'}});
 }
 
 async function fighterTalent(env:Env,slug:string){
