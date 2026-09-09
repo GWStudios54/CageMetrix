@@ -19,6 +19,7 @@ const q=value=>value===null||value===undefined||value===''?'NULL':`'${String(val
 const clean=value=>String(value??'').replace(/\s+/g,' ').trim();
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const pageCache=new Map();
+const PRIMARY_CARD_SOURCES=new Set(['aca','rizin']);
 
 function wrangler(params,capture=false){
   return execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js',...params],{
@@ -67,7 +68,7 @@ function cardDetailUrl(event){
   const source=GLOBAL_EVENT_SOURCES.find(item=>item.slug===event.promotionSlug);
   if(!source||!event.sourceUrl)return null;
   if(normalizedHost(event.sourceUrl)!==normalizedHost(source.url))return null;
-  if(normalizedPage(event.sourceUrl)===normalizedPage(source.url))return null;
+  if(normalizedPage(event.sourceUrl)===normalizedPage(source.url))return PRIMARY_CARD_SOURCES.has(source.slug)?event.sourceUrl:null;
   return event.sourceUrl;
 }
 
@@ -128,18 +129,18 @@ for(const event of parsed){
 }
 const events=[...bySlug.values()].sort((a,b)=>a.eventDate.localeCompare(b.eventDate)||a.name.localeCompare(b.name));
 
-// Fight cards are intentionally stricter than calendar discovery. Only an
-// event-specific page on the promotion's official host may populate the
-// scouting-only card table. A parser miss never deletes a previously verified
-// card; reconciliation occurs only after at least one high-confidence MMA pair.
+// Fight cards are intentionally stricter than calendar discovery. Event detail
+// pages are preferred. ACA and RIZIN are explicit exceptions because their
+// official primary pages currently contain one unambiguous upcoming event and
+// structured full-name MMA card data. Parser misses never delete verified cards.
 const cardEvents=[];
 for(const [index,event] of events.entries()){
   const detailUrl=cardDetailUrl(event);if(!detailUrl)continue;
   try{
     const body=await html(detailUrl);
+    writeFileSync(`${cacheDir}/${event.promotionSlug}-card-attempt-${index+1}.html`,body);
     const bouts=parseGlobalEventBouts(body,{sourceSlug:event.promotionSlug,sourceUrl:detailUrl});
     if(!bouts.length)continue;
-    writeFileSync(`${cacheDir}/${event.promotionSlug}-card-${index+1}.html`,body);
     cardEvents.push({event,bouts});
     console.log(`${event.name}: ${bouts.length} verified MMA matchup(s)`);
   }catch(error){
