@@ -84,9 +84,14 @@ function parseRizin(doc,out,seen,sourceUrl){
     add(out,seen,pair[0],pair[1],text,sourceUrl,{weightClass:kg?`${kg} kg`:null,titleFight:/TITLE|Championship/i.test(text)});
   }
 }
+function textWithBreaks(node){
+  if(!node)return '';
+  const clone=node.cloneNode(true);for(const br of clone.querySelectorAll('br'))br.replaceWith(' ');
+  return clean(clone.textContent);
+}
 function parseCageWarriors(doc,out,seen,sourceUrl){
   for(const row of doc.querySelectorAll('.et_pb_row')){
-    const cells=[...row.querySelectorAll('.et_pb_text_inner')].map(node=>clean(node.textContent)).filter(Boolean);
+    const cells=[...row.querySelectorAll('.et_pb_text_inner')].map(textWithBreaks).filter(Boolean);
     const marker=cells.findIndex(value=>/^VS\.?$/i.test(value));if(marker<0)continue;
     const a=[...cells.slice(0,marker)].reverse().map(validName).find(Boolean);
     const b=cells.slice(marker+1).map(validName).find(Boolean);
