@@ -115,6 +115,36 @@ test('FNC VS-marker parser excludes explicit UB kickboxing matchups',()=>{
   assert.ok(new Set([bouts[0].fighterAName,bouts[0].fighterBName]).has('Darko Stosic'));
 });
 
+test('Shooto parser reads only explicit matchmake boxes and preserves Japanese divisions',()=>{
+  const html=`<main>
+    <h4>対戦カード</h4>
+    <div class="matchmake-box"><div class="matchmake-title">世界女子ストロー級チャンピオンシップ<p>女子ストロー級</p><p>5分5R</p></div><span class="fighter-name">青野  ひかる</span><span class="fighter-name">徳本  望愛</span></div>
+    <div class="matchmake-box"><div class="matchmake-title">2026年度新人王決定トーナメント二回戦<p>フライ級</p><p>5分2R</p></div><span class="fighter-name">宇佐美  泰生</span><span class="fighter-name">小鉄</span></div>
+  </main>`;
+  const bouts=parseGlobalEventBouts(html,{sourceSlug:'shooto',sourceUrl:'https://www.shooto-mma.com/schedule/?id=255'});
+  assert.equal(bouts.length,2);
+  assert.deepEqual(bouts.map(bout=>[bout.fighterAName,bout.fighterBName]),[['青野 ひかる','徳本 望愛'],['宇佐美 泰生','小鉄']]);
+  assert.equal(bouts[0].weightClass,'Strawweight');
+  assert.equal(bouts[0].titleFight,true);
+  assert.equal(bouts[1].weightClass,'Flyweight');
+  assert.equal(bouts[1].titleFight,false);
+});
+
+test('Shooto pages with no registered matchmaking stay empty',()=>{
+  const html=`<h4>対戦カード</h4><p>登録されているマッチメイクはありません。</p>`;
+  assert.deepEqual(parseGlobalEventBouts(html,{sourceSlug:'shooto',sourceUrl:'https://www.shooto-mma.com/schedule/?id=270'}),[]);
+});
+
+test('CFFC parser reads only the official fight-card subtitle and attaches title metadata to the right bout',()=>{
+  const html=`<figure><div class="image-title"><p>FIGHT CARD</p></div><div class="image-subtitle"><p><strong>Jerry Lleshi</strong><em> vs.</em><strong> Erik Calvert<br/><em>INTERIM FLYWEIGHT TITLE FIGHT</em><br/><br/>Matt Gawlik </strong><em>vs.</em><strong> Petera Wilson<br/>Kevin Rosas </strong><em>vs.</em><strong> Darius Patterson<br/>FOLLOW @CFFCMMA FOR UPDATES<br/>**FIGHT CARD SUBJECT TO CHANGE**</strong></p></div></figure>`;
+  const bouts=parseGlobalEventBouts(html,{sourceSlug:'cffc',sourceUrl:'https://cffc.tv/tickets/cage-fury-161'});
+  assert.equal(bouts.length,3);
+  assert.deepEqual(bouts.map(bout=>[bout.fighterAName,bout.fighterBName]),[['Jerry Lleshi','Erik Calvert'],['Matt Gawlik','Petera Wilson'],['Kevin Rosas','Darius Patterson']]);
+  assert.equal(bouts[0].weightClass,'Flyweight');
+  assert.equal(bouts[0].titleFight,true);
+  assert.equal(bouts[1].titleFight,false);
+});
+
 test('calendar listing titles are not mistaken for full fight-card rows',()=>{
   const html=`<article><h3><a href="/event/lfa-241/">LFA 241 – Pires vs. Pereira</a></h3><p>September 11, 2026</p></article>`;
   assert.deepEqual(parseGlobalEventBouts(html,{sourceSlug:'lfa',sourceUrl:'https://www.lfa.com/events/'}),[]);
@@ -122,7 +152,7 @@ test('calendar listing titles are not mistaken for full fight-card rows',()=>{
 
 test('mirrored duplicate matchups collapse to one stable bout key',()=>{
   const html=`<ul><li class="fight"><a>Alex Alpha</a> vs <a>Ben Bravo</a></li><li class="fight"><a>Ben Bravo</a> vs <a>Alex Alpha</a></li></ul>`;
-  const bouts=parseGlobalEventBouts(html,{sourceSlug:'cffc',sourceUrl:'https://cffc.tv/event/example'});
+  const bouts=parseGlobalEventBouts(html,{sourceSlug:'pfl',sourceUrl:'https://pflmma.com/event/example'});
   assert.equal(bouts.length,1);
   assert.match(bouts[0].boutKey,/alex-alpha/);
   assert.match(bouts[0].boutKey,/ben-bravo/);

@@ -100,6 +100,38 @@ function parseCageWarriors(doc,out,seen,sourceUrl){
     add(out,seen,a,b,division,sourceUrl,{weightClass:weightClass(division),titleFight:/title\s*fight/i.test(division)});
   }
 }
+function parseShooto(doc,out,seen,sourceUrl){
+  for(const box of doc.querySelectorAll('.matchmake-box')){
+    const names=[...box.querySelectorAll('.fighter-name')].map(node=>validName(node.textContent)).filter(Boolean);
+    if(names.length!==2)continue;
+    const context=clean(box.querySelector('.matchmake-title')?.textContent);
+    add(out,seen,names[0],names[1],context,sourceUrl,{weightClass:deepDivision(context),titleFight:/チャンピオンシップ|タイトルマッチ/.test(context)});
+  }
+}
+function cffcLines(node){
+  const clone=node.cloneNode(true);
+  for(const br of clone.querySelectorAll('br'))br.replaceWith('\n');
+  for(const em of clone.querySelectorAll('em')){
+    const text=clean(em.textContent);
+    em.replaceWith(/^vs\.?$/i.test(text)?' <VS> ':`\n${text}\n`);
+  }
+  return String(clone.textContent||'').split(/\n+/).map(clean).filter(Boolean);
+}
+function parseCffc(doc,out,seen,sourceUrl){
+  for(const paragraph of doc.querySelectorAll('.image-subtitle p')){
+    const lines=cffcLines(paragraph);
+    const pairIndexes=lines.map((line,index)=>line.includes('<VS>')?index:-1).filter(index=>index>=0);
+    if(pairIndexes.length<2)continue;
+    for(const index of pairIndexes){
+      const parts=lines[index].split(/\s*<VS>\s*/);if(parts.length!==2)continue;
+      let context='';
+      for(let next=index+1;next<lines.length&&!lines[next].includes('<VS>');next++){
+        if(/title\s*fight|championship|\b(?:flyweight|bantamweight|featherweight|lightweight|welterweight|middleweight|heavyweight)\b/i.test(lines[next])){context=lines[next];break;}
+      }
+      add(out,seen,parts[0],parts[1],context,sourceUrl,{weightClass:weightClass(context),titleFight:/title\s*fight|championship/i.test(context)});
+    }
+  }
+}
 function directTextTokens(root){
   const tokens=[];
   const walk=node=>{
@@ -137,6 +169,8 @@ export function parseGlobalEventBouts(html,{sourceSlug='',sourceUrl=''}={}){
   if(sourceSlug==='rizin'){parseRizin(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
   if(sourceSlug==='cage-warriors'){parseCageWarriors(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
   if(sourceSlug==='fnc'){parseFnc(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
+  if(sourceSlug==='shooto'){parseShooto(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
+  if(sourceSlug==='cffc'){parseCffc(doc,out,seen,sourceUrl);return out.map((bout,index)=>({...bout,boutOrder:index+1}));}
 
   for(const script of doc.querySelectorAll('script[type="application/ld+json"]')){
     let parsed;try{parsed=JSON.parse(script.textContent||'null')}catch{continue;}
