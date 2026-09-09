@@ -8,6 +8,7 @@ import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
 import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
+import {contractCandidatesAdminApi} from './contract-candidates.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
@@ -79,6 +80,7 @@ export default {
     if(path==='/api/admin/talent/management'||path==='/api/admin/talent/management/')return setManagementApi(request,env);
     if(path==='/api/admin/talent/management/end'||path==='/api/admin/talent/management/end/')return endManagementApi(request,env);
     if(path==='/api/admin/talent/contracts'||path==='/api/admin/talent/contracts/')return contractAdminApi(request,env);
+    if(path==='/api/admin/talent/contracts/candidates'||path==='/api/admin/talent/contracts/candidates/')return contractCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
 
