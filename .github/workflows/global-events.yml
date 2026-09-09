@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - 'migrations/0027_global_event_calendar.sql'
+      - 'migrations/0036_global_event_bouts.sql'
       - 'scripts/sync-global-events.mjs'
       - 'scripts/generate-sitemap.mjs'
       - 'scripts/lib/sitemap.mjs'
@@ -15,12 +16,16 @@ on:
       - 'scripts/lib/global-event-html.mjs'
       - 'scripts/lib/global-event-special.mjs'
       - 'scripts/lib/global-event-special-extended.mjs'
+      - 'scripts/lib/global-event-bouts.mjs'
+      - 'src/event-page.ts'
+      - 'src/events.ts'
       - 'scripts/data/scout-promotions.json'
       - 'tests/global-events.test.mjs'
       - 'tests/global-event-html.test.mjs'
       - 'tests/global-event-special.test.mjs'
       - 'tests/global-event-quality.test.mjs'
       - 'tests/global-event-sync.test.mjs'
+      - 'tests/global-event-bouts.test.mjs'
       - 'tests/sitemap.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
@@ -29,6 +34,7 @@ on:
       - main
     paths:
       - 'migrations/0027_global_event_calendar.sql'
+      - 'migrations/0036_global_event_bouts.sql'
       - 'scripts/sync-global-events.mjs'
       - 'scripts/generate-sitemap.mjs'
       - 'scripts/lib/sitemap.mjs'
@@ -37,12 +43,16 @@ on:
       - 'scripts/lib/global-event-html.mjs'
       - 'scripts/lib/global-event-special.mjs'
       - 'scripts/lib/global-event-special-extended.mjs'
+      - 'scripts/lib/global-event-bouts.mjs'
+      - 'src/event-page.ts'
+      - 'src/events.ts'
       - 'scripts/data/scout-promotions.json'
       - 'tests/global-events.test.mjs'
       - 'tests/global-event-html.test.mjs'
       - 'tests/global-event-special.test.mjs'
       - 'tests/global-event-quality.test.mjs'
       - 'tests/global-event-sync.test.mjs'
+      - 'tests/global-event-bouts.test.mjs'
       - 'tests/sitemap.test.mjs'
       - 'package.json'
       - '.github/workflows/global-events.yml'
@@ -63,8 +73,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
-      - name: Validate event source parsers, reconciliation and sitemap
-        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-quality.test.mjs tests/global-event-sync.test.mjs tests/sitemap.test.mjs
+      - name: Validate event source parsers, cards, reconciliation and sitemap
+        run: node --test tests/global-events.test.mjs tests/global-event-html.test.mjs tests/global-event-special.test.mjs tests/global-event-quality.test.mjs tests/global-event-sync.test.mjs tests/global-event-bouts.test.mjs tests/sitemap.test.mjs
       - name: Probe official calendars without D1 writes
         if: github.event_name == 'pull_request'
         run: node scripts/sync-global-events.mjs --dry-run
@@ -74,7 +84,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Sync official promotion calendars
+      - name: Sync official promotion calendars and fight cards
         if: github.event_name != 'pull_request'
         run: npm run events:sync-global
         env:
