@@ -30,14 +30,16 @@ test('promotion rosters and global dossiers use the publication-safe materialize
   assert.doesNotMatch(source,/mma_active_participants/);
 });
 
-test('regional directory is first-class navigation and crawl surface without dumping every profile',()=>{
+test('regional directory stays first-class while the crawl surface exposes the broader useful global fighter set',()=>{
   const nav=read('src/navigation.ts'),sitemap=read('src/public-sitemap.ts');
   assert.match(nav,/href="\/promotions">Promotions/);
   assert.match(sitemap,/\$\{SITE\}\/promotions/);
   assert.match(sitemap,/scout\/fighters/);
-  assert.match(sitemap,/p\.current_promotion_slug IS NOT NULL/);
-  assert.match(sitemap,/p\.data_completeness>=60/);
-  assert.match(sitemap,/r\.evidence_strength>=40/);
+  assert.match(sitemap,/FROM scout_public_global_profiles p/);
+  assert.match(sitemap,/p\.career_bouts>=1/);
+  assert.match(sitemap,/p\.data_completeness>=35/);
+  assert.doesNotMatch(sitemap,/p\.current_promotion_slug IS NOT NULL/);
+  assert.doesNotMatch(sitemap,/r\.evidence_strength>=40/);
 });
 
 test('regional roster presentation does not invent zeroes or mislabel roster activity',()=>{
