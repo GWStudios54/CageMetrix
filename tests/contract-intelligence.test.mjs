@@ -124,6 +124,15 @@ test('signal-local discovery excludes comparison and opponent names from contrac
   assert.ok(rows.every(row=>row.extractionMethod==='signal_block_exact_name_v2'));
 });
 
+test('candidate discovery reconciles clean v2 rediscoveries instead of hiding them behind v1 keys',()=>{
+  const discovery=read('scripts/discover-contract-intel.mjs');
+  assert.match(discovery,/candidate key identifies the source \+ fighter \+ detected event/i);
+  assert.match(discovery,/UPDATE contract_intel_candidates SET source_url=.*extraction_method=.*review_status=.*reviewed_at=NULL/s);
+  assert.match(discovery,/Automatically reactivated by signal-local discovery v2/);
+  assert.match(discovery,/review_status='rejected' AND instr\(COALESCE\(notes,''\)/);
+  assert.match(discovery,/restored_v1_candidates/);
+});
+
 test('candidate discovery queues evidence without publishing contract events',()=>{
   const source={publisher:'Test Promotion',sourceType:'promotion_direct',promotionSlug:'test'};
   const profiles=[{source_key:'mma',source_fighter_id:'42',fighter_name:'Jane Doe'}];
