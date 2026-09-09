@@ -46,6 +46,11 @@ test('management pages expose roster strength, activity and organizational footp
   assert.match(source,/Where the verified roster competes/);
 });
 
+test('management HTML escapes quotes with complete entities',()=>{
+  const source=read('src/talent-network.ts');
+  assert.ok(source.includes(`'"':'&quot;'`));
+});
+
 test('talent and management pages are first-class public routes and fighter dossiers get verified context',()=>{
   const entry=read('src/entry.ts'),nav=read('src/navigation.ts');
   assert.match(entry,/path==='\/api\/talent'/);
