@@ -93,6 +93,52 @@ CREATE TABLE IF NOT EXISTS fighter_management_evidence (
 CREATE INDEX IF NOT EXISTS idx_management_evidence_history
   ON fighter_management_evidence(management_history_id,confidence,verified_at DESC);
 
+-- Official/profile sources support MMA Scouts' original About summary for an
+-- agency. These are not fighter-roster evidence unless the importer separately
+-- registers the URL as a roster source.
+CREATE TABLE IF NOT EXISTS management_agency_sources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  agency_id INTEGER NOT NULL REFERENCES management_agencies(id) ON DELETE CASCADE,
+  source_url TEXT NOT NULL,
+  source_title TEXT,
+  source_type TEXT NOT NULL DEFAULT 'official_profile' CHECK (source_type IN ('official_profile','official_roster','official_services','public_record')),
+  verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(agency_id,source_url)
+);
+CREATE INDEX IF NOT EXISTS idx_management_agency_sources
+  ON management_agency_sources(agency_id,source_type,verified_at DESC);
+
+-- Automated crawlers may discover possible contract disclosures, but discovery
+-- never equals publication. Candidates stay private until a source-backed event
+-- is accepted into fighter_contract_events + fighter_contract_evidence.
+CREATE TABLE IF NOT EXISTS contract_intel_candidates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  candidate_key TEXT NOT NULL UNIQUE,
+  source_url TEXT NOT NULL,
+  source_title TEXT,
+  publisher TEXT,
+  published_at TEXT,
+  source_type TEXT,
+  fighter_name TEXT,
+  normalized_name TEXT,
+  source_key TEXT,
+  source_fighter_id TEXT,
+  promotion_slug TEXT,
+  detected_event_type TEXT,
+  detected_status TEXT,
+  detected_summary TEXT,
+  extraction_method TEXT NOT NULL DEFAULT 'keyword',
+  review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending','accepted','rejected','duplicate','needs_identity')),
+  discovered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TEXT,
+  notes TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_contract_candidates_review
+  ON contract_intel_candidates(review_status,discovered_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contract_candidates_fighter
+  ON contract_intel_candidates(source_key,source_fighter_id,review_status);
+
 -- Preserve the evidence already collected by the management importer.
 INSERT OR IGNORE INTO fighter_management_evidence(
   management_history_id,source_url,source_type,confidence,verified_at,last_checked_at,notes
@@ -101,6 +147,12 @@ SELECT id,source_url,source_type,confidence,verified_at,last_checked_at,
        'Backfilled from the original representation-history source.'
 FROM fighter_management_history
 WHERE source_url IS NOT NULL;
+
+-- Backfill each agency's canonical official site as profile evidence.
+INSERT OR IGNORE INTO management_agency_sources(agency_id,source_url,source_type,verified_at,last_checked_at)
+SELECT id,website_url,'official_profile',COALESCE(verified_at,CURRENT_TIMESTAMP),CURRENT_TIMESTAMP
+FROM management_agencies
+WHERE website_url IS NOT NULL;
 
 DROP VIEW IF EXISTS scout_current_contracts;
 CREATE VIEW scout_current_contracts AS
