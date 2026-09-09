@@ -28,7 +28,36 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/index.html", "/scout", "/scout/*", "/promotions", "/promotions/*", "/predictions.html", "/api/*", "/fighters/*", "/fights/*", "/events/*", "/sitemap.xml"]
+    "run_worker_first": [
+      "/",
+      "/index.html",
+      "/scout",
+      "/scout/*",
+      "/prospects",
+      "/talent",
+      "/talent/*",
+      "/management",
+      "/management/*",
+      "/promotions",
+      "/promotions/*",
+      "/events",
+      "/events/*",
+      "/data-policy",
+      "/privacy",
+      "/profile-removal",
+      "/predictions",
+      "/predictions.html",
+      "/validation",
+      "/validation.html",
+      "/community",
+      "/forum",
+      "/forum/*",
+      "/watchlist",
+      "/api/*",
+      "/fighters/*",
+      "/fights/*",
+      "/sitemap.xml"
+    ]
   },
   "ai": {
     "binding": "AI"
