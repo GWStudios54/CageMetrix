@@ -50,11 +50,52 @@ export const MANAGEMENT_SOURCES=[
     rosterScope:'profile_only',
     profileUrls:['https://www.paradigmsports.com/representation'],
     urls:[]
+  },
+  {
+    slug:'tam-global',name:'TAM Global',country:'United States',website:'https://tamglobalmma.com/',confidence:'A',
+    description:'Professional MMA athlete management and media agency whose official site says it was founded on the vision of UFC legend Urijah Faber. TAM emphasizes athlete development, elite training, strategic partnerships, brand building, financial growth and career support across UFC, PFL and other national and international promotions.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://tamglobalmma.com/'],
+    urls:['https://tamglobalmma.com/roster/']
+  },
+  {
+    slug:'galaktik-sports',name:'Galaktik Sports',country:'United States',website:'https://galaktiksports.com/',confidence:'A',
+    description:'Combat-sports management and event-consulting company with offices listed in Miami, Las Vegas and Baku. Its official site reports 50+ fighters managed and 500+ contracts negotiated, and lists contract negotiation, fight booking, sponsorships, visas, travel, camp logistics, media preparation and brand strategy among its fighter services.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://galaktiksports.com/','https://galaktiksports.com/about'],
+    urls:['https://galaktiksports.com/fighters']
+  },
+  {
+    slug:'magnar-sports-entertainment',name:'Magnar Sports & Entertainment',country:'International',website:'https://www.magnarse.com/',confidence:'A',
+    description:'Full-service combat-sports agency specializing in worldwide career management and promotion. Its official site reports 50+ athletes, 10+ years in the business, athletes across five organizations and 100+ events, with fighters competing in UFC, PFL, OKTAGON and other promotions.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://www.magnarse.com/'],
+    urls:[
+      'https://www.magnarse.com/athletes/?org=UFC',
+      'https://www.magnarse.com/athletes/?org=PFL',
+      'https://www.magnarse.com/athletes/?org=Oktagon',
+      'https://www.magnarse.com/athletes/?org=Bellator',
+      'https://www.magnarse.com/athletes/?org=Other'
+    ]
+  },
+  {
+    slug:'littles-mma-management',name:"Little's MMA Management",country:'United States',website:'https://littlesmma.com/',confidence:'A',
+    description:'Fighter-first boutique MMA management practice launched in 2025 by U.S. military veteran Tyler Little. Its official site describes a small, selectively managed U.S. roster and a long-term career-guidance approach; a May 2026 notice states the agency is not currently taking new clients but will retain inquiries for future openings.',
+    rosterScope:'profile_only',
+    profileUrls:['https://littlesmma.com/'],
+    urls:[]
+  },
+  {
+    slug:'goat-worldwide',name:'GOAT Worldwide',country:'United States',website:'https://goatworldwide.com/',confidence:'A',
+    description:'Miami-based boutique MMA management and marketing agency focused on prospects. Its official site describes full-service representation covering athletic-commission compliance, career management, marketing and sponsorships, contract negotiation, brand development and legal support, and publishes a dedicated fighter roster.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://goatworldwide.com/'],
+    urls:['https://goatworldwide.com/pages/fighters']
   }
 ];
 
 const STOP=new Set([
-  'first round management','regional mma roster','mixed martial arts','our services','latest news','featured news','contact info','join our family','the agency podcast','family orientated','building the next generation of mma talent','united states','south africa','new zealand','saudi arabia','united kingdom','czech republic','south korea','north korea','hong kong','new mexico','new york','new jersey','north carolina','south carolina','rhode island','west virginia','los angeles','las vegas','san diego','san francisco','oktagon athletes','ufc athletes','pfl athletes','combat sports','career management','contract negotiation','financial management','social media management','marketing sponsorships','our clients','our team','management team','all rights reserved','view all athletes','select page','search results','privacy policy','terms conditions'
+  'first round management','regional mma roster','mixed martial arts','our services','latest news','featured news','contact info','join our family','the agency podcast','family orientated','building the next generation of mma talent','united states','south africa','new zealand','saudi arabia','united kingdom','czech republic','south korea','north korea','hong kong','new mexico','new york','new jersey','north carolina','south carolina','rhode island','west virginia','los angeles','las vegas','san diego','san francisco','oktagon athletes','ufc athletes','pfl athletes','combat sports','career management','contract negotiation','financial management','social media management','marketing sponsorships','our clients','our team','management team','all rights reserved','view all athletes','select page','search results','privacy policy','terms conditions','meet our fighters','fighter first management','our fighters compete in','full service representation','representing top prospects','our athletes','our athletes get in touch','get in touch','ready to take your career to the next level','view the roster','view our roster','see all fighters','work with us','book a fighter','questions let s chat'
 ]);
 const BAD=/\b(?:management|athletes?|roster|clients?|services?|contact|copyright|champion|record|ranked|weight|division|media|marketing|sports|official|company|agency|fight(?:er|ing)?|mma|ufc|pfl|bellator|one championship|oktagon|regional|family|news|blog|podcast|sponsor|lbs?|email|phone|website|home|about|team)\b/i;
 

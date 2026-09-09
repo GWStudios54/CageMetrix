@@ -1,0 +1,27 @@
+{
+  "A": [
+    "fighter_direct",
+    "manager_or_agency_direct",
+    "promotion_direct",
+    "athletic_commission_record",
+    "court_record"
+  ],
+  "B": [
+    "reputable_trade_reporting",
+    "reputable_interview",
+    "verified_public_filing"
+  ],
+  "C": [
+    "secondary_reporting_with_attribution",
+    "archived_public_statement"
+  ],
+  "publish_rules": {
+    "missing_is_unknown": true,
+    "free_agent_requires_explicit_source": true,
+    "unmanaged_requires_explicit_source": true,
+    "exact_expiration_requires_explicit_source": true,
+    "remaining_fights_requires_explicit_source": true,
+    "purse_terms_require_explicit_source": true,
+    "no_hacked_or_private_material": true
+  }
+}
