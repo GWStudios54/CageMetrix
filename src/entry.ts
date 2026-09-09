@@ -8,6 +8,7 @@ import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
 import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
+import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
@@ -128,7 +129,8 @@ export default {
     const managementPageMatch=path.match(/^\/management\/([a-z0-9-]{1,120})\/?$/);
     if(request.method==='GET'&&managementPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/management/${managementPageMatch[1]}`,request.url),308);
-      return page(managementAgencyPage(request,env,managementPageMatch[1]),request,env);
+      const agencyResponse=await managementAgencyPage(request,env,managementPageMatch[1]);
+      return page(enhanceManagementAgencyAbout(agencyResponse,env,managementPageMatch[1]),request,env);
     }
     const fighterPageMatch=path.match(/^\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(request.method==='GET'&&fighterPageMatch){
