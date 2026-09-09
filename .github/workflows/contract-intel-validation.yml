@@ -1,0 +1,45 @@
+name: Validate contract intelligence
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/0037_contract_representation_intelligence.sql'
+      - 'src/contract-intel.ts'
+      - 'src/contract-candidates.ts'
+      - 'src/management-about.ts'
+      - 'src/talent-admin.ts'
+      - 'src/entry.ts'
+      - 'public/talent.css'
+      - 'scripts/sync-management.mjs'
+      - 'scripts/discover-contract-intel.mjs'
+      - 'scripts/lib/contract-intel-discovery.mjs'
+      - 'tests/contract-intelligence.test.mjs'
+      - '.github/workflows/contract-intel-validation.yml'
+      - '.github/workflows/contract-intel-discovery.yml'
+      - '.github/workflows/management-sync.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Contract and management tests
+        run: node --test tests/contract-intelligence.test.mjs tests/management-sources.test.mjs tests/talent-network.test.mjs
+      - name: Production build
+        run: npm run build
+      - name: Probe public contract sources without D1 reads or writes
+        run: node scripts/discover-contract-intel.mjs --dry-run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contract-intel-validation
+          path: .cache/contract-intel/
+          if-no-files-found: ignore
+          retention-days: 14

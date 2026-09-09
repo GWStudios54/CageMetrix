@@ -7,6 +7,9 @@ import {eventPage} from './event-page.ts';
 import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
+import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
+import {contractCandidatesAdminApi} from './contract-candidates.ts';
+import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
@@ -63,6 +66,8 @@ export default {
     if(path==='/api/scout/fighters')return globalFightersApi(request,env);
     const fighterIntelMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/intel\/?$/);
     if(fighterIntelMatch)return fighterIntelApi(request,env,fighterIntelMatch[1]);
+    const fighterContractMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/contracts\/?$/);
+    if(fighterContractMatch)return fighterContractApi(request,env,fighterContractMatch[1]);
     const fighterApiMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(fighterApiMatch)return globalFighterApi(request,env,fighterApiMatch[1]);
     if(path==='/api/prospects')return scoutScoresApi(request,env);
@@ -74,6 +79,8 @@ export default {
     if(fighterTalentMatch)return fighterTalentApi(request,env,fighterTalentMatch[1]);
     if(path==='/api/admin/talent/management'||path==='/api/admin/talent/management/')return setManagementApi(request,env);
     if(path==='/api/admin/talent/management/end'||path==='/api/admin/talent/management/end/')return endManagementApi(request,env);
+    if(path==='/api/admin/talent/contracts'||path==='/api/admin/talent/contracts/')return contractAdminApi(request,env);
+    if(path==='/api/admin/talent/contracts/candidates'||path==='/api/admin/talent/contracts/candidates/')return contractCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
 
@@ -124,13 +131,15 @@ export default {
     const managementPageMatch=path.match(/^\/management\/([a-z0-9-]{1,120})\/?$/);
     if(request.method==='GET'&&managementPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/management/${managementPageMatch[1]}`,request.url),308);
-      return page(managementAgencyPage(request,env,managementPageMatch[1]),request,env);
+      const agencyResponse=await managementAgencyPage(request,env,managementPageMatch[1]);
+      return page(enhanceManagementAgencyAbout(agencyResponse,env,managementPageMatch[1]),request,env);
     }
     const fighterPageMatch=path.match(/^\/scout\/fighters\/([a-z0-9-]{1,180})\/?$/);
     if(request.method==='GET'&&fighterPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/scout/fighters/${fighterPageMatch[1]}`,request.url),308);
       let dossier=await globalFighterPage(request,env,fighterPageMatch[1]);
       dossier=await enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterContractContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterScoutScore(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
       return page(dossier,request,env);
