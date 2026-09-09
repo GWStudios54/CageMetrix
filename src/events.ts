@@ -13,7 +13,8 @@ function location(row:Row){return [row.venue,row.city,row.region,row.country].fi
 function eventCard(row:Row){
   const promo=String(row.promotion||'MMA').trim();
   const href=`/events/${encodeURIComponent(String(row.slug))}`;
-  return `<a class="event-directory-card" href="${href}"><div class="event-directory-meta"><span>${esc(promo)}</span><time datetime="${esc(row.event_date)}">${esc(prettyDate(row.event_date))}</time></div><h3>${esc(row.name)}</h3><p>${esc(location(row)||'Venue to be announced')}</p><span class="event-directory-arrow">Scout this event →</span></a>`;
+  const bouts=Number(row.bout_count||0);
+  return `<a class="event-directory-card" href="${href}"><div class="event-directory-meta"><span>${esc(promo)}</span><time datetime="${esc(row.event_date)}">${esc(prettyDate(row.event_date))}</time></div><h3>${esc(row.name)}</h3><p>${esc(location(row)||'Venue to be announced')}${bouts?` · ${bouts} verified matchup${bouts===1?'':'s'}`:''}</p><span class="event-directory-arrow">Scout this event →</span></a>`;
 }
 
 async function eventRows(env:Env,mode:'upcoming'|'recent'='upcoming',promotion='',limit=100){
@@ -23,7 +24,8 @@ async function eventRows(env:Env,mode:'upcoming'|'recent'='upcoming',promotion='
   binds.push(limit);
   const order=mode==='upcoming'?'e.event_date ASC':'e.event_date DESC';
   return env.DB.prepare(`SELECT e.id,e.slug,e.promotion,e.promotion_slug,e.name,e.event_date,e.starts_at,e.venue,e.city,e.region,e.country,e.status,e.source_url,
-    (SELECT COUNT(*) FROM bouts b WHERE b.event_id=e.id AND b.status<>'cancelled') bout_count
+    ((SELECT COUNT(*) FROM bouts b WHERE b.event_id=e.id AND b.status<>'cancelled') +
+     (SELECT COUNT(*) FROM scout_event_bouts sb WHERE sb.event_id=e.id AND sb.discipline='MMA' AND sb.status<>'cancelled')) bout_count
     FROM events e
     WHERE e.slug IS NOT NULL AND ${clauses.join(' AND ')}
       AND (e.promotion_slug IS NOT NULL OR e.promotion='UFC' OR EXISTS(SELECT 1 FROM bouts b WHERE b.event_id=e.id))
