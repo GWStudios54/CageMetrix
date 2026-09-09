@@ -3,7 +3,7 @@ import {BRAND_NAME,SITE_ORIGIN} from './brand.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 type Row=Record<string,any>;
 const SITE=SITE_ORIGIN;
-const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]!));
+const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const jsonLd=(v:unknown)=>JSON.stringify(v).replace(/</g,'\\u003c');
 const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).slice(0,10):null;
 const prettyDate=(v:unknown)=>{const d=dateOnly(v);return d?new Intl.DateTimeFormat('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(`${d}T12:00:00Z`)):'Date TBA';};
