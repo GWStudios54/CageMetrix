@@ -37,6 +37,15 @@ test('talent discovery supports performance, representation and opportunity filt
   assert.match(source,/r\.scout_rating>=\?/);
 });
 
+test('management pages expose roster strength, activity and organizational footprint without inventing roster size',()=>{
+  const source=read('src/talent-network.ts');
+  for(const needle of ['active_last_12_months','average_global_rating','top_global_rating','average_evidence','under_26','promotions','divisions','managers','latest_verified_at'])assert.ok(source.includes(needle),`missing agency intelligence field ${needle}`);
+  assert.match(source,/Profile verified<\/strong> roster not publicly ingested/);
+  assert.match(source,/It is not a claim that the agency has no other clients/);
+  assert.match(source,/Agency profile verified; complete roster not publicly ingested/);
+  assert.match(source,/Where the verified roster competes/);
+});
+
 test('talent and management pages are first-class public routes and fighter dossiers get verified context',()=>{
   const entry=read('src/entry.ts'),nav=read('src/navigation.ts');
   assert.match(entry,/path==='\/api\/talent'/);
