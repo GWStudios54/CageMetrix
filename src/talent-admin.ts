@@ -14,6 +14,14 @@ function source(value:Row){
   if(sourceUrl){try{const url=new URL(sourceUrl);if(!/^https?:$/.test(url.protocol))return {error:'invalid_source_url'} as const;return {sourceUrl:url.href,sourceType};}catch{return {error:'invalid_source_url'} as const;}}
   return {sourceUrl:null,sourceType};
 }
+function evidenceFields(value:Row){return {title:String(value.source_title||'').trim().slice(0,500)||null,publisher:String(value.publisher||'').trim().slice(0,200)||null,publishedAt:String(value.published_at||'').trim().slice(0,40)||null,notes:String(value.evidence_notes||value.notes||'').trim().slice(0,2000)||null};}
+async function addManagementEvidence(env:Env,historyId:number|null,evidence:{sourceUrl:string|null;sourceType:string},value:Row,verifiedAt:string){
+  if(!historyId||!evidence.sourceUrl)return;
+  const meta=evidenceFields(value),grade=confidence(value.confidence);
+  try{
+    await env.DB.prepare(`INSERT INTO fighter_management_evidence(management_history_id,source_url,source_title,publisher,published_at,source_type,confidence,verified_at,last_checked_at,notes) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,?) ON CONFLICT(management_history_id,source_url) DO UPDATE SET source_title=excluded.source_title,publisher=excluded.publisher,published_at=excluded.published_at,source_type=excluded.source_type,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP,notes=excluded.notes`).bind(historyId,evidence.sourceUrl,meta.title,meta.publisher,meta.publishedAt,evidence.sourceType,grade,verifiedAt,meta.notes).run();
+  }catch{}
+}
 
 export async function setManagementApi(request:Request,env:Env){
   if(!await adminAccount(request,env.DB))return json({error:'unauthorized'},401);
@@ -31,6 +39,8 @@ export async function setManagementApi(request:Request,env:Env){
     env.DB.prepare(`INSERT INTO fighter_management_history(source_key,source_fighter_id,agency_id,manager_name,started_at,is_current,source_url,source_type,confidence,verified_at,last_checked_at,notes) VALUES(?,?,?,?,?,1,?,?,?,?,CURRENT_TIMESTAMP,?)`).bind(fighter.source_key,fighter.source_fighter_id,agency?.id??null,managerName,String(value.started_at||'').trim()||null,evidence.sourceUrl,evidence.sourceType,confidence(value.confidence),verifiedAt,String(value.notes||'').trim().slice(0,2000)||null),
     env.DB.prepare(`INSERT INTO fighter_opportunity_status(source_key,source_fighter_id,management_status,source_url,source_type,confidence,verified_at,last_checked_at) VALUES(?,?,'represented',?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(source_key,source_fighter_id) DO UPDATE SET management_status='represented',source_url=excluded.source_url,source_type=excluded.source_type,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP`).bind(fighter.source_key,fighter.source_fighter_id,evidence.sourceUrl,evidence.sourceType,confidence(value.confidence),verifiedAt)
   ]);
+  const current=await env.DB.prepare(`SELECT h.id FROM fighter_management_history h WHERE h.source_key=? AND h.source_fighter_id=? AND h.is_current=1 ORDER BY h.id DESC LIMIT 1`).bind(fighter.source_key,fighter.source_fighter_id).first<{id:number}>();
+  await addManagementEvidence(env,current?.id||null,evidence,value,verifiedAt);
   return json({ok:true,profile_slug:profile,management_status:'represented',agency_slug:agencySlug||null,manager_name:managerName});
 }
 
@@ -40,11 +50,13 @@ export async function endManagementApi(request:Request,env:Env){
   const value=await input(request);if(!value)return json({error:'invalid_json'},400);
   const profile=String(value.profile_slug||'').trim(),fighter=await fighterFromProfile(env.DB,profile);if(!fighter)return json({error:'fighter_not_found'},404);
   const evidence=source(value);if('error'in evidence)return json({error:evidence.error},400);
+  const current=await env.DB.prepare(`SELECT id FROM fighter_management_history WHERE source_key=? AND source_fighter_id=? AND is_current=1 ORDER BY id DESC LIMIT 1`).bind(fighter.source_key,fighter.source_fighter_id).first<{id:number}>();
   const endedAt=String(value.ended_at||'').trim()||new Date().toISOString().slice(0,10),verifiedAt=String(value.verified_at||'').trim()||new Date().toISOString();
   const note=String(value.notes||'').trim().slice(0,1000);
   await env.DB.batch([
     env.DB.prepare(`UPDATE fighter_management_history SET is_current=0,ended_at=?,last_checked_at=CURRENT_TIMESTAMP,notes=CASE WHEN ?<>'' THEN trim(COALESCE(notes,'') || CASE WHEN notes IS NULL OR notes='' THEN '' ELSE char(10) END || ?) ELSE notes END WHERE source_key=? AND source_fighter_id=? AND is_current=1`).bind(endedAt,note,note,fighter.source_key,fighter.source_fighter_id),
     env.DB.prepare(`INSERT INTO fighter_opportunity_status(source_key,source_fighter_id,management_status,source_url,source_type,confidence,verified_at,last_checked_at) VALUES(?,?,'unknown',?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(source_key,source_fighter_id) DO UPDATE SET management_status='unknown',source_url=excluded.source_url,source_type=excluded.source_type,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP`).bind(fighter.source_key,fighter.source_fighter_id,evidence.sourceUrl,evidence.sourceType,confidence(value.confidence),verifiedAt)
   ]);
+  await addManagementEvidence(env,current?.id||null,evidence,value,verifiedAt);
   return json({ok:true,profile_slug:profile,management_status:'unknown',ended_at:endedAt});
 }
