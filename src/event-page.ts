@@ -3,7 +3,7 @@ import {BRAND_NAME,SITE_ORIGIN} from './brand.ts';
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
 type Row=Record<string,any>;
 const SITE=SITE_ORIGIN;
-const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
+const esc=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]!));
 const jsonLd=(v:unknown)=>JSON.stringify(v).replace(/</g,'\\u003c');
 const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).slice(0,10):null;
 const prettyDate=(v:unknown)=>{const d=dateOnly(v);return d?new Intl.DateTimeFormat('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(`${d}T12:00:00Z`)):'Date TBA';};
@@ -33,14 +33,16 @@ async function eventBouts(env:Env,eventId:number){
     FROM bouts b JOIN fighters a ON a.id=b.fighter_a_id JOIN fighters z ON z.id=b.fighter_b_id
     WHERE b.event_id=? ORDER BY b.bout_order,b.id`).bind(eventId).all<Row>();
   if(core.results?.length)return core.results.map(row=>({...row,card_source:'core'}));
-  const scouting=await env.DB.prepare(`SELECT sb.id,sb.bout_order,sb.weight_class,sb.status,NULL winner_id,NULL result_method,NULL result_round,NULL result_time_seconds,
-      NULL fighter_a_id,sb.fighter_a_name,NULL fighter_a_slug,NULL fighter_b_id,sb.fighter_b_name,NULL fighter_b_slug,
-      (SELECT CASE WHEN COUNT(DISTINCT p.profile_slug)=1 THEN MIN(p.profile_slug) END FROM scout_public_global_profiles p WHERE lower(p.fighter_name)=lower(sb.fighter_a_name)) fighter_a_profile_slug,
-      (SELECT CASE WHEN COUNT(DISTINCT p.profile_slug)=1 THEN MIN(p.profile_slug) END FROM scout_public_global_profiles p WHERE lower(p.fighter_name)=lower(sb.fighter_b_name)) fighter_b_profile_slug
-    FROM scout_event_bouts sb
-    WHERE sb.event_id=? AND sb.discipline='MMA' AND sb.status<>'cancelled'
-    ORDER BY sb.bout_order,sb.id`).bind(eventId).all<Row>();
-  return (scouting.results||[]).map(row=>({...row,card_source:'scout'}));
+  try{
+    const scouting=await env.DB.prepare(`SELECT sb.id,sb.bout_order,sb.weight_class,sb.status,NULL winner_id,NULL result_method,NULL result_round,NULL result_time_seconds,
+        NULL fighter_a_id,sb.fighter_a_name,NULL fighter_a_slug,NULL fighter_b_id,sb.fighter_b_name,NULL fighter_b_slug,
+        (SELECT CASE WHEN COUNT(DISTINCT p.profile_slug)=1 THEN MIN(p.profile_slug) END FROM scout_public_global_profiles p WHERE lower(p.fighter_name)=lower(sb.fighter_a_name)) fighter_a_profile_slug,
+        (SELECT CASE WHEN COUNT(DISTINCT p.profile_slug)=1 THEN MIN(p.profile_slug) END FROM scout_public_global_profiles p WHERE lower(p.fighter_name)=lower(sb.fighter_b_name)) fighter_b_profile_slug
+      FROM scout_event_bouts sb
+      WHERE sb.event_id=? AND sb.discipline='MMA' AND sb.status<>'cancelled'
+      ORDER BY sb.bout_order,sb.id`).bind(eventId).all<Row>();
+    return (scouting.results||[]).map(row=>({...row,card_source:'scout'}));
+  }catch{return [];}
 }
 
 export async function eventPage(_request:Request,env:Env,slug:string){
