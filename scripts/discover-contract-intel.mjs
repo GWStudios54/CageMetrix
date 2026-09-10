@@ -7,7 +7,7 @@ if(Number(remote)+Number(local)+Number(dry)!==1)throw new Error('Choose exactly 
 const target=remote?'--remote':'--local',cache='.cache/contract-intel';mkdirSync(cache,{recursive:true});
 const checkedAt=new Date().toISOString(),q=value=>value===null||value===undefined||value===''?'NULL':`'${String(value).replaceAll("'","''")}'`;
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-const LEGACY_METHODS="'exact_name+keyword','signal_block_exact_name_v2','signal_block_scoped_subject_v4'";
+const LEGACY_METHODS="'exact_name+keyword','signal_block_exact_name_v2','signal_block_subject_v3'";
 const V2_SUPERSEDED_NOTE='Automatically superseded by signal-local discovery v2 after the initial extractor proved over-broad.';
 const SUPERSEDED_NOTE='Automatically superseded by scoped subject-attributed discovery v4 after evidence-scope and subject-attribution hardening.';
 const REACTIVATED_NOTE='Automatically reactivated by scoped subject-attributed discovery v4 after passing evidence-scope and subject-attribution filters.';

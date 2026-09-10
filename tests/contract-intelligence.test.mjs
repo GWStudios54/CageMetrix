@@ -131,6 +131,7 @@ test('candidate discovery reconciles clean v4 rediscoveries instead of hiding th
   assert.match(discovery,/Automatically reactivated by scoped subject-attributed discovery v4/);
   assert.match(discovery,/review_status='rejected' AND instr\(COALESCE\(notes,''\)/);
   assert.match(discovery,/restored_legacy_candidates/);
+  assert.match(discovery,/LEGACY_METHODS=.*signal_block_subject_v3/);
 });
 
 test('candidate discovery queues evidence without publishing contract events',()=>{
