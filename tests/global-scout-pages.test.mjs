@@ -59,3 +59,13 @@ test('regional directory has dedicated responsive presentation',()=>{
   assert.match(css,/dossier-component-grid/);
   assert.match(css,/@media\(max-width:760px\)/);
 });
+
+
+test('unfiltered global fighter pagination uses the rating index before joining directory metadata',()=>{
+  const source=read('src/global-scout.ts');
+  assert.match(source,/if\(!q&&!promotion&&!division&&!region\)/);
+  assert.match(source,/WITH ranked AS MATERIALIZED/);
+  assert.match(source,/scout_global_ratings AS r INDEXED BY idx_scout_global_rating_division/);
+  assert.match(source,/registry\.active_snapshot_id=r\.snapshot_id/);
+  assert.match(source,/COALESCE\(controls\.public_status,'public'\)='public'/);
+});
