@@ -23,3 +23,10 @@ test('post-deploy smoke validates modern scouting APIs and the retired validatio
   assert.match(workflow, /check_redirect 'https:\/\/mmascouts\.com\/validation\.html' 'https:\/\/mmascouts\.com\/#rankings'/);
   assert.match(workflow, /<loc>https:\/\/mmascouts\.com\/scout\/fighters\//);
 });
+
+
+test('production deploy has a merged-PR fallback when GitHub drops the merge push event', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /pull_request:\n    branches:\n      - main\n    types:\n      - closed/);
+  assert.match(workflow, /github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.merged == true/);
+});
