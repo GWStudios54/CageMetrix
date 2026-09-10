@@ -121,14 +121,14 @@ test('signal-local discovery excludes comparison and opponent names from contrac
   const names=new Set(rows.map(row=>row.fighterName));
   for(const expected of ['Quentin Pasley','Isaac Moreno','Martin Kozak','Christian Natividad'])assert.equal(names.has(expected),true,expected);
   for(const forbidden of ['Jon Jones','Christian Echols','Apollo Gomes','Alexa Grasso'])assert.equal(names.has(forbidden),false,forbidden);
-  assert.ok(rows.every(row=>row.extractionMethod==='signal_block_subject_v3'));
+  assert.ok(rows.every(row=>row.extractionMethod==='signal_block_scoped_subject_v4'));
 });
 
-test('candidate discovery reconciles clean v3 rediscoveries instead of hiding them behind legacy keys',()=>{
+test('candidate discovery reconciles clean v4 rediscoveries instead of hiding them behind legacy keys',()=>{
   const discovery=read('scripts/discover-contract-intel.mjs');
   assert.match(discovery,/candidate key identifies the source \+ fighter \+ detected event/i);
   assert.match(discovery,/UPDATE contract_intel_candidates SET source_url=.*extraction_method=.*review_status=.*reviewed_at=NULL/s);
-  assert.match(discovery,/Automatically reactivated by subject-attributed discovery v3/);
+  assert.match(discovery,/Automatically reactivated by scoped subject-attributed discovery v4/);
   assert.match(discovery,/review_status='rejected' AND instr\(COALESCE\(notes,''\)/);
   assert.match(discovery,/restored_legacy_candidates/);
 });
@@ -140,7 +140,7 @@ test('candidate discovery queues evidence without publishing contract events',()
   assert.equal(rows.length,1);assert.equal(rows[0].reviewStatus,'pending');assert.equal(rows[0].detectedEventType,'signing');assert.equal(rows[0].sourceFighterId,'42');
   const discovery=read('scripts/discover-contract-intel.mjs');
   assert.match(discovery,/INSERT OR IGNORE INTO contract_intel_candidates/);
-  assert.match(discovery,/signal_block_subject_v3/);
-  assert.match(discovery,/Automatically superseded by subject-attributed discovery v3/);
+  assert.match(discovery,/signal_block_scoped_subject_v4/);
+  assert.match(discovery,/Automatically superseded by scoped subject-attributed discovery v4/);
   assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_contract_events/i);
 });
