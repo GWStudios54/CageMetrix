@@ -66,6 +66,7 @@ export async function promotionApi(request:Request,env:Env,slug:string){
 export async function globalFightersApi(request:Request,env:Env){
   if(request.method!=='GET')return json({error:'method_not_allowed'},405);
   const url=new URL(request.url),q=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,100),promotion=(url.searchParams.get('promotion')||'').trim(),division=(url.searchParams.get('weight_class')||'').trim(),region=(url.searchParams.get('region')||'').trim(),limit=limited(url.searchParams.get('limit'),25,100),skip=offset(url.searchParams.get('offset'));
+  // Keep the default directory path rating-led so LIMIT is applied through the model/rating index before metadata joins.
   if(!q&&!promotion&&!division&&!region){
     const rows=await env.DB.prepare(`
       WITH ranked AS MATERIALIZED (
