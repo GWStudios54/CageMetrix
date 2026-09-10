@@ -10,7 +10,7 @@ const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;
 const json=(value:unknown,status=200,headers=JSON_HEADERS)=>new Response(JSON.stringify(value),{status,headers});
 const limit=(value:string|null,fallback=25,max=100)=>Math.min(max,Math.max(1,Number.parseInt(value||'',10)||fallback));
 const offset=(value:string|null)=>Math.max(0,Number.parseInt(value||'',10)||0);
-const number=(value:string|null,min:number,max:number)=>{const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):null;};
+const number=(value:string|null,min:number,max:number)=>{if(value===null||value.trim()==='')return null;const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):null;};
 const slugify=(value:string)=>value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,120);
 const score=(value:unknown)=>value===null||value===undefined||value===''?'—':Number.isFinite(Number(value))?Number(value).toFixed(1):'—';
 const percent=(value:unknown)=>value===null||value===undefined||value===''?'—':Number.isFinite(Number(value))?`${Math.round(Number(value))}%`:'—';

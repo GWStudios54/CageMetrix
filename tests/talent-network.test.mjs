@@ -87,3 +87,10 @@ test('unfiltered talent browsing limits through the rating index before represen
   assert.match(source,/COALESCE\(controls\.public_status,'public'\)='public'/);
   assert.match(source,/LEFT JOIN scout_current_management cm ON cm\.source_key=ranked\.source_key/);
 });
+
+
+test('blank numeric talent filters remain unset instead of being clamped from zero',()=>{
+  const source=read('src/talent-network.ts');
+  assert.match(source,/if\(value===null\|\|value\.trim\(\)===''\)return null/);
+  assert.doesNotMatch(source,/const number=\(value:string\|null,min:number,max:number\)=>\{const n=Number\(value\)/);
+});
