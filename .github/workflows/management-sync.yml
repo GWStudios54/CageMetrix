@@ -13,7 +13,6 @@ on:
       - 'src/management-about.ts'
       - 'src/talent-admin.ts'
       - 'tests/management-sources.test.mjs'
-      - 'tests/contract-intelligence.test.mjs'
       - 'package.json'
       - '.github/workflows/management-sync.yml'
   push:
@@ -27,7 +26,6 @@ on:
       - 'src/management-about.ts'
       - 'src/talent-admin.ts'
       - 'tests/management-sources.test.mjs'
-      - 'tests/contract-intelligence.test.mjs'
       - 'package.json'
       - '.github/workflows/management-sync.yml'
 
