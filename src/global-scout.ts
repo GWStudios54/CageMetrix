@@ -66,6 +66,30 @@ export async function promotionApi(request:Request,env:Env,slug:string){
 export async function globalFightersApi(request:Request,env:Env){
   if(request.method!=='GET')return json({error:'method_not_allowed'},405);
   const url=new URL(request.url),q=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,100),promotion=(url.searchParams.get('promotion')||'').trim(),division=(url.searchParams.get('weight_class')||'').trim(),region=(url.searchParams.get('region')||'').trim(),limit=limited(url.searchParams.get('limit'),25,100),skip=offset(url.searchParams.get('offset'));
+  if(!q&&!promotion&&!division&&!region){
+    const rows=await env.DB.prepare(`
+      WITH ranked AS MATERIALIZED (
+        SELECT p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_organization,p.current_promotion_slug,p.current_weight_class,p.last_fight_date,
+               p.career_wins,p.career_losses,p.career_draws,p.career_no_contests,p.ko_tko_wins,p.submission_wins,p.data_completeness,
+               r.scout_rating,r.global_skill,r.resume_quality,r.schedule_strength,r.recent_form,r.finishing_quality,r.evidence_strength,r.division_rank,r.global_rank
+        FROM scout_global_ratings AS r INDEXED BY idx_scout_global_rating_division
+        JOIN mma_source_registry registry
+          ON registry.source_key=r.source_key AND registry.active_snapshot_id=r.snapshot_id
+        JOIN scout_global_profiles p
+          ON p.source_key=r.source_key AND p.snapshot_id=r.snapshot_id AND p.source_fighter_id=r.source_fighter_id
+        LEFT JOIN fighter_publication_controls controls
+          ON controls.source_key=p.source_key AND controls.source_fighter_id=p.source_fighter_id
+        WHERE r.model_version=? AND COALESCE(controls.public_status,'public')='public'
+        ORDER BY r.scout_rating DESC
+        LIMIT ? OFFSET ?
+      )
+      SELECT ranked.*,sp.name promotion_name,sp.region
+      FROM ranked
+      LEFT JOIN scout_promotions sp ON sp.slug=ranked.current_promotion_slug
+      ORDER BY ranked.scout_rating DESC,ranked.last_fight_date DESC,ranked.fighter_name
+    `).bind(GLOBAL_MODEL,limit,skip).all<Row>();
+    return json({data:rows.results||[],meta:{model_version:GLOBAL_MODEL,q:null,promotion:null,weight_class:null,region:null,limit,offset:skip}});
+  }
   const clauses=['1=1'];const binds:any[]=[GLOBAL_MODEL];
   if(q){clauses.push('instr(p.normalized_name,?)>0');binds.push(q);}
   if(promotion){clauses.push('p.current_promotion_slug=?');binds.push(promotion);}
