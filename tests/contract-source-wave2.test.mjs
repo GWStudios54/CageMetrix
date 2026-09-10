@@ -88,7 +88,7 @@ test('credited relatives and proposed opponents do not inherit contract status',
   assert.deepEqual(rows.map(row=>row.fighterName),['Michael Page']);
   assert.equal(rows[0].detectedEventType,'expiration');
   assert.equal(rows[0].detectedStatus,'expired');
-  assert.equal(rows[0].extractionMethod,'signal_block_subject_v3');
+  assert.equal(rows[0].extractionMethod,'signal_block_scoped_subject_v4');
 });
 
 test('free-agent fight is not itself evidence of free agency',()=>{
@@ -98,4 +98,13 @@ test('free-agent fight is not itself evidence of free agency',()=>{
 
 test('promotion attribution supports multi-fighter award sentences',()=>{
   assert.equal(detectContractPromotion('Dana White signs Christian Natividad, Martin Kozak, Isaac Moreno and Quentin Pasley to the UFC',null),'ufc');
+});
+
+
+test('MMA Fighting extraction is scoped to entry body, not article recirculation',()=>{
+  const source=bySlug('mma-fighting');
+  const html='<article><div class="duet--layout--entry-body"><p>Christian Natividad earned a UFC contract.</p></div><div class="duet--layout--article-recirc"><p>Jake Paul shows interest in signing Michael Page.</p></div></article>';
+  const body=articleText(html,source);
+  assert.match(body,/Christian Natividad earned a UFC contract/);
+  assert.doesNotMatch(body,/Michael Page/);
 });
