@@ -35,6 +35,11 @@ on:
       - '.github/workflows/warehouse-model-benchmark.yml'
       - '.github/workflows/predictor-v02-common-validation.yml'
       - '.github/workflows/model-promotion.yml'
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
   workflow_dispatch:
 
 concurrency:
@@ -45,7 +50,7 @@ jobs:
   deploy:
     # Model promotions run their own ordered D1 -> forecast -> Worker release.
     # The marker prevents the generic deploy from cutting over the Worker first.
-    if: ${{ !contains(github.event.head_commit.message || '', '[model-promotion]') }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.merged == true) && !contains(github.event.head_commit.message || '', '[model-promotion]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
