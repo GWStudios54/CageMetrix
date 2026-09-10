@@ -77,3 +77,13 @@ test('admin curation is authenticated, source-ranked and can close historical re
   assert.match(close,/management_status='unknown'/);
   assert.match(close,/source_required/);
 });
+
+
+test('unfiltered talent browsing limits through the rating index before representation joins',()=>{
+  const source=read('src/talent-network.ts');
+  assert.match(source,/Object\.values\(filters\)\.every\(value=>value===null\)/);
+  assert.match(source,/WITH ranked AS MATERIALIZED/);
+  assert.match(source,/scout_global_ratings AS r INDEXED BY idx_scout_global_rating_division/);
+  assert.match(source,/COALESCE\(controls\.public_status,'public'\)='public'/);
+  assert.match(source,/LEFT JOIN scout_current_management cm ON cm\.source_key=ranked\.source_key/);
+});
