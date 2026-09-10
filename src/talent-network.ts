@@ -62,7 +62,40 @@ function talentWhere(url:URL){
 
 async function talentRows(request:Request,env:Env){
   const url=new URL(request.url),take=limit(url.searchParams.get('limit'),25,100),skip=offset(url.searchParams.get('offset'));
-  const {clauses,binds,filters}=talentWhere(url);binds.push(take,skip);
+  const {clauses,binds,filters}=talentWhere(url);
+  if(Object.values(filters).every(value=>value===null)){
+    const rows=await env.DB.prepare(`
+      WITH ranked AS MATERIALIZED (
+        SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,
+               p.current_promotion_slug,p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,p.career_bouts,p.data_completeness,
+               r.scout_rating global_rating,r.evidence_strength,r.global_rank,r.division_rank
+        FROM scout_global_ratings AS r INDEXED BY idx_scout_global_rating_division
+        JOIN mma_source_registry registry
+          ON registry.source_key=r.source_key AND registry.active_snapshot_id=r.snapshot_id
+        JOIN scout_global_profiles p
+          ON p.source_key=r.source_key AND p.snapshot_id=r.snapshot_id AND p.source_fighter_id=r.source_fighter_id
+        LEFT JOIN fighter_publication_controls controls
+          ON controls.source_key=p.source_key AND controls.source_fighter_id=p.source_fighter_id
+        WHERE r.model_version=? AND COALESCE(controls.public_status,'public')='public'
+        ORDER BY r.scout_rating DESC,r.evidence_strength DESC
+        LIMIT ? OFFSET ?
+      )
+      SELECT ranked.*,sp.name promotion_name,sp.region,
+             CASE WHEN cm.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE(o.management_status,'unknown') END management_status,
+             cm.agency_slug,cm.agency_name,cm.manager_name,cm.confidence management_confidence,cm.verified_at management_verified_at,
+             COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
+             COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
+             o.preferred_weight_class,o.base_city,o.base_region,o.base_country,o.public_contact_url,o.availability_note,
+             o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
+      FROM ranked
+      LEFT JOIN scout_promotions sp ON sp.slug=ranked.current_promotion_slug
+      LEFT JOIN fighter_opportunity_status o ON o.source_key=ranked.source_key AND o.source_fighter_id=ranked.source_fighter_id
+      LEFT JOIN scout_current_management cm ON cm.source_key=ranked.source_key AND cm.source_fighter_id=ranked.source_fighter_id
+      ORDER BY ranked.global_rating DESC,ranked.evidence_strength DESC,ranked.last_fight_date DESC,ranked.fighter_name
+    `).bind(GLOBAL_MODEL,take,skip).all<Row>();
+    return {rows:rows.results||[],filters,take,skip};
+  }
+  binds.push(take,skip);
   const rows=await env.DB.prepare(`
     SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,
            p.current_promotion_slug,p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,p.career_bouts,p.data_completeness,
