@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CONTRACT_DISCOVERY_SOURCES,candidateRows,detectContractPromotion,parseContractListing} from '../scripts/lib/contract-intel-discovery.mjs';
+import {CONTRACT_DISCOVERY_SOURCES,articleText,candidateRows,detectContractPromotion,detectContractSignal,hasContractSignal,parseContractListing} from '../scripts/lib/contract-intel-discovery.mjs';
 
 const bySlug=slug=>CONTRACT_DISCOVERY_SOURCES.find(source=>source.slug===slug);
 
@@ -68,4 +68,34 @@ test('Cage Warriors reporting about a UFC signing queues a UFC candidate, not a 
   assert.equal(rows[0].promotionSlug,'ufc');
   assert.equal(rows[0].detectedEventType,'signing');
   assert.equal(rows[0].reviewStatus,'pending');
+});
+
+
+test('Sherdog article extraction excludes related and latest story modules',()=>{
+  const source=bySlug('sherdog-news-rss');
+  const html='<main><article><div class="article"><div class="content body_content"><p>Christian Natividad earned a UFC contract.</p></div></div><div class="module_list_generic related_articles"><ul><li>Michael Page declines to re-sign</li></ul></div></article></main>';
+  const body=articleText(html,source);
+  assert.match(body,/Christian Natividad earned a UFC contract/);
+  assert.doesNotMatch(body,/Michael Page declines to re-sign/);
+});
+
+test('credited relatives and proposed opponents do not inherit contract status',()=>{
+  const source=bySlug('sherdog-news-rss');
+  const profiles=['Christian Natividad','Kevin Natividad','Michael Page','Derek Brunson'].map((fighter_name,index)=>({source_key:'mma',source_fighter_id:String(index+1),fighter_name}));
+  let rows=candidateRows({title:'Christian Natividad earns UFC contract',url:'https://www.sherdog.com/news/news/a'},source,'Christian Natividad credits Kevin Natividad after earning a UFC contract.',profiles);
+  assert.deepEqual(rows.map(row=>row.fighterName),['Christian Natividad']);
+  rows=candidateRows({title:'Michael Page exits UFC',url:'https://www.sherdog.com/news/news/b'},source,'Michael Page completes his UFC contract as Derek Brunson proposes a free-agent fight.',profiles);
+  assert.deepEqual(rows.map(row=>row.fighterName),['Michael Page']);
+  assert.equal(rows[0].detectedEventType,'expiration');
+  assert.equal(rows[0].detectedStatus,'expired');
+  assert.equal(rows[0].extractionMethod,'signal_block_subject_v3');
+});
+
+test('free-agent fight is not itself evidence of free agency',()=>{
+  assert.equal(hasContractSignal('Derek Brunson proposes a free-agent fight'),false);
+  assert.deepEqual(detectContractSignal('UFC declines to re-sign Michael Page'),{eventType:'status_update',status:'unknown'});
+});
+
+test('promotion attribution supports multi-fighter award sentences',()=>{
+  assert.equal(detectContractPromotion('Dana White signs Christian Natividad, Martin Kozak, Isaac Moreno and Quentin Pasley to the UFC',null),'ufc');
 });
