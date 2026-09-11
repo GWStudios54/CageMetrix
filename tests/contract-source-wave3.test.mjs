@@ -15,6 +15,7 @@ test('wave 3 adds BRAVE CF, CFFC and OKTAGON as official promotion sources',()=>
     assert.equal(source.publisher,publisher);
     assert.equal(source.sourceType,'promotion_direct');
     assert.equal(source.promotionSlug,null,'publisher identity must not become contract attribution');
+    assert.ok(Array.isArray(source.seedArticles)&&source.seedArticles.length>0,slug+' needs at least one first-party historical seed');
   }
 });
 
@@ -61,4 +62,13 @@ test('official publisher reporting a different promotion does not inherit publis
   assert.equal(rows.length,1);
   assert.equal(rows[0].promotionSlug,'ufc');
   assert.equal(rows[0].reviewStatus,'pending');
+});
+
+
+test('historical seed articles are official first-party URLs and remain source scoped',()=>{
+  const brave=bySlug('brave-cf-news'),cffc=bySlug('cffc-news'),oktagon=bySlug('oktagon-news');
+  assert.ok(brave.seedArticles.length>=7);
+  assert.ok(brave.seedArticles.every(row=>new URL(row.url).hostname==='www.bravecf.com'));
+  assert.ok(cffc.seedArticles.every(row=>new URL(row.url).hostname==='cffc.tv'));
+  assert.ok(oktagon.seedArticles.every(row=>new URL(row.url).hostname==='oktagonmma.com'));
 });
