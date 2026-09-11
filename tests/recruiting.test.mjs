@@ -31,7 +31,10 @@ test('candidate generation preserves publication controls and evidence standards
   assert.match(source,/r\.model_version=\?/);
   assert.match(source,/COALESCE\(o\.contract_status,'unknown'\)/);
   assert.match(source,/CASE WHEN cm\.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE\(o\.management_status,'unknown'\) END/);
-  assert.match(source,/o\.open_to_fights='yes'/);
+  assert.match(source,/function availabilityExpr\(\)/);
+  assert.match(source,/COALESCE\(o\.open_to_fights,'unknown'\)<>'unknown' THEN o\.open_to_fights ELSE COALESCE\(ca\.open_to_fights,'unknown'\)/);
+  assert.match(source,/LEFT JOIN scout_current_availability ca/);
+  assert.match(source,/availabilityExpr\(\)\+"='yes'"/);
   assert.match(source,/INSERT OR IGNORE INTO recruiting_opening_candidates/);
 });
 
@@ -49,11 +52,9 @@ test('recruiting data never enters Global Rating',()=>{
   assert.doesNotMatch(rating,/recruiting_openings|recruiting_opening_candidates|management_filter|contract_filter|opportunity_filter/);
 });
 
-test('production deploy applies all pending migrations and private smoke verifies recruiting access control',()=>{
+test('production deploy installs the idempotent recruiting schema and private smoke verifies access control',()=>{
   const deploy=read('.github/workflows/deploy.yml'),smoke=read('.github/workflows/post-deploy-smoke.yml'),config=read('wrangler.jsonc'),nav=read('src/navigation.ts');
-  assert.match(deploy,/npm run db:migrate:remote/);
-  assert.match(deploy,/Currently processing a long-running import/);
-  assert.match(deploy,/run: npm run deploy:worker/);
+  assert.match(deploy,/wrangler d1 execute cagemetrix --remote --file migrations\/0038_recruiting_workspace\.sql/);
   assert.match(config,/"\/recruiting"/);
   assert.match(config,/"\/recruiting\/\*"/);
   assert.match(smoke,/recruiting_code/);
