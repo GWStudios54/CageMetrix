@@ -82,6 +82,12 @@ export function detectContractSignal(value){
   return {eventType:'status_update',status:'unknown'};
 }
 
+export function detectContractSignals(value){
+  const text=semanticContractText(value),primary=detectContractSignal(value),out=[primary];
+  if(/\bfree\s+agent(?:cy)?\b/.test(text)&&primary.eventType!=='free_agency')out.push({eventType:'free_agency',status:'free_agent'});
+  return out;
+}
+
 export function detectContractPromotion(value,fallback=null){
   const text=semanticContractText(value);
   for(const [slug,promotion] of PROMOTIONS){
@@ -162,13 +168,15 @@ export function candidateRows(article,source,body,profiles){
   if(!blocks.length)return [];
   const out=[],seen=new Set();
   for(const item of blocks){
-    const block=item.text,signal=detectContractSignal(block),promotionSlug=detectContractPromotion(block,source.promotionSlug),matches=exactFighterMatches(block,profiles);
+    const block=item.text,signals=detectContractSignals(block),promotionSlug=detectContractPromotion(block,source.promotionSlug),matches=exactFighterMatches(block,profiles);
     for(const match of matches){
       if(incidentalMention(block,match.name))continue;
-      const key=contractCandidateKey(article.url,match.name,signal.eventType);if(seen.has(key))continue;seen.add(key);
-      const base={candidateKey:key,sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:match.profiles[0]?.fighter_name||match.name,normalizedName:match.name,promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:block.slice(0,1600),extractionMethod:item.scope==='title'?'signal_title_exact_subject_v5':'signal_block_scoped_subject_v4'};
-      if(match.ambiguous){out.push({...base,sourceKey:null,sourceFighterId:null,reviewStatus:'needs_identity'});continue;}
-      const profile=match.profiles[0];out.push({...base,sourceKey:profile.source_key,sourceFighterId:profile.source_fighter_id,reviewStatus:'pending'});
+      for(const signal of signals){
+        const key=contractCandidateKey(article.url,match.name,signal.eventType);if(seen.has(key))continue;seen.add(key);
+        const base={candidateKey:key,sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:match.profiles[0]?.fighter_name||match.name,normalizedName:match.name,promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:block.slice(0,1600),extractionMethod:item.scope==='title'?'signal_title_exact_subject_v5':'signal_block_scoped_subject_v4'};
+        if(match.ambiguous){out.push({...base,sourceKey:null,sourceFighterId:null,reviewStatus:'needs_identity'});continue;}
+        const profile=match.profiles[0];out.push({...base,sourceKey:profile.source_key,sourceFighterId:profile.source_fighter_id,reviewStatus:'pending'});
+      }
     }
   }
   return out;
