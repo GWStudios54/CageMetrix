@@ -28,6 +28,16 @@ export const ONE_LOCATION_SOURCE={
   promotionSlug:'one'
 };
 
+export const GLADIATOR_LOCATION_SOURCE={
+  slug:'gladiator-management-roster',
+  publisher:'Gladiator Management Agency',
+  rosterUrl:'https://www.gladiatormgmtagency.com/roster',
+  host:'www.gladiatormgmtagency.com',
+  sourceType:'manager_or_agency_direct',
+  confidence:'A',
+  promotionSlug:null
+};
+
 export function normalizeFighterName(value){
   return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
@@ -188,5 +198,46 @@ export function parseOneProfile(html,url){
     fighting_out_of:usable?location.raw_value:null,
     location:usable?location:{raw_value:null,city:null,region:null,country:null},
     fight_camp:fightCamp||null
+  };
+}
+
+
+export function parseGladiatorRoster(html,source=GLADIATOR_LOCATION_SOURCE){
+  const dom=new JSDOM(String(html||'')),doc=dom.window.document,out=[],seen=new Set();
+  for(const anchor of doc.querySelectorAll('h3 a[href]')){
+    const url=absolute(anchor.getAttribute('href'),source.rosterUrl);if(!url)continue;
+    const parsed=new URL(url);
+    if(parsed.hostname!==source.host)continue;
+    if(!/^\/[a-z0-9-]+\/?$/i.test(parsed.pathname))continue;
+    if(/^\/(?:roster|contact|fighter-management|consulting|marketing|partners|about|home)\/?$/i.test(parsed.pathname))continue;
+    const fighterName=stripQuotedNickname(clean(anchor.textContent));
+    if(!fighterName)continue;
+    const canonical=parsed.origin+parsed.pathname.replace(/\/$/,'');
+    if(seen.has(canonical))continue;
+    seen.add(canonical);
+    out.push({url:canonical,fighter_name:fighterName,normalized_name:normalizeFighterName(fighterName)});
+  }
+  dom.window.close();return out;
+}
+
+export function parseGladiatorProfile(html,url){
+  const dom=new JSDOM(String(html||'')),doc=dom.window.document;
+  const h1=clean(doc.querySelector('h1')?.textContent);
+  const title=clean(doc.querySelector('meta[property="og:title"]')?.getAttribute('content')||doc.title);
+  const fighterName=stripQuotedNickname(h1||title.split('|')[0]);
+  const body=clean(doc.body?.textContent);
+  const fightingOutOf=between(body,'FIGHTING OUT OF','FROM');
+  const teamRaw=between(body,'TEAM','MMA RECORD');
+  const location=parseProfessionalLocation(fightingOutOf);
+  const usable=Boolean(location.city||location.region||location.country);
+  const fightCamp=teamRaw&&!/^(?:n\/?a|na|none|unknown)$/i.test(teamRaw)?teamRaw:null;
+  dom.window.close();
+  return {
+    source_url:url,
+    fighter_name:fighterName||null,
+    normalized_name:normalizeFighterName(fighterName),
+    fighting_out_of:usable?location.raw_value:null,
+    location:usable?location:{raw_value:null,city:null,region:null,country:null},
+    fight_camp:fightCamp
   };
 }
