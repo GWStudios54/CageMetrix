@@ -13,8 +13,11 @@ on:
       - 'scripts/lib/contract-intel-discovery.mjs'
       - '.github/workflows/contract-intel-discovery.yml'
 
+# Contract discovery is idempotent and independent from Worker releases.
+# Keep it out of the production deploy lane so a UI deploy cannot discard a
+# valid source-discovery run from the same commit.
 concurrency:
-  group: cagemetrix-production
+  group: mmascouts-contract-intel
   cancel-in-progress: false
 
 jobs:
