@@ -110,6 +110,10 @@ jobs:
           code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/forecasts-retired.body --write-out '%{http_code}' https://mmascouts.com/api/forecasts)
           test "$code" = "410"
           grep -Fq 'feature_retired' diagnostics/forecasts-retired.body
+          recruiting_code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/recruiting-private.body --write-out '%{http_code}' https://mmascouts.com/recruiting)
+          test "$recruiting_code" = "403"
+          grep -Fq 'Recruiting access required.' diagnostics/recruiting-private.body
+          grep -Fq 'noindex,nofollow' diagnostics/recruiting-private.body
 
       - name: Verify legacy and www canonical redirects
         shell: bash
