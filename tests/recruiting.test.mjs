@@ -68,6 +68,8 @@ test('private intelligence queue prioritizes unresolved recruiting facts without
   assert.match(source,/c\.contract_status='unknown'/);
   assert.match(source,/c\.open_to_fights='unknown'/);
   assert.match(source,/c\.public_contact_url IS NULL/);
+  assert.match(source,/cm\.agency_website IS NULL/);
+  assert.match(source,/Agency contact path/);
   assert.match(source,/active\/recent fighters first|date\('now','-18 months'\)/);
   assert.match(source,/no composite recruitability score/i);
   assert.doesNotMatch(source,/intel_priority_score|recruitability_score|signability/i);
