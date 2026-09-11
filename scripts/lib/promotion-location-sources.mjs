@@ -4,6 +4,14 @@ export const PFL_LOCATION_SOURCE={
   slug:'pfl-roster',
   publisher:'Professional Fighters League',
   rosterUrl:'https://pflmma.com/all-fighter-roster',
+  rosterUrls:[
+    'https://pflmma.com/all-fighter-roster',
+    'https://pflmma.com/regular-fighter-roster',
+    'https://pflmma.com/cs-fighter-roster',
+    'https://pflmma.com/mena-fighter-roster',
+    'https://pflmma.com/europe-fighter-roster',
+    'https://pflmma.com/africa-fighter-roster'
+  ],
   host:'pflmma.com',
   sourceType:'promotion_direct',
   confidence:'A'
