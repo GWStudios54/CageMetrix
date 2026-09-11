@@ -24,7 +24,8 @@ test('wave 6 registers current high-value MMA Fighting transition leads',()=>{
     ['Roberto Soldic','one'],
     ['Michel Pereira','ufc'],
     ['Francis Ngannou','pfl'],
-    ['Adriano Moraes','one']
+    ['Adriano Moraes','one'],
+    ['Usman Nurmagomedov','pfl']
   ]);
   for(const [fighter,promotion] of expected){
     const row=source.seedArticles.find(article=>article.subjectFighterName===fighter);
@@ -42,6 +43,16 @@ test('completed deal is treated as expiration rather than a new signing',()=>{
   assert.equal(hasContractSignal(text),true);
   assert.deepEqual(detectContractSignal(text),{eventType:'expiration',status:'expired'});
   assert.equal(detectContractPromotion(text,null),'ufc');
+});
+
+test('finishing a current promotion contract is expiration evidence, not a signing',()=>{
+  const text='Usman Nurmagomedov finished his current contract with the PFL and entered free agency.';
+  assert.equal(hasContractSignal(text),true);
+  assert.deepEqual(detectContractSignals(text),[
+    {eventType:'expiration',status:'expired'},
+    {eventType:'free_agency',status:'free_agent'}
+  ]);
+  assert.equal(detectContractPromotion(text,null),'pfl');
 });
 
 test('release language attributes the named prior promotion',()=>{
