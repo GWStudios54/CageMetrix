@@ -32,8 +32,10 @@ test('expected agency email must actually appear on the official page',()=>{
 
 test('contact forms must remain same-host HTTPS routes',()=>{
   const source={agencySlug:'test',publisher:'Test',url:'https://agency.test/contact',host:'agency.test',contactFormUrl:'https://agency.test/book',contactKind:'booking_form',label:'Book',confidence:'A'};
-  assert.equal(contactRowsFromOfficialPage('<p>Contact</p>',source)[0].contact_value,'https://agency.test/book');
-  assert.deepEqual(contactRowsFromOfficialPage('<p>Contact</p>',{...source,contactFormUrl:'https://evil.test/book'}),[]);
+  const html='<form><input name="email"><textarea name="message"></textarea><button>Send</button></form>';
+  assert.equal(contactRowsFromOfficialPage(html,source)[0].contact_value,'https://agency.test/book');
+  assert.deepEqual(contactRowsFromOfficialPage(html,{...source,contactFormUrl:'https://evil.test/book'}),[]);
+  assert.deepEqual(contactRowsFromOfficialPage('<p>Contact</p>',source),[]);
 });
 
 test('wave 1 contact registry uses official source-backed recruiter routes',()=>{
@@ -64,6 +66,8 @@ test('contact sync retires stale routes only after a reachable official source',
   assert.match(source,/if\(!audit\|\|audit\.status!=='ok'\)continue/);
   assert.match(source,/UPDATE management_agency_contacts SET is_current=0/);
   assert.match(source,/ON CONFLICT\(agency_id,contact_kind,contact_value,source_url\) DO UPDATE/);
+  const parser=read('scripts/lib/management-contact-sources.mjs');
+  assert.match(parser,/const hasForm=Boolean\(doc\.querySelector\('form'\)\)/);
   assert.match(source,/is_current=1/);
   assert.match(source,/missingAgencies/);
 });
