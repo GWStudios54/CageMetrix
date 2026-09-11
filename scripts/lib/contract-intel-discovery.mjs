@@ -6,9 +6,25 @@ export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'pfl-news',publisher:'Professional Fighters League',sourceType:'promotion_direct',promotionSlug:'pfl',kind:'html',url:'https://pflmma.com/news/',host:'pflmma.com',path:/\/news\//i},
   {slug:'one-mma-rss',publisher:'ONE Championship',sourceType:'promotion_direct',promotionSlug:'one',kind:'rss',url:'https://www.onefc.com/category/mixed-martial-arts/feed/',host:'www.onefc.com',path:/\/(?:news|features)\//i},
   {slug:'cage-warriors-news',publisher:'Cage Warriors',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://cagewarriors.com/news/',host:'cagewarriors.com',path:/^\/(?!news\/?$|events\/?$|videos\/?$|champions\/?$|contact\/?$|about\/?$|athletes\/?$|careers\/?$)[a-z0-9-]+\/$/i,titleSignalOnly:true},
-  {slug:'brave-cf-news',publisher:'BRAVE Combat Federation',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://www.bravecf.com/news',host:'www.bravecf.com',path:/^\/news\/[a-z0-9-]+\/?$/i},
-  {slug:'cffc-news',publisher:'Cage Fury Fighting Championships',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://cffc.tv/news',host:'cffc.tv',path:/^\/news\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i},
-  {slug:'oktagon-news',publisher:'OKTAGON MMA',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://oktagonmma.com/en/news/',host:'oktagonmma.com',path:/^\/en\/blog\/[a-z0-9-]+\/?$/i},
+  {slug:'brave-cf-news',publisher:'BRAVE Combat Federation',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://www.bravecf.com/news',host:'www.bravecf.com',path:/^\/news\/[a-z0-9-]+\/?$/i,
+    seedArticles:[
+      {title:'Amil Tutic Signs Exclusive Multi-Fight Deal with BRAVE CF',url:'https://www.bravecf.com/news/amil-tutic-signs-exclusive-multi-fight-deal-with-brave-cf',publishedAt:'2026-06-15'},
+      {title:'Unbeaten Serbian Star Nikola Joksovic Signs Multi-Fight Deal With BRAVE Combat Federation',url:'https://www.bravecf.com/news/unbeaten-serbian-star-nikola-joksovic-signs-multi-fight-deal-with-brave-combat-federation',publishedAt:'2025-09-10'},
+      {title:'Filipino superstar Drex Zamboanga signs multi-fight deal with BRAVE Combat Federation',url:'https://www.bravecf.com/news/filipino-superstar-drex-zamboanga-signs-multi-fight-deal-with-brave-combat-federation',publishedAt:'2025-02-26'},
+      {title:'Indian Judo Champion Suchika Tariyal Signs Multi-Fight Deal with BRAVE CF',url:'https://www.bravecf.com/news/indian-judo-champion-suchika-tariyal-signs-multi-fight-deal-with-brave-cf',publishedAt:'2024-11-17'},
+      {title:'Gerard Burns signs multi-fight deal with BRAVE CF following thunderous KO win',url:'https://www.bravecf.com/news/gerard-burns-signs-multi-fight-deal-with-brave-cf-following-thunderous-ko-win',publishedAt:'2024-02-05'},
+      {title:'BRAVE CF signs undefeated Tajik superstar Khurshed Nazarov',url:'https://www.bravecf.com/news/brave-cf-signs-undefeated-tajik-superstar-khurshed-nazarov',publishedAt:'2024-01-27'},
+      {title:'BRAVE Combat Federation signs Ramazan Gitinov',url:'https://www.bravecf.com/news/brave-combat-federation-signs-ramazan-gitinov-the-best-fighter-in-amateur-mma-history',publishedAt:'2023-05-11'}
+    ]},
+  {slug:'cffc-news',publisher:'Cage Fury Fighting Championships',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://cffc.tv/news',host:'cffc.tv',path:/^\/news\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i,
+    seedArticles:[
+      {title:'CFFC flyweight champion Bilal Hasan remains undefeated, secures UFC deal',url:'https://cffc.tv/news/2026/8/11/cffc-flyweight-champion-bilal-hasan-remains-undefeated-secures-ufc-deal',publishedAt:'2026-08-11'}
+    ]},
+  {slug:'oktagon-news',publisher:'OKTAGON MMA',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://oktagonmma.com/en/news/',host:'oktagonmma.com',path:/^\/en\/blog\/[a-z0-9-]+\/?$/i,
+    seedArticles:[
+      {title:'Liam Pitts earns an OKTAGON contract through AFN',url:'https://oktagonmma.com/en/fighters/liam-pitts/',publishedAt:null},
+      {title:'Patrik Kincl signed a contract with OKTAGON MMA in 2021',url:'https://oktagonmma.com/en/blog/patrik-kincl-everything-you-ever-wanted-to-know/',publishedAt:'2023-10-26'}
+    ]},
   {slug:'mma-fighting',publisher:'MMA Fighting',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://www.mmafighting.com/',host:'www.mmafighting.com',path:/\/(?:ufc|pfl|mma-news|latest-news)\//i,contentSelector:'.duet--layout--entry-body'},
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
 ];
