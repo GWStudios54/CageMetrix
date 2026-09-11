@@ -50,6 +50,66 @@ export const MANAGEMENT_CONTACT_SOURCES=[
     contactKind:'contact_form',
     label:'Management contact form',
     confidence:'A'
+  },
+  {
+    agencySlug:'dominance-mma',
+    publisher:'Dominance MMA Management',
+    url:'https://dominancemma.com/contact/',
+    host:'dominancemma.com',
+    contactFormUrl:'https://dominancemma.com/contact/',
+    contactKind:'contact_form',
+    label:'Agency contact form',
+    confidence:'A'
+  },
+  {
+    agencySlug:'ruby-sports-entertainment',
+    publisher:'Ruby Sports & Entertainment',
+    url:'https://www.rubyse.com/contact',
+    host:'www.rubyse.com',
+    contactFormUrl:'https://www.rubyse.com/contact',
+    contactKind:'contact_form',
+    label:'Management / sponsorship contact form',
+    confidence:'A'
+  },
+  {
+    agencySlug:'galaktik-sports',
+    publisher:'Galaktik Sports',
+    url:'https://galaktiksports.com/contact',
+    host:'galaktiksports.com',
+    expectedEmail:'javad@galaktiksports.com',
+    contactKind:'general_email',
+    label:'General agency contact',
+    confidence:'A'
+  },
+  {
+    agencySlug:'magnar-sports-entertainment',
+    publisher:'Magnar Sports & Entertainment',
+    url:'https://www.magnarse.com/contact/',
+    host:'www.magnarse.com',
+    expectedEmail:'info@magnarentertainment.com',
+    contactKind:'general_email',
+    label:'Athlete representation / business enquiries',
+    confidence:'A'
+  },
+  {
+    agencySlug:'goat-worldwide',
+    publisher:'GOAT Worldwide',
+    url:'https://goatworldwide.com/',
+    host:'goatworldwide.com',
+    contactFormUrl:'https://goatworldwide.com/',
+    contactKind:'contact_form',
+    label:'Agency contact form',
+    confidence:'A'
+  },
+  {
+    agencySlug:'tam-global',
+    publisher:'TAM Global',
+    url:'https://tamglobalmma.com/contact/',
+    host:'tamglobalmma.com',
+    contactFormUrl:'https://tamglobalmma.com/contact/',
+    contactKind:'contact_form',
+    label:'Agency contact form',
+    confidence:'A'
   }
 ];
 
