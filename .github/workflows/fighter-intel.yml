@@ -15,6 +15,8 @@ on:
       - 'migrations/0030_fighter_intelligence.sql'
       - 'src/fighter-intel.ts'
       - 'src/entry.ts'
+      - 'src/recruiting.ts'
+      - 'tests/recruiting.test.mjs'
       - 'scripts/sync-fighter-intel.mjs'
       - 'scripts/lib/fighter-intel-policy.mjs'
       - 'tests/fighter-intel.test.mjs'
