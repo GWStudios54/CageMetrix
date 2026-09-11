@@ -48,7 +48,9 @@ on:
       - '.github/workflows/fighter-intel.yml'
 
 concurrency:
-  group: mmascouts-fighter-intel
+  # PR validation must not be cancelled by production refreshes triggered when
+  # management/location/availability workflows finish.
+  group: mmascouts-fighter-intel-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'production' }}
   cancel-in-progress: false
 
 jobs:
