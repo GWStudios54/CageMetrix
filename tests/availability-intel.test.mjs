@@ -81,3 +81,26 @@ test('availability name normalization stays exact-compatible',()=>{
   assert.equal(normalizeAvailabilityName('Cédric Doumbé'),'cedric doumbe');
   assert.equal(normalizeAvailabilityName('Andrew Fisher'),'andrew fisher');
 });
+
+
+test('recruiting and public talent search consume source-backed availability without changing performance rating',()=>{
+  const recruiting=read('src/recruiting.ts'),talent=read('src/talent-network.ts');
+  assert.match(recruiting,/function availabilityExpr/);
+  assert.match(recruiting,/LEFT JOIN scout_current_availability ca/);
+  assert.match(recruiting,/availabilityExpr\(\)\+"='yes'"/);
+  assert.match(recruiting,/LEFT JOIN scout_current_location cl/);
+  assert.match(talent,/function availabilityExpression/);
+  assert.match(talent,/LEFT JOIN scout_current_availability ca/);
+  assert.match(talent,/availabilityExpression\(\)\+"='yes'"/);
+  assert.match(talent,/LEFT JOIN scout_current_location cl/);
+});
+
+test('fighter intel exposes agency availability evidence and resolved professional contact kind',()=>{
+  const intel=read('src/fighter-intel.ts'),sync=read('scripts/sync-fighter-intel.mjs');
+  assert.match(intel,/professional_contact_url/);
+  assert.match(intel,/management_agency/);
+  assert.match(intel,/Management contact path/);
+  assert.match(sync,/source_slug='agency-availability'/);
+  assert.match(sync,/FROM scout_current_availability a/);
+  assert.match(sync,/Explicit public fight availability from an authorized management agency/);
+});
