@@ -326,6 +326,7 @@ export async function recruitingIntelQueuePage(request:Request,env:Env){
   if(minRating!==null){clauses.push('r.scout_rating>=?');binds.push(minRating);}
   const rows=(await env.DB.prepare(`
     SELECT c.*,r.scout_rating global_rating,r.evidence_strength,
+           COALESCE(o.public_contact_url,c.public_contact_url,cm.agency_contact_value) resolved_contact_evidence_url,
            COALESCE(o.public_contact_url,c.public_contact_url,cm.agency_contact_value,cm.agency_website) resolved_contact_url
     FROM scout_fighter_intel_coverage c
     JOIN scout_public_global_profiles p ON p.source_key=c.source_key AND p.source_fighter_id=c.source_fighter_id
@@ -337,7 +338,7 @@ export async function recruitingIntelQueuePage(request:Request,env:Env){
              r.scout_rating IS NULL,r.scout_rating DESC,r.evidence_strength DESC,c.last_fight_date DESC,c.fighter_name
     LIMIT 300`).bind(...binds).all<Row>()).results||[];
   const cards=rows.map(row=>{
-    const gaps=[];if(row.management_status==='unknown')gaps.push('management');if(row.contract_status==='unknown')gaps.push('contract');if(row.open_to_fights==='unknown')gaps.push('availability');if(!row.base_city&&!row.base_region&&!row.base_country)gaps.push('base');if(!row.resolved_contact_url)gaps.push('contact');
+    const gaps=[];if(row.management_status==='unknown')gaps.push('management');if(row.contract_status==='unknown')gaps.push('contract');if(row.open_to_fights==='unknown')gaps.push('availability');if(!row.base_city&&!row.base_region&&!row.base_country)gaps.push('base');if(!row.resolved_contact_evidence_url)gaps.push('contact');
     return `<article class="intel-queue-card"><div class="recruit-candidate-head"><div><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}${row.current_organization?' · '+esc(row.current_organization):''}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${row.last_fight_date?'Last fight '+esc(pretty(row.last_fight_date)):'No recorded fight date'} · Coverage ${Number(row.intel_coverage_pct||0).toFixed(1)}%</p></div><div class="recruit-score"><small>GLOBAL RATING</small><strong>${score(row.global_rating)}</strong><span>Evidence ${pct(row.evidence_strength)}</span></div></div><div class="recruit-gaps"><strong>Research next</strong>${gaps.map(g=>`<span>${esc(g)}</span>`).join('')}</div><div class="intel-queue-actions"><a class="button secondary" href="/scout/fighters/${esc(row.profile_slug)}">Open fighter intel →</a><a class="button secondary" href="/talent?q=${encodeURIComponent(String(row.fighter_name||''))}">Recruiting search →</a></div></article>`;
   }).join('');
   const bodyHtml=`<section class="recruit-hero"><a class="back-link" href="/recruiting">← Recruiting board</a><span class="eyebrow">INTELLIGENCE OPERATIONS</span><h1>Close the gaps that block recruiting decisions.</h1><p>This queue prioritizes useful, active fighter files with unresolved recruiting intelligence. Ordering uses existing performance/evidence data only; missing management, contract, availability, base or contact information never changes Global Rating.</p></section>
