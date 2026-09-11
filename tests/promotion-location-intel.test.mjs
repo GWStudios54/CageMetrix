@@ -34,6 +34,8 @@ test('PFL profile parser separates hometown from fighting base and camp',()=>{
 test('professional location parser only decomposes explicit location text',()=>{
   assert.deepEqual(parseProfessionalLocation('Mesa, AZ'),{raw_value:'Mesa, AZ',city:'Mesa',region:'AZ',country:'United States'});
   assert.deepEqual(parseProfessionalLocation('Columbus, Ohio'),{raw_value:'Columbus, Ohio',city:'Columbus',region:'OH',country:'United States'});
+  assert.deepEqual(parseProfessionalLocation('Las Vegas, Nevada, USA'),{raw_value:'Las Vegas, Nevada, USA',city:'Las Vegas',region:'NV',country:'United States'});
+  assert.deepEqual(parseProfessionalLocation('Dubai, UAE'),{raw_value:'Dubai, UAE',city:'Dubai',region:null,country:'United Arab Emirates'});
   assert.deepEqual(parseProfessionalLocation('Paris, France'),{raw_value:'Paris, France',city:'Paris',region:null,country:'France'});
   assert.deepEqual(parseProfessionalLocation('Colombia'),{raw_value:'Colombia',city:null,region:null,country:'Colombia'});
   assert.deepEqual(parseProfessionalLocation('Ecuador'),{raw_value:'Ecuador',city:null,region:null,country:'Ecuador'});
