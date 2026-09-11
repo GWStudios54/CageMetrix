@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {PFL_LOCATION_SOURCE,normalizeFighterName,parsePflProfile,parsePflRoster,parseProfessionalLocation} from '../scripts/lib/promotion-location-sources.mjs';
+import {PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parsePflAjaxPayload,parsePflProfile,parsePflRoster,parseProfessionalLocation} from '../scripts/lib/promotion-location-sources.mjs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
@@ -71,4 +71,17 @@ test('package and workflow provide independent idempotent promotion-location syn
 test('name normalization remains exact-compatible without fuzzy identity repair',()=>{
   assert.equal(normalizeFighterName('Salah Eddine Hamli'),'salah eddine hamli');
   assert.equal(normalizeFighterName('Cédric Doumbé'),'cedric doumbe');
+});
+
+
+test('PFL load-more contract is parsed without inventing endpoints or pagination',()=>{
+  const script=`headers: {'X-CSRF-TOKEN': 'abc123'}`;
+  assert.equal(extractPflCsrfToken(script),'abc123');
+  assert.deepEqual(parsePflAjaxPayload(JSON.stringify({html:'<a href="/all-fighter/a">A</a>',count:8,total:99})),{html:'<a href="/all-fighter/a">A</a>',count:8,total:99});
+  const source=read('scripts/sync-promotion-location.mjs');
+  assert.match(source,/\/ajax\/query_fighters/);
+  assert.match(source,/for\(let page=2;page<=100;page\+\+\)/);
+  for(const field of ['season_type','season_year','weightclass','gender','query_s','page'])assert.match(source,new RegExp("form\\.append\\('"+field+"'"));
+  assert.match(source,/payload\.total===0\|\|payload\.count===0/);
+  assert.match(source,/x-csrf-token/);
 });
