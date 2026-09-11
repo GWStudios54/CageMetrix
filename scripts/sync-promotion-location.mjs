@@ -31,8 +31,17 @@ async function fetchHtml(url,attempts=3){
   throw last instanceof Error?last:new Error(String(last||'fetch failed'));
 }
 
+async function fetchSessionPage(url){
+  const response=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(35000),headers:{accept:'text/html,application/xhtml+xml','accept-language':'en-US,en;q=0.8','user-agent':'Mozilla/5.0 (compatible; MMA Scouts professional location research; +https://mmascouts.com/)'}});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const setCookies=typeof response.headers.getSetCookie==='function'?response.headers.getSetCookie():[];
+  const cookieHeader=setCookies.map(value=>String(value).split(';')[0]).filter(Boolean).join('; ');
+  return {html:await response.text(),cookieHeader};
+}
+
 const source=PFL_LOCATION_SOURCE;
-const rosterHtml=await fetchHtml(source.rosterUrl);
+const sessionPage=await fetchSessionPage(source.rosterUrl);
+const rosterHtml=sessionPage.html,cookieHeader=sessionPage.cookieHeader;
 writeFileSync(cache+'/pfl-roster.html',rosterHtml);
 const linkMap=new Map(parsePflRoster(rosterHtml,source).map(row=>[row.url,row]));
 const csrf=extractPflCsrfToken(rosterHtml);
@@ -48,7 +57,7 @@ if(csrf){
       form.append('gender','');
       form.append('query_s','');
       form.append('page',String(page));
-      const response=await fetch(endpoint,{method:'POST',redirect:'follow',signal:AbortSignal.timeout(35000),headers:{'accept':'application/json,text/plain,*/*','accept-language':'en-US,en;q=0.8','user-agent':'Mozilla/5.0 (compatible; MMA Scouts professional location research; +https://mmascouts.com/)','x-csrf-token':csrf,'referer':source.rosterUrl,'x-requested-with':'XMLHttpRequest'},body:form});
+      const response=await fetch(endpoint,{method:'POST',redirect:'follow',signal:AbortSignal.timeout(35000),headers:{'accept':'application/json,text/plain,*/*','accept-language':'en-US,en;q=0.8','user-agent':'Mozilla/5.0 (compatible; MMA Scouts professional location research; +https://mmascouts.com/)','x-csrf-token':csrf,'referer':source.rosterUrl,'x-requested-with':'XMLHttpRequest',...(cookieHeader?{cookie:cookieHeader}:{})},body:form});
       if(!response.ok)throw new Error('HTTP '+response.status);
       const payload=parsePflAjaxPayload(await response.text());
       const pageLinks=parsePflRoster(payload.html,source);
