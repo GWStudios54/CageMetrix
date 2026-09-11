@@ -46,7 +46,9 @@ test('wave 1 contact registry uses official source-backed recruiter routes',()=>
     'ak-fighter-management':'info@akfightermanagement.com',
     'knock-out-representation':'info@koreps.com',
     'galaktik-sports':'javad@galaktiksports.com',
-    'magnar-sports-entertainment':'info@magnarentertainment.com'
+    'magnar-sports-entertainment':'info@magnarentertainment.com',
+    '3mgt-sports-media-management':'3mgt@3mgt.de',
+    'burns-mma-agency':'contact@burns.agency'
   };
   for(const [slug,email] of Object.entries(expected)){
     const source=bySlug(slug);
@@ -61,14 +63,14 @@ test('wave 1 contact registry uses official source-backed recruiter routes',()=>
   const gladiator=bySlug('gladiator-management-agency');
   assert.equal(gladiator.contactKind,'contact_form');
   assert.equal(gladiator.contactFormUrl,'https://www.gladiatormgmtagency.com/contact');
-  for(const slug of ['dominance-mma','ruby-sports-entertainment','goat-worldwide','tam-global']){
+  for(const slug of ['dominance-mma','ruby-sports-entertainment','goat-worldwide','tam-global','hd-global-athlete-management']){
     const source=bySlug(slug);
     assert.ok(source,slug);
     assert.equal(source.contactKind,'contact_form');
     assert.equal(source.confidence,'A');
     assert.equal(new URL(source.contactFormUrl).hostname,source.host);
   }
-  assert.ok(MANAGEMENT_CONTACT_SOURCES.length>=11);
+  assert.ok(MANAGEMENT_CONTACT_SOURCES.length>=14);
 });
 
 test('contact sync retires stale routes only after a reachable official source',()=>{
