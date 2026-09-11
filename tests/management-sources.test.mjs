@@ -21,6 +21,16 @@ test('management source registry separates roster sources from agency profile ev
   assert.equal(artnox.confidence,'A');
   assert.equal(artnox.rosterScope,'official_public_roster');
   assert.ok(artnox.urls.some(url=>/artnoxfightsport\.pl\/pages\/zawodnicy/.test(url)));
+  const fairPlay=MANAGEMENT_SOURCES.find(source=>source.slug==='fair-play-mma');
+  const ak=MANAGEMENT_SOURCES.find(source=>source.slug==='ak-fighter-management');
+  for(const source of [fairPlay,ak]){
+    assert.ok(source);
+    assert.equal(source.confidence,'A');
+    assert.equal(source.rosterScope,'official_public_roster');
+    assert.ok(source.urls.length>0);
+  }
+  assert.ok(fairPlay.urls.some(url=>/fairplaymma\.com/.test(url)));
+  assert.ok(ak.urls.some(url=>/akfightermanagement\.com/.test(url)));
 });
 
 test('warehouse-compatible normalization preserves cautious exact matching',()=>{
