@@ -55,6 +55,14 @@ SELECT 'opportunity:'||o.source_key||':'||o.source_fighter_id||':${key}:'||o.${f
 FROM fighter_opportunity_status o WHERE o.${field}<>'unknown'
 ON CONFLICT(fingerprint) DO UPDATE SET is_current=1,source_url=excluded.source_url,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP;`);
 }
+
+sql.push(`UPDATE fighter_intel_facts SET is_current=0,last_checked_at=CURRENT_TIMESTAMP WHERE source_slug='agency-availability' AND fact_key='availability.fights' AND is_current=1;`);
+sql.push(`INSERT INTO fighter_intel_facts(fingerprint,source_key,source_fighter_id,category,fact_key,value_text,is_current,source_slug,source_url,source_type,confidence,verified_at,last_checked_at,notes)
+SELECT 'agency-availability:'||a.source_key||':'||a.source_fighter_id||':'||lower(a.source_url)||':'||a.open_to_fights,
+       a.source_key,a.source_fighter_id,'availability','availability.fights',a.open_to_fights,1,'agency-availability',
+       a.source_url,a.source_type,a.confidence,a.verified_at,CURRENT_TIMESTAMP,'Explicit public fight availability from an authorized management agency.'
+FROM scout_current_availability a WHERE a.open_to_fights IS NOT NULL
+ON CONFLICT(fingerprint) DO UPDATE SET is_current=1,value_text=excluded.value_text,source_url=excluded.source_url,source_type=excluded.source_type,confidence=excluded.confidence,verified_at=excluded.verified_at,last_checked_at=CURRENT_TIMESTAMP,notes=excluded.notes;`);
 sql.push(`INSERT INTO fighter_intel_facts(fingerprint,source_key,source_fighter_id,category,fact_key,value_text,is_current,source_slug,source_url,source_type,confidence,verified_at,last_checked_at)
 SELECT 'opportunity:'||o.source_key||':'||o.source_fighter_id||':location:'||lower(trim(COALESCE(o.base_city,'')||'|'||COALESCE(o.base_region,'')||'|'||COALESCE(o.base_country,''))),o.source_key,o.source_fighter_id,'location','location.base',trim(COALESCE(o.base_city,'')||CASE WHEN o.base_city IS NOT NULL AND o.base_region IS NOT NULL THEN ', ' ELSE '' END||COALESCE(o.base_region,'')||CASE WHEN COALESCE(o.base_city,o.base_region) IS NOT NULL AND o.base_country IS NOT NULL THEN ', ' ELSE '' END||COALESCE(o.base_country,'')),1,CASE WHEN o.source_type='verified_profile' THEN 'verified-profile' ELSE NULL END,o.source_url,o.source_type,o.confidence,o.verified_at,CURRENT_TIMESTAMP
 FROM fighter_opportunity_status o WHERE COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL
