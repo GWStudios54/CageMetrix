@@ -154,17 +154,13 @@ function plausibleName(value){
 
 function sourceSelectedRoster(doc,source){
   if(source?.rosterSection){
-    const headings=[...doc.querySelectorAll('h1,h2,h3,h4,h5,h6')];
-    const start=headings.find(node=>String(node.textContent??'').replace(/\s+/g,' ').trim()===source.rosterSection.start);
-    if(!start)return [];
-    const out=[];
-    let node=start.nextElementSibling;
-    while(node){
+    const headings=[...doc.querySelectorAll('h1,h2,h3,h4,h5,h6')],out=[];
+    let active=false;
+    for(const node of headings){
       const text=String(node.textContent??'').replace(/\s+/g,' ').trim();
-      if(text===source.rosterSection.end)break;
-      if(node.matches?.(source.rosterSection.selector))out.push(node.textContent);
-      for(const match of node.querySelectorAll?.(source.rosterSection.selector)||[])out.push(match.textContent);
-      node=node.nextElementSibling;
+      if(text===source.rosterSection.start){active=true;continue;}
+      if(active&&text===source.rosterSection.end)break;
+      if(active&&node.matches(source.rosterSection.selector))out.push(node.textContent);
     }
     return out;
   }
