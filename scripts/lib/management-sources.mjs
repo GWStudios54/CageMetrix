@@ -5,6 +5,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'first-round-management',name:'First Round Management',country:'United States',website:'https://1str.com/',confidence:'A',
     description:'Full-service athlete management company with dedicated UFC, PFL and regional MMA rosters. Its official site emphasizes career management, contract negotiation, sponsorship and brand partnerships, media guidance and long-term athlete development.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['h6:not([class])','span.fname'],
     profileUrls:['https://1str.com/'],
     urls:[
       'https://1str.com/clients/mixed-martial-arts/ufc/',
@@ -16,6 +17,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'ruby-sports-entertainment',name:'Ruby Sports & Entertainment',country:'United States',website:'https://www.rubyse.com/',confidence:'A',
     description:'Full-service combat-sports agency with publicly listed UFC, PFL and OKTAGON rosters. Official services include career management, contract negotiation, financial management, immigration and visas, sponsorships and endorsements, and social-media/brand building.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['.image-title.sqs-dynamic-text'],
     profileUrls:['https://www.rubyse.com/services'],
     urls:[
       'https://www.rubyse.com/ufc-athletes',
@@ -27,6 +29,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'dominance-mma',name:'Dominance MMA Management',country:'United States',website:'https://dominancemma.com/',confidence:'B',
     description:'MMA management company based in Las Vegas and New York City. Its official company page lists Ali Abdelaziz as President & Founder, Rizvan Magomedov as President International Development, regional leadership in Brazil and additional managers; it highlights contract negotiation, sponsorships and relationship-building across major MMA organizations.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['.spectra-image-gallery__media-thumbnail-caption'],
     profileUrls:['https://dominancemma.com/our-company/'],
     urls:['https://dominancemma.com/roster/']
   },
@@ -34,6 +37,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'iridium-sports-agency',name:'Iridium Sports Agency',country:'United States',website:'https://www.iridiumsportsagency.com/',confidence:'B',
     description:'Full-service combat-sports agency founded by attorney Jason House. Its official site lists fight opportunities, sponsorships, training and nutrition support, appearances, social-media management, commission compliance, PR, legal support, financial management and contract negotiation, with a multi-role agent and operations team.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['img.gallery-item[alt]'],
     profileUrls:['https://www.iridiumsportsagency.com/'],
     urls:['https://www.iridiumsportsagency.com/roster']
   },
@@ -55,6 +59,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'tam-global',name:'TAM Global',country:'United States',website:'https://tamglobalmma.com/',confidence:'A',
     description:'Professional MMA athlete management and media agency whose official site says it was founded on the vision of UFC legend Urijah Faber. TAM emphasizes athlete development, elite training, strategic partnerships, brand building, financial growth and career support across UFC, PFL and other national and international promotions.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['h4.sc_team_item_title'],
     profileUrls:['https://tamglobalmma.com/'],
     urls:['https://tamglobalmma.com/roster/']
   },
@@ -62,6 +67,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'galaktik-sports',name:'Galaktik Sports',country:'United States',website:'https://galaktiksports.com/',confidence:'A',
     description:'Combat-sports management and event-consulting company with offices listed in Miami, Las Vegas and Baku. Its official site reports 50+ fighters managed and 500+ contracts negotiated, and lists contract negotiation, fight booking, sponsorships, visas, travel, camp logistics, media preparation and brand strategy among its fighter services.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['a.fcard img[alt]'],
     profileUrls:['https://galaktiksports.com/','https://galaktiksports.com/about'],
     urls:['https://galaktiksports.com/fighters']
   },
@@ -69,6 +75,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'magnar-sports-entertainment',name:'Magnar Sports & Entertainment',country:'International',website:'https://www.magnarse.com/',confidence:'A',
     description:'Full-service combat-sports agency specializing in worldwide career management and promotion. Its official site reports 50+ athletes, 10+ years in the business, athletes across five organizations and 100+ events, with fighters competing in UFC, PFL, OKTAGON and other promotions.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['a.athlete-card h3'],
     profileUrls:['https://www.magnarse.com/'],
     urls:[
       'https://www.magnarse.com/athletes/?org=UFC',
@@ -89,6 +96,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'goat-worldwide',name:'GOAT Worldwide',country:'United States',website:'https://goatworldwide.com/',confidence:'A',
     description:'Miami-based boutique MMA management and marketing agency focused on prospects. Its official site describes full-service representation covering athletic-commission compliance, career management, marketing and sponsorships, contract negotiation, brand development and legal support, and publishes a dedicated fighter roster.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['.grid__item.medium-up--one-third.text-center .rte-setting.text-spacing'],
     profileUrls:['https://goatworldwide.com/'],
     urls:['https://goatworldwide.com/pages/fighters']
   },
@@ -96,6 +104,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'artnox-fight-sport',name:'Artnox Fight Sport',country:'Poland',website:'https://artnoxfightsport.pl/',confidence:'A',
     description:'Polish combat-sports management group founded in 2017. Its official site publishes a large current fighter roster spanning UFC, KSW, OKTAGON, Babilon MMA, FEN, FNC and other organizations, and describes contract negotiation, career strategy, sponsorship and media support.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['h3.artnox-fighter-name-gradient','h3.roster-name'],
     profileUrls:['https://artnoxfightsport.pl/en/pages/o-nas'],
     urls:['https://artnoxfightsport.pl/pages/zawodnicy']
   },
@@ -103,6 +112,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'fair-play-mma',name:'Fair Play MMA',country:'Netherlands',website:'https://fairplaymma.com/',confidence:'A',
     description:'Amsterdam-based full-service athlete management and marketing agency focused on combat sports. Its official site publishes named roster cards and describes fighter contract support, career development, brand growth and commercial representation.',
     rosterScope:'official_public_roster',
+    rosterSelectors:['h4.w-person-name'],
     profileUrls:['https://fairplaymma.com/'],
     urls:['https://fairplaymma.com/']
   },
@@ -110,6 +120,7 @@ export const MANAGEMENT_SOURCES=[
     slug:'ak-fighter-management',name:'AK Fighter Management',country:'United Kingdom',website:'https://akfightermanagement.com/',confidence:'A',
     description:'UK-based MMA fighter representation and career-management agency. Its official site publishes a current named roster, distinguishes fighters signed to major promotions from fighters seeking opportunities, and describes strategic matchmaking, promotion liaison and long-term career development.',
     rosterScope:'official_public_roster',
+    rosterSection:{start:'Our Fighters',end:'Apply to Be Talent',selector:'h3:not(.roster-category)'},
     profileUrls:['https://akfightermanagement.com/'],
     urls:['https://akfightermanagement.com/']
   }
@@ -141,18 +152,49 @@ function plausibleName(value){
   return text.replace(/\s+/g,' ');
 }
 
-export function parseManagementRoster(html){
+function sourceSelectedRoster(doc,source){
+  if(source?.rosterSection){
+    const headings=[...doc.querySelectorAll('h1,h2,h3,h4,h5,h6')];
+    const start=headings.find(node=>String(node.textContent??'').replace(/\s+/g,' ').trim()===source.rosterSection.start);
+    if(!start)return [];
+    const out=[];
+    let node=start.nextElementSibling;
+    while(node){
+      const text=String(node.textContent??'').replace(/\s+/g,' ').trim();
+      if(text===source.rosterSection.end)break;
+      if(node.matches?.(source.rosterSection.selector))out.push(node.textContent);
+      for(const match of node.querySelectorAll?.(source.rosterSection.selector)||[])out.push(match.textContent);
+      node=node.nextElementSibling;
+    }
+    return out;
+  }
+  if(Array.isArray(source?.rosterSelectors)&&source.rosterSelectors.length){
+    const out=[];
+    for(const selector of source.rosterSelectors){
+      for(const el of doc.querySelectorAll(selector))out.push(el.getAttribute?.('alt')||el.textContent);
+    }
+    return out;
+  }
+  return null;
+}
+
+export function parseManagementRoster(html,source=null){
   const doc=new JSDOM(html).window.document,candidates=[];
   const push=value=>{const name=plausibleName(value);if(name)candidates.push(name);};
-  for(const image of doc.querySelectorAll('img[alt]'))push(image.getAttribute('alt'));
-  for(const el of doc.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,a,strong,b,span,td')){
-    const text=String(el.textContent??'').replace(/\s+/g,' ').trim();
-    if(text.length<=80)push(text);
-  }
-  for(const el of doc.querySelectorAll('div')){
-    if(el.children.length>3)continue;
-    const text=String(el.textContent??'').replace(/\s+/g,' ').trim();
-    if(text.length<=72)push(text);
+  const selected=sourceSelectedRoster(doc,source);
+  if(selected!==null){
+    for(const value of selected)push(value);
+  }else{
+    for(const image of doc.querySelectorAll('img[alt]'))push(image.getAttribute('alt'));
+    for(const el of doc.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,a,strong,b,span,td')){
+      const text=String(el.textContent??'').replace(/\s+/g,' ').trim();
+      if(text.length<=80)push(text);
+    }
+    for(const el of doc.querySelectorAll('div')){
+      if(el.children.length>3)continue;
+      const text=String(el.textContent??'').replace(/\s+/g,' ').trim();
+      if(text.length<=72)push(text);
+    }
   }
   const seen=new Set(),out=[];
   for(const name of candidates){const k=normalizeManagementName(name);if(!seen.has(k)){seen.add(k);out.push(name);}}
