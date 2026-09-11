@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MANAGEMENT_SOURCES,applyManagementAliases,normalizeManagementName,parseManagementRoster} from '../scripts/lib/management-sources.mjs';
+import fs from 'node:fs';
+import {MANAGEMENT_SOURCES,applyManagementAliases,foldManagementLatinCompatibility,managementLookupKeys,normalizeManagementName,parseManagementRoster} from '../scripts/lib/management-sources.mjs';
 
 test('management source registry separates roster sources from agency profile evidence',()=>{
   assert.ok(MANAGEMENT_SOURCES.length>=6);
@@ -11,7 +12,10 @@ test('management source registry separates roster sources from agency profile ev
     assert.ok(Array.isArray(source.urls));
     assert.ok(Array.isArray(source.profileUrls)&&source.profileUrls.length>0);
     for(const url of [...source.urls,...source.profileUrls])assert.match(url,/^https:\/\//);
-    if(source.rosterScope==='official_public_roster')assert.ok(source.urls.length>0);
+    if(source.rosterScope==='official_public_roster'){
+      assert.ok(source.urls.length>0);
+      assert.ok((Array.isArray(source.rosterSelectors)&&source.rosterSelectors.length>0)||source.rosterSection,`missing explicit roster extraction contract for ${source.slug}`);
+    }
     if(source.rosterScope==='profile_only')assert.equal(source.urls.length,0);
   }
   assert.ok(MANAGEMENT_SOURCES.some(source=>source.slug==='suckerpunch-entertainment'&&source.rosterScope==='profile_only'));
@@ -65,4 +69,74 @@ test('small explicit aliases fix source spelling without fuzzy identity guesses'
   const aliases={'bia mesquita':'Beatriz Mesquita','sodiq yusuf':'Sodiq Yusuff'};
   assert.equal(applyManagementAliases('Bia Mesquita',aliases),'Beatriz Mesquita');
   assert.equal(applyManagementAliases('Unknown Prospect',aliases),'Unknown Prospect');
+});
+
+
+test('source-specific First Round parser preserves UFC PFL and regional fighter templates only',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='first-round-management');
+  const html='<main><h6>Ilia Topuria</h6><h6 class="posts__title">Gable Steveson Beats Anthony Cassioppi at RAF 12</h6><span class="fname">Lydia Warren</span><span class="location">New Mexico, USA</span><h4>Mission Statement</h4></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Ilia Topuria','Lydia Warren']);
+});
+
+test('source-specific Ruby parser reads individual image titles instead of merged card text',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='ruby-sports-entertainment');
+  const html='<main><div class="image-title-wrapper">Gustavo Lopez Al Matavao Niklas Stolze</div><div class="image-title sqs-dynamic-text">Gustavo Lopez</div><div class="image-title sqs-dynamic-text">Al Matavao</div><div class="image-title sqs-dynamic-text">Niklas Stolze</div></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Gustavo Lopez','Al Matavao','Niklas Stolze']);
+});
+
+test('source-specific AK parser is bounded to the official Our Fighters section',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='ak-fighter-management');
+  const html='<main><h3>Fight Bookings</h3><h2>Our Fighters</h2><h3 class="roster-category">Signed Fighters</h3><h3>Mick Parkin</h3><h3>Phil De Fries</h3><h3 class="roster-category">Looking for Opportunities</h3><h3>Andrew Fisher</h3><h2>Apply to Be Talent</h2><h3>Application Received</h3></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Mick Parkin','Phil De Fries','Andrew Fisher']);
+});
+
+test('source-aware parser extracts only official roster elements for representative templates',()=>{
+  const cases=[
+    ['fair-play-mma','<h4 class="w-person-name">Mario Pinto</h4><h4>Contact Us</h4>',['Mario Pinto']],
+    ['tam-global','<h4 class="sc_team_item_title trx_addons_hover_title">Myktybek Orolbai</h4><h1>Latest News</h1>',['Myktybek Orolbai']],
+    ['magnar-sports-entertainment','<a class="athlete-card"><h3>Damir Tolenov</h3><span>13-1</span></a><h4>Follow Us</h4>',['Damir Tolenov']],
+    ['galaktik-sports','<a class="fcard"><img alt="DZHAMALUDIN ALIEV"></a><div class="service-title">FULL SUPPORT</div>',['DZHAMALUDIN ALIEV']],
+    ['goat-worldwide','<div class="grid__item medium-up--one-third text-center"><h3>"PEREGRINO"</h3><div class="rte-setting text-spacing">JOILTON LUTTERBACH</div></div><h2>BOOK A FIGHTER</h2>',['JOILTON LUTTERBACH']],
+    ['artnox-fight-sport','<h3 class="artnox-fighter-name-gradient">IWO BARANIEWSKI</h3><h3 class="roster-name">Marcin Wójcik</h3><div class="fighter-stat-box">REKORD 9-0</div>',['IWO BARANIEWSKI','Marcin Wójcik']],
+    ['dominance-mma','<div class="spectra-image-gallery__media-thumbnail-caption">Yana Kunitskaya (UFC)</div><h4>Recent Posts</h4>',['Yana Kunitskaya']],
+    ['iridium-sports-agency','<img class="gallery-item" alt="Khoas Williams"><span>top of page</span>',['Khoas Williams']]
+  ];
+  for(const [slug,html,expected] of cases){
+    const source=MANAGEMENT_SOURCES.find(row=>row.slug===slug);
+    assert.deepEqual(parseManagementRoster(html,source),expected,slug);
+  }
+});
+
+test('management sync always supplies source metadata to roster extraction',()=>{
+  const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
+  assert.match(source,/parseManagementRoster\(html,agency\)/);
+});
+
+
+test('Latin compatibility lookup keys are deterministic exact alternatives, not fuzzy matching',()=>{
+  assert.equal(foldManagementLatinCompatibility('Rafał Haratyk'),'Rafal Haratyk');
+  assert.equal(foldManagementLatinCompatibility('Łukasz Rajewski'),'Lukasz Rajewski');
+  assert.equal(foldManagementLatinCompatibility('Søren Fighter'),'Soren Fighter');
+  assert.deepEqual(managementLookupKeys('Rafał Haratyk'),['rafa haratyk','rafal haratyk']);
+  assert.deepEqual(managementLookupKeys('Jon Jones'),['jon jones']);
+});
+
+test('management sync unions deterministic lookup keys and still requires one exact warehouse identity',()=>{
+  const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
+  assert.match(source,/deduped\.flatMap\(row=>row\.lookup_keys\|\|\[row\.normalized_name\]\)/);
+  assert.match(source,/const hitMap=new Map\(\)/);
+  assert.match(source,/for\(const key of row\.lookup_keys\|\|\[row\.normalized_name\]\)/);
+  assert.match(source,/if\(hits\.length===1\)matchedPreConflict\.push/);
+  assert.match(source,/else if\(hits\.length>1\)ambiguous\.push/);
+  assert.doesNotMatch(source,/levenshtein|jaro|similarity|fuzzy/i);
+});
+
+test('management sync rechecks cross-agency conflicts after resolving exact fighter identity',()=>{
+  const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
+  assert.match(source,/const resolvedClaims=new Map\(\)/);
+  assert.match(source,/row\.profile\.source_key\+'\:'\+row\.profile\.source_fighter_id/);
+  assert.match(source,/resolvedClaims\.get\(key\)\.add\(row\.agency_slug\)/);
+  assert.match(source,/const resolvedConflictIds=new Set/);
+  assert.match(source,/const matched=matchedPreConflict\.filter\(row=>!resolvedConflictIds\.has/);
+  assert.match(source,/resolved_identity_conflicts/);
 });
