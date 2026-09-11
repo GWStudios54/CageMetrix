@@ -71,6 +71,7 @@ export function extractPublicEmails(html){
 
 export function contactRowsFromOfficialPage(html,source){
   const rows=[],emails=extractPublicEmails(html);
+  const dom=new JSDOM(String(html||'')),doc=dom.window.document;
   if(source.expectedEmail){
     const expected=normalizePublicEmail(source.expectedEmail);
     if(emails.includes(expected))rows.push({
@@ -86,7 +87,8 @@ export function contactRowsFromOfficialPage(html,source){
   }
   if(source.contactFormUrl){
     const url=new URL(source.contactFormUrl);
-    if(url.protocol==='https:'&&url.hostname===source.host)rows.push({
+    const hasForm=Boolean(doc.querySelector('form'))&&Boolean(doc.querySelector('form input,form textarea,form select,form button'));
+    if(url.protocol==='https:'&&url.hostname===source.host&&hasForm)rows.push({
       agency_slug:source.agencySlug,
       publisher:source.publisher,
       contact_kind:source.contactKind,
@@ -97,5 +99,6 @@ export function contactRowsFromOfficialPage(html,source){
       confidence:source.confidence
     });
   }
+  dom.window.close();
   return rows;
 }
