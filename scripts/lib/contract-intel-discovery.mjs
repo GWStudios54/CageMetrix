@@ -3,7 +3,17 @@ import {JSDOM} from 'jsdom';
 
 export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'ufc-news',publisher:'UFC',sourceType:'promotion_direct',promotionSlug:'ufc',kind:'html',url:'https://www.ufc.com/trending/all',host:'www.ufc.com',path:/\/news\//i},
-  {slug:'pfl-news',publisher:'Professional Fighters League',sourceType:'promotion_direct',promotionSlug:'pfl',kind:'html',url:'https://pflmma.com/news/',host:'pflmma.com',path:/\/news\//i},
+  {slug:'pfl-news',publisher:'Professional Fighters League',sourceType:'promotion_direct',promotionSlug:'pfl',kind:'html',url:'https://pflmma.com/news/',host:'pflmma.com',path:/\/news\//i,
+    seedArticles:[
+      {title:'Middleweight Contender Bryan Battle Signs Exclusive, Multi-Year Contract With Professional Fighters League',url:'https://pflmma.com/news/middleweight-contender-bryan-battle-signs-exclusive-multiyear-contract-with-professional-fighters-league',publishedAt:'2025-09-05'},
+      {title:'Professional Fighters League Signs Hottest Free Agent In All Of MMA, Paul Hughes, To Exclusive, Multi-Fight Contract',url:'https://pflmma.com/news/professional-fighters-league-signs-hottest-free-agent-in-all-of-mma-paul-hughes-to-exclusive-multifight-contract',publishedAt:'2024-04-21'},
+      {title:'Cedric Doumbe Signs Exclusive, Multi-Year Contract Extension With Professional Fighters League',url:'https://pflmma.com/news/cedric-doumbe-signs-exclusive-multiyear-contract-extension-with-professional-fighters-league-will-fight-at-bellator-champions-series-paris-on-may-17',publishedAt:'2024-04-22'},
+      {title:'Hattan Alsaif Makes History As First-Ever Woman From Saudi Arabia To Sign With Major Global MMA Promotion',url:'https://pflmma.com/news/hattan-alsaif-makes-history-as-firstever-woman-from-the-kingdom-of-saudi-arabia-to-sign-with-major-global-mma-promotion',publishedAt:'2024-01-30'},
+      {title:'Professional Fighters League Signs Undefeated Murad Ramazanov To Exclusive, Multi-Fight Contract',url:'https://pflmma.com/news/professional-fighters-league-signs-undefeated-murad-ramazanov-to-exclusive-multifight-contract',publishedAt:'2024-01-10'},
+      {title:'Professional Fighters League Signs Cedric Doumbe To Global Roster',url:'https://pflmma.com/news/professional-fighters-league-signs-cedric-doumbe-to-global-roster',publishedAt:'2023-05-10'},
+      {title:'Professional Fighters League Partners With Jake Paul In Historic Exclusive Agreement In MMA',url:'https://pflmma.com/news/professional-fighters-league-partners-with-jake-paul-in-historic-exclusive-agreement-in-mma',publishedAt:'2023-01-05'},
+      {title:'Professional Fighters League Expands Global Talent Roster With Middle Eastern MMA Fighters',url:'https://pflmma.com/news/professional-fighters-league-expands-global-talent-roster-with-middle-eastern-mma-fighters',publishedAt:'2022-06-22'}
+    ]},
   {slug:'one-mma-rss',publisher:'ONE Championship',sourceType:'promotion_direct',promotionSlug:'one',kind:'rss',url:'https://www.onefc.com/category/mixed-martial-arts/feed/',host:'www.onefc.com',path:/\/(?:news|features)\//i},
   {slug:'cage-warriors-news',publisher:'Cage Warriors',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://cagewarriors.com/news/',host:'cagewarriors.com',path:/^\/(?!news\/?$|events\/?$|videos\/?$|champions\/?$|contact\/?$|about\/?$|athletes\/?$|careers\/?$)[a-z0-9-]+\/$/i,titleSignalOnly:true},
   {slug:'brave-cf-news',publisher:'BRAVE Combat Federation',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://www.bravecf.com/news',host:'www.bravecf.com',path:/^\/news\/[a-z0-9-]+\/?$/i,
