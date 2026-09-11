@@ -1,4 +1,4 @@
-import {adminAccount} from './admin-session.ts';
+import {adminAccount,sameOrigin} from './admin-session.ts';
 
 type Env={DB:D1Database};
 type Row=Record<string,any>;
@@ -130,6 +130,7 @@ function enumValue(set:Set<string>,value:unknown,fallback:string){const v=String
 export async function contractAdminApi(request:Request,env:Env){
   if(!await adminAccount(request,env.DB))return json({error:'unauthorized'},401,NO_STORE);
   if(request.method!=='POST')return json({error:'method_not_allowed'},405,NO_STORE);
+  if(!sameOrigin(request))return json({error:'cross_origin'},403,NO_STORE);
   const value=await input(request);if(!value)return json({error:'invalid_json'},400,NO_STORE);
   const profile=String(value.profile_slug||'').trim(),fighter=profile?await env.DB.prepare(`SELECT source_key,source_fighter_id,fighter_name FROM scout_active_global_profiles WHERE profile_slug=? LIMIT 1`).bind(profile).first<Row>():null;
   if(!fighter)return json({error:'fighter_not_found'},404,NO_STORE);
