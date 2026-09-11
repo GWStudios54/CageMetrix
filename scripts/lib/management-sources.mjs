@@ -98,6 +98,20 @@ export const MANAGEMENT_SOURCES=[
     rosterScope:'official_public_roster',
     profileUrls:['https://artnoxfightsport.pl/en/pages/o-nas'],
     urls:['https://artnoxfightsport.pl/pages/zawodnicy']
+  },
+  {
+    slug:'fair-play-mma',name:'Fair Play MMA',country:'Netherlands',website:'https://fairplaymma.com/',confidence:'A',
+    description:'Amsterdam-based full-service athlete management and marketing agency focused on combat sports. Its official site publishes named roster cards and describes fighter contract support, career development, brand growth and commercial representation.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://fairplaymma.com/'],
+    urls:['https://fairplaymma.com/']
+  },
+  {
+    slug:'ak-fighter-management',name:'AK Fighter Management',country:'United Kingdom',website:'https://akfightermanagement.com/',confidence:'A',
+    description:'UK-based MMA fighter representation and career-management agency. Its official site publishes a current named roster, distinguishes fighters signed to major promotions from fighters seeking opportunities, and describes strategic matchmaking, promotion liaison and long-term career development.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://akfightermanagement.com/'],
+    urls:['https://akfightermanagement.com/']
   }
 ];
 
