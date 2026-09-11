@@ -140,6 +140,7 @@ test('candidate discovery queues evidence without publishing contract events',()
   const rows=candidateRows({title:'Jane Doe signs new contract',url:'https://example.com/news/jane',summary:'Jane Doe has signed a new multi-fight contract.'},source,'Jane Doe has signed a new multi-fight contract and will remain with the promotion.',profiles);
   assert.equal(rows.length,1);assert.equal(rows[0].reviewStatus,'pending');assert.equal(rows[0].detectedEventType,'signing');assert.equal(rows[0].sourceFighterId,'42');
   const discovery=read('scripts/discover-contract-intel.mjs');
+  assert.match(discovery,/source\.seedArticles/);
   assert.match(discovery,/INSERT OR IGNORE INTO contract_intel_candidates/);
   assert.match(discovery,/signal_block_scoped_subject_v4/);
   assert.match(discovery,/Automatically superseded by scoped subject-attributed discovery v4/);
