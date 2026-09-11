@@ -36,6 +36,8 @@
       "/prospects",
       "/talent",
       "/talent/*",
+      "/recruiting",
+      "/recruiting/*",
       "/management",
       "/management/*",
       "/promotions",
