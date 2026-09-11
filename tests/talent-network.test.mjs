@@ -31,7 +31,10 @@ test('talent search never infers unmanaged or free-agent status from missing dat
 test('talent discovery supports performance, representation and opportunity filters',()=>{
   const source=read('src/talent-network.ts');
   for(const needle of ['weight_class','promotion','region','country','management','contract','opportunity','age_max','age_min','min_rating','min_evidence','min_wins','active_months'])assert.ok(source.includes(needle),`missing ${needle} filter`);
-  assert.match(source,/o\.open_to_fights='yes'/);
+  assert.match(source,/function availabilityExpression\(\)/);
+  assert.match(source,/COALESCE\(o\.open_to_fights,'unknown'\)<>'unknown' THEN o\.open_to_fights ELSE COALESCE\(ca\.open_to_fights,'unknown'\)/);
+  assert.match(source,/LEFT JOIN scout_current_availability ca/);
+  assert.match(source,/availabilityExpression\(\)\+"='yes'"/);
   assert.match(source,/o\.open_to_management='yes'/);
   assert.match(source,/o\.open_to_team='yes'/);
   assert.match(source,/r\.scout_rating>=\?/);
