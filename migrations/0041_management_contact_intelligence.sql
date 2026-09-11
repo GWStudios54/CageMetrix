@@ -157,7 +157,7 @@ SELECT
     (COALESCE(o.open_to_management,'unknown')<>'unknown') +
     (COALESCE(o.open_to_team,'unknown')<>'unknown') +
     (CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country,cl.base_city,cl.base_region,cl.base_country) IS NOT NULL THEN 1 ELSE 0 END) +
-    (COALESCE(o.public_contact_url,cm.agency_contact_value,cm.agency_website) IS NOT NULL)
+    (COALESCE(o.public_contact_url,cm.agency_contact_value) IS NOT NULL)
   ) known_intel_fields,
   ROUND(100.0*(
     (p.dob IS NOT NULL) + (p.height_cm IS NOT NULL) + (p.reach_cm IS NOT NULL) + (p.stance IS NOT NULL) +
@@ -170,7 +170,7 @@ SELECT
     (COALESCE(o.open_to_management,'unknown')<>'unknown') +
     (COALESCE(o.open_to_team,'unknown')<>'unknown') +
     (CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country,cl.base_city,cl.base_region,cl.base_country) IS NOT NULL THEN 1 ELSE 0 END) +
-    (COALESCE(o.public_contact_url,cm.agency_contact_value,cm.agency_website) IS NOT NULL)
+    (COALESCE(o.public_contact_url,cm.agency_contact_value) IS NOT NULL)
   )/17.0,1) intel_coverage_pct
 FROM scout_active_global_profiles p
 LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
