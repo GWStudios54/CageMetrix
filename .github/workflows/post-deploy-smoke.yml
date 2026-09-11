@@ -44,10 +44,11 @@ jobs:
           curl --fail --silent --show-error --location --user-agent "$ua" https://mmascouts.com/data-policy -o diagnostics/data-policy.html
           curl --fail --silent --show-error --location --user-agent "$ua" https://mmascouts.com/sitemap.xml -o diagnostics/sitemap.xml
 
-          grep -Fq 'Evaluate any fighter.' diagnostics/home.html
-          grep -Fq 'Discover the next one.' diagnostics/home.html
-          grep -Fq 'Fighter Reports' diagnostics/home.html
-          grep -Fq 'Prospect Scout' diagnostics/home.html
+          grep -Fq 'FIGHTER RECRUITING INTELLIGENCE' diagnostics/home.html
+          grep -Fq 'Find the right fighter.' diagnostics/home.html
+          grep -Fq 'Know who to call.' diagnostics/home.html
+          grep -Fq 'Find a Fighter' diagnostics/home.html
+          grep -Fq 'Management Intelligence' diagnostics/home.html
           grep -Fq 'SCOUT RANKINGS · FIGHTER DATABASE' diagnostics/home.html
           ! grep -Fq 'Matchup Scout' diagnostics/home.html
           ! grep -Fq '>Saved<' diagnostics/home.html
