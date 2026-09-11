@@ -4,8 +4,8 @@ import {BRAND_NAME} from './brand.ts';
 type Env={DB:D1Database};
 type Row=Record<string,any>;
 const REVIEW=new Set(['pending','accepted','rejected','duplicate','needs_identity']);
-const esc=(value:unknown)=>String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[ch]||ch));
-const label=(value:unknown)=>String(value||'unknown').replaceAll('_',' ').replace(/\\b\\w/g,ch=>ch.toUpperCase());
+const esc=(value:unknown)=>String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]||ch));
+const label=(value:unknown)=>String(value||'unknown').replaceAll('_',' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 const reviewStatus=(value:string|null)=>REVIEW.has(value||'')?value!:'pending';
 
 function shell(body:string,script=''){
