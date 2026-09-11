@@ -39,6 +39,8 @@ test('professional location parser only decomposes explicit location text',()=>{
   assert.deepEqual(parseProfessionalLocation('Ecuador'),{raw_value:'Ecuador',city:null,region:null,country:'Ecuador'});
   assert.deepEqual(parseProfessionalLocation('Spain'),{raw_value:'Spain',city:null,region:null,country:'Spain'});
   assert.deepEqual(parseProfessionalLocation('Mystery Gym City'),{raw_value:'Mystery Gym City',city:null,region:null,country:null});
+  assert.deepEqual(parseProfessionalLocation('Mystery City, Atlantis'),{raw_value:'Mystery City, Atlantis',city:null,region:null,country:null});
+  assert.deepEqual(parseProfessionalLocation('Rio, Mystery State, Atlantis'),{raw_value:'Rio, Mystery State, Atlantis',city:null,region:null,country:null});
 });
 
 test('promotion location sync uses exact normalized identity only and skips ambiguity',()=>{
@@ -56,8 +58,11 @@ test('promotion location sync uses exact normalized identity only and skips ambi
 
 test('PFL location and camp evidence is first-party grade A and cannot affect Global Rating',()=>{
   const source=read('scripts/sync-promotion-location.mjs'),rating=read('scripts/build-global-scout-rating-v2.py');
-  assert.match(source,/promotion_direct/);
-  assert.match(source,/q\('A'\)/);
+  assert.equal(PFL_LOCATION_SOURCE.sourceType,'promotion_direct');
+  assert.equal(PFL_LOCATION_SOURCE.confidence,'A');
+  assert.equal(PFL_LOCATION_SOURCE.promotionSlug,'pfl');
+  assert.match(source,/rowSource\.sourceType/);
+  assert.match(source,/rowSource\.confidence/);
   assert.match(source,/team\.primary/);
   assert.doesNotMatch(rating,/fighter_location_evidence|scout_current_location|promotion-location|base_source_url/);
 });
@@ -130,7 +135,7 @@ test('ONE profile separates explicit fight camp from professional base',()=>{
 });
 
 test('ONE profile accepts country-only fighting base but rejects stance language',()=>{
-  const colombia=parseOneProfile('<html><body><h1>Jordan Estupinan</h1><h2>About Jordan Estupinan</h2><p>Fighting out of Colombia, Jordan is ready to compete.</p><h2>ONE Championship Records</h2></body></html>','https://www.onefc.com/athletes/jordan-estupinan');
+  const colombia=parseOneProfile('<html><body><h1>Jordan Estupinan</h1><h2>About Jordan Estupinan</h2><p>Fighting out of Colombia, Jordan Estupinan is ready to compete.</p><h2>ONE Championship Records</h2></body></html>','https://www.onefc.com/athletes/jordan-estupinan');
   assert.deepEqual(colombia.location,{raw_value:'Colombia',city:null,region:null,country:'Colombia'});
   const stance=parseOneProfile('<html><body><h1>Example Fighter</h1><h2>About Example Fighter</h2><p>Fighting out of the southpaw stance, he pressures opponents.</p><h2>ONE Championship Records</h2></body></html>','https://www.onefc.com/athletes/example-fighter');
   assert.equal(stance.fighting_out_of,null);
