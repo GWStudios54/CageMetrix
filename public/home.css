@@ -11,7 +11,7 @@ body.home-page .topbar{width:min(calc(100% - 48px),1240px)}
 .home-page .hero .lede{max-width:660px;font-size:18px;line-height:1.62;color:#adb3b7}
 .home-proofline{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:28px;color:#7f878c;font-size:11px;letter-spacing:.04em}
 .home-proofline span{display:flex;align-items:center;gap:8px}
-.home-proofline span::before{content:"";width:5px;height:5px;background:var(--home-gold);border-radius:50%}
+.home-proofline span::before{content:"";width:5px;height:5px;background:var(--home-gold);border-radius:50%}.home-hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.home-hero-actions .button{min-height:44px}
 .home-research-console{border:1px solid var(--home-line);background:linear-gradient(145deg,#111518,#0b0e10);box-shadow:0 28px 80px rgba(0,0,0,.28)}
 .home-console-head{display:flex;justify-content:space-between;gap:20px;padding:18px 20px;border-bottom:1px solid var(--home-line);align-items:center}
 .home-console-head strong{font-size:13px;letter-spacing:.04em;text-transform:uppercase}
