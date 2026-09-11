@@ -104,3 +104,10 @@ test('fighter intel exposes agency availability evidence and resolved profession
   assert.match(sync,/FROM scout_current_availability a/);
   assert.match(sync,/Explicit public fight availability from an authorized management agency/);
 });
+
+
+test('fighter-intel PR validation cannot be cancelled by production source refreshes',()=>{
+  const workflow=read('.github/workflows/fighter-intel.yml');
+  assert.match(workflow,/group: mmascouts-fighter-intel-\$\{\{ github\.event_name == 'pull_request' && github\.event\.pull_request\.number \|\| 'production' \}\}/);
+  assert.match(workflow,/cancel-in-progress: false/);
+});
