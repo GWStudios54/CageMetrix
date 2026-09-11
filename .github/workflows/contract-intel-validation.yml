@@ -1,19 +1,16 @@
 name: Validate contract intelligence
 
 on:
+  # The comprehensive scouting-product workflow handles shared UI/runtime files.
+  # This specialized lane runs only when contract evidence, review, routing, or
+  # its own regression coverage changes.
   pull_request:
     paths:
       - 'migrations/0037_contract_representation_intelligence.sql'
       - 'src/contract-intel.ts'
       - 'src/contract-candidates.ts'
       - 'src/contract-review.ts'
-      - 'src/recruiting.ts'
-      - 'public/recruiting.css'
-      - 'src/management-about.ts'
-      - 'src/talent-admin.ts'
       - 'src/entry.ts'
-      - 'public/talent.css'
-      - 'scripts/sync-management.mjs'
       - 'scripts/discover-contract-intel.mjs'
       - 'scripts/lib/contract-intel-discovery.mjs'
       - 'tests/contract-intelligence.test.mjs'
@@ -21,7 +18,6 @@ on:
       - 'tests/contract-source-wave4.test.mjs'
       - '.github/workflows/contract-intel-validation.yml'
       - '.github/workflows/contract-intel-discovery.yml'
-      - '.github/workflows/management-sync.yml'
 
 jobs:
   validate:
