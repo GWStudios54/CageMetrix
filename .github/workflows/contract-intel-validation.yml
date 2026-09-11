@@ -18,8 +18,10 @@ on:
       - 'scripts/lib/contract-intel-discovery.mjs'
       - 'tests/contract-intelligence.test.mjs'
       - 'tests/contract-source-wave2.test.mjs'
+      - 'tests/contract-source-wave3.test.mjs'
       - 'tests/contract-source-wave4.test.mjs'
       - 'tests/contract-source-wave5.test.mjs'
+      - 'tests/contract-source-wave6.test.mjs'
       - '.github/workflows/contract-intel-validation.yml'
       - '.github/workflows/contract-intel-discovery.yml'
       - '.github/workflows/management-sync.yml'
@@ -37,7 +39,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Contract and management tests
-        run: node --test tests/contract-intelligence.test.mjs tests/contract-source-wave2.test.mjs tests/contract-source-wave3.test.mjs tests/contract-source-wave4.test.mjs tests/contract-source-wave5.test.mjs tests/management-sources.test.mjs tests/talent-network.test.mjs
+        run: node --test tests/contract-intelligence.test.mjs tests/contract-source-wave2.test.mjs tests/contract-source-wave3.test.mjs tests/contract-source-wave4.test.mjs tests/contract-source-wave5.test.mjs tests/contract-source-wave6.test.mjs tests/management-sources.test.mjs tests/talent-network.test.mjs
       - name: Production build
         run: npm run build
       - name: Probe public contract sources without D1 reads or writes
