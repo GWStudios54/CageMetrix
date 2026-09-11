@@ -135,6 +135,20 @@ export function normalizeManagementName(value){
   return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
 
+const LATIN_COMPAT=new Map(Object.entries({
+  'ł':'l','ø':'o','đ':'d','ð':'d','þ':'th','æ':'ae','œ':'oe','ß':'ss','ħ':'h','ı':'i'
+}));
+export function foldManagementLatinCompatibility(value){
+  return String(value??'').replace(/[łøđðþæœßħı]/gi,ch=>LATIN_COMPAT.get(ch.toLowerCase())||ch);
+}
+export function managementLookupKeys(value){
+  const keys=[
+    normalizeManagementName(value),
+    normalizeManagementName(foldManagementLatinCompatibility(value))
+  ].filter(Boolean);
+  return [...new Set(keys)];
+}
+
 function cleanedCandidate(value){
   let text=String(value??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   text=text.replace(/\s*\((?:UFC|PFL|Bellator|ONE|ACB|BRAVE|BKFC|Bare Knuckle[^)]*)\)\s*$/i,'').trim();
