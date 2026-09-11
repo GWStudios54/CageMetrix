@@ -9,7 +9,7 @@ test('location intelligence keeps professional base evidence separate from oppor
   const sql=read('migrations/0039_location_intelligence.sql');
   assert.match(sql,/CREATE TABLE IF NOT EXISTS fighter_location_evidence/);
   assert.match(sql,/CREATE VIEW scout_current_location/);
-  assert.match(sql,/location_kind IN \('fighting_out_of','training_base','camp_location','hometown','other_professional'\)/);
+  assert.match(sql,/location_kind TEXT NOT NULL CHECK \(location_kind IN \([\s\S]*?'fighting_out_of','training_base','camp_location','hometown','other_professional'[\s\S]*?\)\)/);
   assert.match(sql,/CASE WHEN COALESCE\(o\.base_city,o\.base_region,o\.base_country\) IS NOT NULL THEN o\.base_city ELSE cl\.base_city END base_city/);
   assert.match(sql,/base_source_url/);
   assert.doesNotMatch(sql,/UPDATE fighter_opportunity_status/);
