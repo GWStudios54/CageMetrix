@@ -16,6 +16,11 @@ test('management source registry separates roster sources from agency profile ev
   }
   assert.ok(MANAGEMENT_SOURCES.some(source=>source.slug==='suckerpunch-entertainment'&&source.rosterScope==='profile_only'));
   assert.ok(MANAGEMENT_SOURCES.some(source=>source.slug==='paradigm-sports'&&source.rosterScope==='profile_only'));
+  const artnox=MANAGEMENT_SOURCES.find(source=>source.slug==='artnox-fight-sport');
+  assert.ok(artnox);
+  assert.equal(artnox.confidence,'A');
+  assert.equal(artnox.rosterScope,'official_public_roster');
+  assert.ok(artnox.urls.some(url=>/artnoxfightsport\.pl\/pages\/zawodnicy/.test(url)));
 });
 
 test('warehouse-compatible normalization preserves cautious exact matching',()=>{

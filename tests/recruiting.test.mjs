@@ -58,3 +58,21 @@ test('production deploy installs the idempotent recruiting schema and private sm
   assert.match(smoke,/Recruiting access required\./);
   assert.match(nav,/admin\?'<a href="\/recruiting" class="admin-link">Recruiting<\/a>/);
 });
+
+
+test('private intelligence queue prioritizes unresolved recruiting facts without inventing a composite score',()=>{
+  const source=read('src/recruiting.ts'),entry=read('src/entry.ts');
+  assert.match(source,/export async function recruitingIntelQueuePage/);
+  assert.match(source,/JOIN scout_public_global_profiles p/);
+  assert.match(source,/c\.management_status='unknown'/);
+  assert.match(source,/c\.contract_status='unknown'/);
+  assert.match(source,/c\.open_to_fights='unknown'/);
+  assert.match(source,/c\.public_contact_url IS NULL/);
+  assert.match(source,/cm\.agency_website IS NULL/);
+  assert.match(source,/Agency contact path/);
+  assert.match(source,/active\/recent fighters first|date\('now','-18 months'\)/);
+  assert.match(source,/no composite recruitability score/i);
+  assert.doesNotMatch(source,/intel_priority_score|recruitability_score|signability/i);
+  assert.match(entry,/recruitingIntelQueuePage/);
+  assert.match(entry,/path==='\/recruiting\/intel'/);
+});

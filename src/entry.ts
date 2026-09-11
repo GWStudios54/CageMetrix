@@ -13,7 +13,7 @@ import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
-import {generateRecruitingCandidatesApi,recruitingCandidateApi,recruitingOpeningApi,recruitingOpeningPage,recruitingOpeningsApi,recruitingPage} from './recruiting.ts';
+import {generateRecruitingCandidatesApi,recruitingCandidateApi,recruitingIntelQueuePage,recruitingOpeningApi,recruitingOpeningPage,recruitingOpeningsApi,recruitingPage} from './recruiting.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -135,6 +135,10 @@ export default {
     if(request.method==='GET'&&(path==='/recruiting'||path==='/recruiting/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/recruiting',request.url),308);
       return page(recruitingPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/intel'||path==='/recruiting/intel/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/intel${url.search}`,request.url),308);
+      return page(recruitingIntelQueuePage(request,env),request,env);
     }
     const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&recruitingPageMatch){

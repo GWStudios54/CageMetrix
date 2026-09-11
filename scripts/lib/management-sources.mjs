@@ -91,6 +91,13 @@ export const MANAGEMENT_SOURCES=[
     rosterScope:'official_public_roster',
     profileUrls:['https://goatworldwide.com/'],
     urls:['https://goatworldwide.com/pages/fighters']
+  },
+  {
+    slug:'artnox-fight-sport',name:'Artnox Fight Sport',country:'Poland',website:'https://artnoxfightsport.pl/',confidence:'A',
+    description:'Polish combat-sports management group founded in 2017. Its official site publishes a large current fighter roster spanning UFC, KSW, OKTAGON, Babilon MMA, FEN, FNC and other organizations, and describes contract negotiation, career strategy, sponsorship and media support.',
+    rosterScope:'official_public_roster',
+    profileUrls:['https://artnoxfightsport.pl/en/pages/o-nas'],
+    urls:['https://artnoxfightsport.pl/pages/zawodnicy']
   }
 ];
 
