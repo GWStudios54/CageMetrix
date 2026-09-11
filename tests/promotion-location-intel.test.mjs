@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {ONE_LOCATION_SOURCE,PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parseOneProfile,parseOneRoster,parsePflAjaxPayload,parsePflProfile,parsePflRoster,parseProfessionalLocation,stripQuotedNickname} from '../scripts/lib/promotion-location-sources.mjs';
+import {GLADIATOR_LOCATION_SOURCE,ONE_LOCATION_SOURCE,PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parseGladiatorProfile,parseGladiatorRoster,parseOneProfile,parseOneRoster,parsePflAjaxPayload,parsePflProfile,parsePflRoster,parseProfessionalLocation,stripQuotedNickname} from '../scripts/lib/promotion-location-sources.mjs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
@@ -187,4 +187,43 @@ test('failed profile fetches are audit errors, not evidence-retirement observati
   assert.ok(oneTry>0&&oneCatch>oneTry);
   assert.doesNotMatch(source.slice(pflCatch,pflCatch+220),/checkedProfiles\.push/);
   assert.doesNotMatch(source.slice(oneCatch,oneCatch+220),/checkedProfiles\.push/);
+});
+
+
+test('Gladiator roster parser accepts only linked fighter-card headings on the official host',()=>{
+  const html='<main><h1>The Gladiators</h1><h3><a href="/rafael-carvalho">Rafael Carvalho</a></h3><h3><a href="/vanessa-melo">Vanessa Melo</a></h3><h3><a href="/contact">Contact Us</a></h3><h3><a href="https://evil.example/rafael-carvalho">Fake Fighter</a></h3></main>';
+  assert.deepEqual(parseGladiatorRoster(html,GLADIATOR_LOCATION_SOURCE),[
+    {url:'https://www.gladiatormgmtagency.com/rafael-carvalho',fighter_name:'Rafael Carvalho',normalized_name:'rafael carvalho'},
+    {url:'https://www.gladiatormgmtagency.com/vanessa-melo',fighter_name:'Vanessa Melo',normalized_name:'vanessa melo'}
+  ]);
+});
+
+test('Gladiator profile parser uses FIGHTING OUT OF and TEAM while ignoring FROM',()=>{
+  const html='<html><body><h1>Rafael Carvalho</h1><h2>FIGHTER DETAILS</h2><div>NICKNAME N/A</div><div>FIGHTING OUT OF MIAMI, FLORIDA</div><div>FROM CURITIBA, BRAZIL</div><div>AGE 37</div><div>HEIGHT 6\'3</div><div>WEIGHT 205</div><div>REACH 78</div><div>TEAM RASTHAI MUAY THAI</div><h2>MMA RECORD</h2></body></html>';
+  const row=parseGladiatorProfile(html,'https://www.gladiatormgmtagency.com/rafael-carvalho');
+  assert.equal(row.fighter_name,'Rafael Carvalho');
+  assert.equal(row.fighting_out_of,'MIAMI, FLORIDA');
+  assert.deepEqual(row.location,{raw_value:'MIAMI, FLORIDA',city:'MIAMI',region:'FL',country:'United States'});
+  assert.equal(row.fight_camp,'RASTHAI MUAY THAI');
+  assert.doesNotMatch(JSON.stringify(row),/CURITIBA/);
+});
+
+test('Gladiator profile supports international base and suppresses N/A team',()=>{
+  const html='<html><body><h1>Mohammad Fahmi</h1><div>FIGHTING OUT OF TEHRAN, IRAN</div><div>FROM TEHRAN, IRAN</div><div>AGE 28</div><div>TEAM N/A</div><h2>MMA RECORD</h2></body></html>';
+  const row=parseGladiatorProfile(html,'https://www.gladiatormgmtagency.com/mohammad-fahmi');
+  assert.deepEqual(row.location,{raw_value:'TEHRAN, IRAN',city:'TEHRAN',region:null,country:'Iran'});
+  assert.equal(row.fight_camp,null);
+});
+
+test('Gladiator location intelligence is Grade A manager-direct evidence and rating-independent',()=>{
+  assert.equal(GLADIATOR_LOCATION_SOURCE.publisher,'Gladiator Management Agency');
+  assert.equal(GLADIATOR_LOCATION_SOURCE.sourceType,'manager_or_agency_direct');
+  assert.equal(GLADIATOR_LOCATION_SOURCE.confidence,'A');
+  const source=read('scripts/sync-promotion-location.mjs'),rating=read('scripts/build-global-scout-rating-v2.py');
+  assert.match(source,/parseGladiatorRoster/);
+  assert.match(source,/parseGladiatorProfile/);
+  assert.match(source,/gladiatorWarehouse/);
+  assert.match(source,/profile\.normalized_name!==item\.normalized_name/);
+  assert.match(source,/Explicit FIGHTING OUT OF \/ TEAM fields on the official management-agency fighter profile/);
+  assert.doesNotMatch(rating,/gladiator-management-roster|fighter_location_evidence|scout_current_location/);
 });
