@@ -48,11 +48,11 @@ export const CONTRACT_DISCOVERY_SOURCES=[
     ]},
   {slug:'mma-fighting',publisher:'MMA Fighting',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://www.mmafighting.com/',host:'www.mmafighting.com',path:/\/(?:ufc|pfl|one|mma-news|latest-news)\//i,contentSelector:'.duet--layout--entry-body',
     seedArticles:[
-      {title:'Dana White confirms Michael ‘Venom’ Page’s tenure with the UFC is over',url:'https://www.mmafighting.com/ufc/509329/dana-white-confirms-michael-venom-pages-tenure-with-the-ufc-is-over',publishedAt:'2026-09-09'},
-      {title:'Roberto Soldic announces free agency after ONE Championship contract expires',url:'https://www.mmafighting.com/one/503724/roberto-soldic-announces-free-agency-after-one-championship-contract-expires',publishedAt:'2026-08-07'},
-      {title:'Michel Pereira removed from UFC roster after loss to Shara Bullet in Baku',url:'https://www.mmafighting.com/ufc/499434/michel-pereira-removed-from-ufc-roster-after-loss-to-shara-bullet-in-baku',publishedAt:'2026-07-14'},
-      {title:'PFL releases Francis Ngannou',url:'https://www.mmafighting.com/pfl/475059/pfl-releases-francis-ngannou',publishedAt:'2026-03-06'},
-      {title:'Former ONE champion Adriano Moraes enters free agency, confident ‘I can be part of the UFC roster’',url:'https://www.mmafighting.com/one/474625/former-one-champion-adriano-moraes-enters-free-agency-confident-i-can-be-part-of-the-ufc-roster',publishedAt:'2026-03-03'}
+      {title:'Dana White confirms Michael ‘Venom’ Page’s tenure with the UFC is over',subjectFighterName:'Michael Page',url:'https://www.mmafighting.com/ufc/509329/dana-white-confirms-michael-venom-pages-tenure-with-the-ufc-is-over',publishedAt:'2026-09-09'},
+      {title:'Roberto Soldic announces free agency after ONE Championship contract expires',subjectFighterName:'Roberto Soldic',url:'https://www.mmafighting.com/one/503724/roberto-soldic-announces-free-agency-after-one-championship-contract-expires',publishedAt:'2026-08-07'},
+      {title:'Michel Pereira removed from UFC roster after loss to Shara Bullet in Baku',subjectFighterName:'Michel Pereira',url:'https://www.mmafighting.com/ufc/499434/michel-pereira-removed-from-ufc-roster-after-loss-to-shara-bullet-in-baku',publishedAt:'2026-07-14'},
+      {title:'PFL releases Francis Ngannou',subjectFighterName:'Francis Ngannou',url:'https://www.mmafighting.com/pfl/475059/pfl-releases-francis-ngannou',publishedAt:'2026-03-06'},
+      {title:'Former ONE champion Adriano Moraes enters free agency, confident ‘I can be part of the UFC roster’',subjectFighterName:'Adriano Moraes',url:'https://www.mmafighting.com/one/474625/former-one-champion-adriano-moraes-enters-free-agency-confident-i-can-be-part-of-the-ufc-roster',publishedAt:'2026-03-03'}
     ]},
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
 ];
@@ -142,6 +142,24 @@ export function articleText(html,source={}){
   dom.window.close();return blocks.join('\n');
 }
 
+function seedSubjectTitleText(value){
+  const withoutQuotedNickname=String(value??'')
+    .replace(/[“][^”]{1,40}[”]/g,' ')
+    .replace(/[‘][^’]{1,40}[’]/g,' ')
+    .replace(/"[^"]{1,40}"/g,' ');
+  return normalizeContractText(withoutQuotedNickname);
+}
+
+function curatedSeedSubject(article,profiles){
+  const subject=normalizeContractText(article?.subjectFighterName);
+  if(!subject)return null;
+  const title=` ${seedSubjectTitleText(article?.title)} `;
+  if(!title.includes(` ${subject} `))return null;
+  const rows=profiles.filter(profile=>normalizeContractText(profile.fighter_name)===subject);
+  if(!rows.length)return null;
+  return {name:subject,profiles:rows,ambiguous:rows.length!==1};
+}
+
 export function exactFighterMatches(value,profiles){
   const haystack=` ${normalizeContractText(value)} `,matches=[],grouped=new Map();
   for(const profile of profiles){const name=normalizeContractText(profile.fighter_name);if(!name||name.split(' ').length<2||name.length<6)continue;if(!grouped.has(name))grouped.set(name,[]);grouped.get(name).push(profile);}
@@ -167,13 +185,15 @@ export function candidateRows(article,source,body,profiles){
   const title=clean(article?.title),blocks=[...(title&&hasContractSignal(title)?[{text:title,scope:'title'}]:[]),...bodyBlocks];
   if(!blocks.length)return [];
   const out=[],seen=new Set();
+  const seedSubject=curatedSeedSubject(article,profiles);
   for(const item of blocks){
-    const block=item.text,signals=detectContractSignals(block),promotionSlug=detectContractPromotion(block,source.promotionSlug),matches=exactFighterMatches(block,profiles);
+    const block=item.text,signals=detectContractSignals(block),promotionSlug=detectContractPromotion(block,source.promotionSlug);
+    const directMatches=exactFighterMatches(block,profiles),matches=directMatches.length?directMatches:(seedSubject?[seedSubject]:[]);
     for(const match of matches){
       if(incidentalMention(block,match.name))continue;
       for(const signal of signals){
         const key=contractCandidateKey(article.url,match.name,signal.eventType);if(seen.has(key))continue;seen.add(key);
-        const base={candidateKey:key,sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:match.profiles[0]?.fighter_name||match.name,normalizedName:match.name,promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:block.slice(0,1600),extractionMethod:item.scope==='title'?'signal_title_exact_subject_v5':'signal_block_scoped_subject_v4'};
+        const base={candidateKey:key,sourceUrl:article.url,sourceTitle:article.title,publisher:source.publisher,publishedAt:article.publishedAt||null,sourceType:source.sourceType,fighterName:match.profiles[0]?.fighter_name||match.name,normalizedName:match.name,promotionSlug,detectedEventType:signal.eventType,detectedStatus:signal.status,detectedSummary:block.slice(0,1600),extractionMethod:directMatches.length?(item.scope==='title'?'signal_title_exact_subject_v5':'signal_block_scoped_subject_v4'):'seed_subject_scoped_v6'};
         if(match.ambiguous){out.push({...base,sourceKey:null,sourceFighterId:null,reviewStatus:'needs_identity'});continue;}
         const profile=match.profiles[0];out.push({...base,sourceKey:profile.source_key,sourceFighterId:profile.source_fighter_id,reviewStatus:'pending'});
       }
