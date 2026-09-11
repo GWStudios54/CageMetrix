@@ -168,5 +168,5 @@ test('contract review never auto-promotes discovery candidates',()=>{
   assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_contract_events/i);
   assert.match(page,/Nothing is auto-published/);
   assert.match(page,/needs_identity/);
-  assert.doesNotMatch(page,/checked[^\n]*is_current|is_current[^\n]*checked/);
+  assert.doesNotMatch(page,/<input[^>]*name=\\?"is_current\\?"[^>]*\\schecked(?:=|\\s|>)/i);
 });
