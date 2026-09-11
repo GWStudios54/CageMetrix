@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {MANAGEMENT_SOURCES,applyManagementAliases,normalizeManagementName,parseManagementRoster} from '../scripts/lib/management-sources.mjs';
+import {MANAGEMENT_SOURCES,applyManagementAliases,foldManagementLatinCompatibility,managementLookupKeys,normalizeManagementName,parseManagementRoster} from '../scripts/lib/management-sources.mjs';
 
 test('management source registry separates roster sources from agency profile evidence',()=>{
   assert.ok(MANAGEMENT_SOURCES.length>=6);
@@ -110,4 +110,33 @@ test('source-aware parser extracts only official roster elements for representat
 test('management sync always supplies source metadata to roster extraction',()=>{
   const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
   assert.match(source,/parseManagementRoster\(html,agency\)/);
+});
+
+
+test('Latin compatibility lookup keys are deterministic exact alternatives, not fuzzy matching',()=>{
+  assert.equal(foldManagementLatinCompatibility('Rafał Haratyk'),'Rafal Haratyk');
+  assert.equal(foldManagementLatinCompatibility('Łukasz Rajewski'),'Lukasz Rajewski');
+  assert.equal(foldManagementLatinCompatibility('Søren Fighter'),'Soren Fighter');
+  assert.deepEqual(managementLookupKeys('Rafał Haratyk'),['rafa haratyk','rafal haratyk']);
+  assert.deepEqual(managementLookupKeys('Jon Jones'),['jon jones']);
+});
+
+test('management sync unions deterministic lookup keys and still requires one exact warehouse identity',()=>{
+  const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
+  assert.match(source,/deduped\.flatMap\(row=>row\.lookup_keys\|\|\[row\.normalized_name\]\)/);
+  assert.match(source,/const hitMap=new Map\(\)/);
+  assert.match(source,/for\(const key of row\.lookup_keys\|\|\[row\.normalized_name\]\)/);
+  assert.match(source,/if\(hits\.length===1\)matchedPreConflict\.push/);
+  assert.match(source,/else if\(hits\.length>1\)ambiguous\.push/);
+  assert.doesNotMatch(source,/levenshtein|jaro|similarity|fuzzy/i);
+});
+
+test('management sync rechecks cross-agency conflicts after resolving exact fighter identity',()=>{
+  const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
+  assert.match(source,/const resolvedClaims=new Map\(\)/);
+  assert.match(source,/row\.profile\.source_key\+'\:'\+row\.profile\.source_fighter_id/);
+  assert.match(source,/resolvedClaims\.get\(key\)\.add\(row\.agency_slug\)/);
+  assert.match(source,/const resolvedConflictIds=new Set/);
+  assert.match(source,/const matched=matchedPreConflict\.filter\(row=>!resolvedConflictIds\.has/);
+  assert.match(source,/resolved_identity_conflicts/);
 });
