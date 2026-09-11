@@ -14,7 +14,6 @@ on:
       - 'src/talent-network.ts'
       - 'src/fighter-intel.ts'
       - 'scripts/sync-fighter-intel.mjs'
-      - 'package.json'
       - '.github/workflows/availability-sync.yml'
       - '.github/workflows/fighter-intel.yml'
   push:
@@ -29,7 +28,6 @@ on:
       - 'src/talent-network.ts'
       - 'src/fighter-intel.ts'
       - 'scripts/sync-fighter-intel.mjs'
-      - 'package.json'
       - '.github/workflows/availability-sync.yml'
       - '.github/workflows/fighter-intel.yml'
 
