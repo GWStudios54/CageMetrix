@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {ONE_LOCATION_SOURCE,PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parseOneProfile,parseOneRoster,parsePflAjaxPayload,parsePflProfile,parsePflRoster} from './lib/promotion-location-sources.mjs';
+import {GLADIATOR_LOCATION_SOURCE,ONE_LOCATION_SOURCE,PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parseGladiatorProfile,parseGladiatorRoster,parseOneProfile,parseOneRoster,parsePflAjaxPayload,parsePflProfile,parsePflRoster} from './lib/promotion-location-sources.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
@@ -144,21 +144,60 @@ for(const [index,item] of oneProfileLinks.entries()){
   }
 }
 
+const gladiatorSource=GLADIATOR_LOCATION_SOURCE,gladiatorErrors=[];
+let gladiatorRosterLinks=[],gladiatorProfileLinks=[];
+try{
+  const rosterHtml=await fetchHtml(gladiatorSource.rosterUrl);
+  writeFileSync(cache+'/gladiator-roster.html',rosterHtml);
+  gladiatorRosterLinks=parseGladiatorRoster(rosterHtml,gladiatorSource);
+  if(dry){
+    gladiatorProfileLinks=gladiatorRosterLinks.slice(0,30);
+  }else if(gladiatorRosterLinks.length){
+    const gladiatorNames=[...new Set(gladiatorRosterLinks.map(row=>row.normalized_name).filter(Boolean))],gladiatorWarehouse=[];
+    for(let i=0;i<gladiatorNames.length;i+=70){
+      const batch=gladiatorNames.slice(i,i+70);
+      gladiatorWarehouse.push(...query('SELECT source_key,source_fighter_id,normalized_name FROM scout_active_global_profiles WHERE normalized_name IN ('+batch.map(q).join(',')+')'));
+    }
+    const counts=new Map();
+    for(const row of gladiatorWarehouse){const key=String(row.normalized_name||'');counts.set(key,(counts.get(key)||0)+1);}
+    gladiatorProfileLinks=gladiatorRosterLinks.filter(row=>counts.get(row.normalized_name)===1);
+  }
+  for(const [index,item] of gladiatorProfileLinks.entries()){
+    try{
+      const html=await fetchHtml(item.url);
+      if(index<12)writeFileSync(cache+'/gladiator-profile-'+(index+1)+'.html',html);
+      const profile=parseGladiatorProfile(html,item.url);
+      if(profile.normalized_name!==item.normalized_name){
+        gladiatorErrors.push({url:item.url,error:'profile_identity_changed',roster_name:item.fighter_name,profile_name:profile.fighter_name});
+        continue;
+      }
+      const observation={...profile,source:gladiatorSource,evidence_note:'Explicit FIGHTING OUT OF / TEAM fields on the official management-agency fighter profile.'};
+      checkedProfiles.push(observation);
+      if(profile.fighting_out_of||profile.fight_camp)candidates.push(observation);
+    }catch(error){
+      gladiatorErrors.push({url:item.url,error:error instanceof Error?error.message:String(error)});
+    }
+  }
+}catch(error){
+  gladiatorErrors.push({url:gladiatorSource.rosterUrl,error:error instanceof Error?error.message:String(error)});
+}
+
 if(dry){
   const summary={
     checked_at:checkedAt,mode:'dry-run',
     sources:[
       {source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit,profile_errors:errors.length},
-      {source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_probed:oneProfileLinks.length,profile_errors:oneErrors.length}
+      {source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_probed:oneProfileLinks.length,profile_errors:oneErrors.length},
+      {source:gladiatorSource.slug,roster_links:gladiatorRosterLinks.length,profiles_probed:gladiatorProfileLinks.length,profile_errors:gladiatorErrors.length}
     ],
     profiles_with_intel:candidates.length,
     with_location:candidates.filter(row=>row.fighting_out_of).length,
     with_team:candidates.filter(row=>row.fight_camp).length,
-    errors:[...errors,...oneErrors]
+    errors:[...errors,...oneErrors,...gladiatorErrors]
   };
   writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
-  if(!links.length&&!oneRosterLinks.length)throw new Error('No official promotion roster returned fighter profile links');
-  console.log('Promotion location probe found '+summary.with_location+' explicit bases and '+summary.with_team+' fight-camp/team fields across PFL + bounded ONE profile probes.');
+  if(!links.length&&!oneRosterLinks.length&&!gladiatorRosterLinks.length)throw new Error('No approved professional roster returned fighter profile links');
+  console.log('Location probe found '+summary.with_location+' explicit bases and '+summary.with_team+' fight-camp/team fields across PFL, bounded ONE probes, and Gladiator management profiles.');
   process.exit(0);
 }
 
@@ -216,6 +255,6 @@ if(statements.length){
   wrangler(['d1','execute','cagemetrix',target,'--file',cache+'/sync.sql']);
 }
 const coverage=query("SELECT COUNT(*) fighters,ROUND(AVG(intel_coverage_pct),1) avg_coverage,SUM(CASE WHEN COALESCE(base_city,base_region,base_country) IS NOT NULL THEN 1 ELSE 0 END) base_known,SUM(CASE WHEN gym IS NOT NULL AND trim(gym)<>'' THEN 1 ELSE 0 END) gym_known FROM scout_fighter_intel_coverage")[0]||{};
-const summary={checked_at:checkedAt,mode:remote?'remote':'local',sources:[{source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit},{source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_fetched:oneProfileLinks.length}],candidates:candidates.length,profiles_checked_exact:checkedMatched.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors:[...errors,...oneErrors],unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
+const summary={checked_at:checkedAt,mode:remote?'remote':'local',sources:[{source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit},{source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_fetched:oneProfileLinks.length},{source:gladiatorSource.slug,roster_links:gladiatorRosterLinks.length,profiles_fetched:gladiatorProfileLinks.length}],candidates:candidates.length,profiles_checked_exact:checkedMatched.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors:[...errors,...oneErrors,...gladiatorErrors],unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
 writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
 console.log('Promotion location sync matched '+matched.length+'/'+candidates.length+' profiles ('+unmatched.length+' unmatched, '+ambiguous.length+' ambiguous); base known '+Number(coverage.base_known||0)+'/'+Number(coverage.fighters||0)+'.');
