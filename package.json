@@ -29,7 +29,8 @@
     "warehouse:refresh-ufc-history": "node scripts/refresh-ufc-history.mjs --remote",
     "model:validate": "node scripts/validate-model.mjs --stats .cache/refresh/stats.csv",
     "predictor:validate": "node scripts/validate-predictor.mjs --stats .cache/refresh/stats.csv --output .cache/predictor-validation.json",
-    "locations:sync": "node scripts/sync-promotion-location.mjs --remote"
+    "locations:sync": "node scripts/sync-promotion-location.mjs --remote",
+    "availability:sync": "node scripts/sync-availability.mjs --remote"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
