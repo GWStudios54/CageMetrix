@@ -139,7 +139,10 @@ const LATIN_COMPAT=new Map(Object.entries({
   'ł':'l','ø':'o','đ':'d','ð':'d','þ':'th','æ':'ae','œ':'oe','ß':'ss','ħ':'h','ı':'i'
 }));
 export function foldManagementLatinCompatibility(value){
-  return String(value??'').replace(/[łøđðþæœßħı]/gi,ch=>LATIN_COMPAT.get(ch.toLowerCase())||ch);
+  return String(value??'').replace(/[łøđðþæœßħı]/gi,ch=>{
+    const folded=LATIN_COMPAT.get(ch.toLowerCase())||ch;
+    return ch===ch.toUpperCase()?folded.toUpperCase():folded;
+  });
 }
 export function managementLookupKeys(value){
   const keys=[
