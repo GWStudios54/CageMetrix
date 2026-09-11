@@ -9,6 +9,7 @@ import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,manag
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
 import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
 import {contractCandidatesAdminApi} from './contract-candidates.ts';
+import {contractReviewPage} from './contract-review.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
@@ -139,6 +140,10 @@ export default {
     if(request.method==='GET'&&(path==='/recruiting/intel'||path==='/recruiting/intel/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/intel${url.search}`,request.url),308);
       return page(recruitingIntelQueuePage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/contracts'||path==='/recruiting/contracts/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/contracts${url.search}`,request.url),308);
+      return page(contractReviewPage(request,env),request,env);
     }
     const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&recruitingPageMatch){
