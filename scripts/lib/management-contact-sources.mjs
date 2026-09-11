@@ -154,8 +154,11 @@ export function extractPublicEmails(html){
     seen.add(email);out.push(email);
   };
   for(const anchor of doc.querySelectorAll('a[href^="mailto:" i]'))push(anchor.getAttribute('href'));
-  const text=clean(doc.body?.textContent);
-  for(const match of text.matchAll(/[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/gi))push(match[0]);
+  const root=doc.body||doc.documentElement,walker=doc.createTreeWalker(root,dom.window.NodeFilter.SHOW_TEXT);
+  while(walker.nextNode()){
+    const text=String(walker.currentNode.nodeValue||'');
+    for(const match of text.matchAll(/[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/gi))push(match[0]);
+  }
   dom.window.close();return out;
 }
 
