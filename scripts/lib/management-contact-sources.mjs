@@ -110,6 +110,36 @@ export const MANAGEMENT_CONTACT_SOURCES=[
     contactKind:'contact_form',
     label:'Agency contact form',
     confidence:'A'
+  },
+  {
+    agencySlug:'hd-global-athlete-management',
+    publisher:'HD Global Athlete Management',
+    url:'https://hdglobalathlete.com/contact/',
+    host:'hdglobalathlete.com',
+    contactFormUrl:'https://hdglobalathlete.com/contact/',
+    contactKind:'contact_form',
+    label:'Agency contact form',
+    confidence:'A'
+  },
+  {
+    agencySlug:'3mgt-sports-media-management',
+    publisher:'3MGT Sports and Media Management',
+    url:'https://3mgt.de/',
+    host:'3mgt.de',
+    expectedEmail:'3mgt@3mgt.de',
+    contactKind:'general_email',
+    label:'General agency contact',
+    confidence:'A'
+  },
+  {
+    agencySlug:'burns-mma-agency',
+    publisher:'Burns MMA Agency',
+    url:'https://burns.agency/',
+    host:'burns.agency',
+    expectedEmail:'contact@burns.agency',
+    contactKind:'general_email',
+    label:'Athlete / manager / brand enquiries',
+    confidence:'A'
   }
 ];
 
