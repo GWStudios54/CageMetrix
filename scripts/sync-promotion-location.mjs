@@ -81,13 +81,17 @@ if(csrf){
   }
 }
 const links=[...linkMap.values()];
-const candidates=[],errors=[];
+const candidates=[],checkedProfiles=[],errors=[];
 for(const [index,item] of links.entries()){
   try{
     const html=await fetchHtml(item.url);
     if(index<12)writeFileSync(cache+'/pfl-profile-'+(index+1)+'.html',html);
     const profile=parsePflProfile(html,item.url);
-    if(profile.normalized_name&&(profile.fighting_out_of||profile.fight_camp))candidates.push({...profile,source,evidence_note:'Explicit FIGHTING OUT OF / FIGHT CAMP field on the official PFL fighter profile.'});
+    if(profile.normalized_name){
+      const observation={...profile,source,evidence_note:'Explicit FIGHTING OUT OF / FIGHT CAMP field on the official PFL fighter profile.'};
+      checkedProfiles.push(observation);
+      if(profile.fighting_out_of||profile.fight_camp)candidates.push(observation);
+    }
   }catch(error){
     errors.push({url:item.url,error:error instanceof Error?error.message:String(error)});
   }
@@ -132,7 +136,9 @@ for(const [index,item] of oneProfileLinks.entries()){
       oneErrors.push({url:item.url,error:'profile_identity_changed',roster_name:item.fighter_name,profile_name:profile.fighter_name});
       continue;
     }
-    if(profile.fighting_out_of||profile.fight_camp)candidates.push({...profile,source:oneSource,evidence_note:'Explicit fighting-out-of wording on the official ONE Championship athlete profile.'});
+    const observation={...profile,source:oneSource,evidence_note:'Explicit fighting-out-of wording on the official ONE Championship athlete profile.'};
+    checkedProfiles.push(observation);
+    if(profile.fighting_out_of||profile.fight_camp)candidates.push(observation);
   }catch(error){
     oneErrors.push({url:item.url,error:error instanceof Error?error.message:String(error)});
   }
@@ -156,7 +162,7 @@ if(dry){
   process.exit(0);
 }
 
-const names=[...new Set(candidates.map(row=>row.normalized_name).filter(Boolean))],warehouse=[];
+const names=[...new Set(checkedProfiles.map(row=>row.normalized_name).filter(Boolean))],warehouse=[];
 for(let i=0;i<names.length;i+=70){
   const batch=names.slice(i,i+70);
   warehouse.push(...query('SELECT source_key,source_fighter_id,profile_slug,fighter_name,normalized_name FROM scout_active_global_profiles WHERE normalized_name IN ('+batch.map(q).join(',')+')'));
@@ -175,8 +181,18 @@ for(const candidate of candidates){
   else if(hits.length>1)ambiguous.push({...candidate,matches:hits.map(row=>({profile_slug:row.profile_slug,source_fighter_id:row.source_fighter_id}))});
   else unmatched.push(candidate);
 }
+const checkedMatched=[];
+for(const observation of checkedProfiles){
+  const hits=byName.get(observation.normalized_name)||[];
+  if(hits.length===1)checkedMatched.push({...observation,profile:hits[0]});
+}
 
 const statements=[];
+for(const row of checkedMatched){
+  const p=row.profile;
+  statements.push('UPDATE fighter_location_evidence SET is_current=0,last_checked_at='+q(checkedAt)+' WHERE source_key='+q(p.source_key)+' AND source_fighter_id='+q(p.source_fighter_id)+' AND source_url='+q(row.source_url)+" AND location_kind='fighting_out_of' AND is_current=1;");
+  statements.push("UPDATE fighter_intel_facts SET is_current=0,last_checked_at="+q(checkedAt)+" WHERE source_key="+q(p.source_key)+" AND source_fighter_id="+q(p.source_fighter_id)+" AND source_url="+q(row.source_url)+" AND source_slug='promotion-sites' AND fact_key='team.primary' AND is_current=1;");
+}
 for(const row of matched){
   const p=row.profile,loc=row.location,rowSource=row.source||source;
   if(row.fighting_out_of){
@@ -200,6 +216,6 @@ if(statements.length){
   wrangler(['d1','execute','cagemetrix',target,'--file',cache+'/sync.sql']);
 }
 const coverage=query("SELECT COUNT(*) fighters,ROUND(AVG(intel_coverage_pct),1) avg_coverage,SUM(CASE WHEN COALESCE(base_city,base_region,base_country) IS NOT NULL THEN 1 ELSE 0 END) base_known,SUM(CASE WHEN gym IS NOT NULL AND trim(gym)<>'' THEN 1 ELSE 0 END) gym_known FROM scout_fighter_intel_coverage")[0]||{};
-const summary={checked_at:checkedAt,mode:remote?'remote':'local',sources:[{source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit},{source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_fetched:oneProfileLinks.length}],candidates:candidates.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors:[...errors,...oneErrors],unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
+const summary={checked_at:checkedAt,mode:remote?'remote':'local',sources:[{source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit},{source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_fetched:oneProfileLinks.length}],candidates:candidates.length,profiles_checked_exact:checkedMatched.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors:[...errors,...oneErrors],unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
 writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
 console.log('Promotion location sync matched '+matched.length+'/'+candidates.length+' profiles ('+unmatched.length+' unmatched, '+ambiguous.length+' ambiguous); base known '+Number(coverage.base_known||0)+'/'+Number(coverage.fighters||0)+'.');
