@@ -84,4 +84,7 @@ test('PFL load-more contract is parsed without inventing endpoints or pagination
   for(const field of ['season_type','season_year','weightclass','gender','query_s','page'])assert.match(source,new RegExp("form\\.append\\('"+field+"'"));
   assert.match(source,/payload\.total===0\|\|payload\.count===0/);
   assert.match(source,/x-csrf-token/);
+  assert.match(source,/getSetCookie/);
+  assert.match(source,/cookieHeader/);
+  assert.match(source,/cookie:cookieHeader/);
 });
