@@ -64,6 +64,7 @@ const PROMOTIONS=[
 ];
 
 export function normalizeContractText(value){return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
+function normalizeContractIdentityText(value){return normalizeContractText(value).replace(/\b([a-z0-9]+)'s\b/g,'$1');}
 function semanticContractText(value){return normalizeContractText(value).replace(/\bfree agent\s+(?:fight|bout|match|matchup)\b/g,'');}
 export function hasContractSignal(value){const text=semanticContractText(value);return SIGNAL_RE.test(text)&&!NON_FIGHTER_RE.test(text);}
 export function detectContractSignal(value){
@@ -147,22 +148,22 @@ function seedSubjectTitleText(value){
     .replace(/[“][^”]{1,40}[”]/g,' ')
     .replace(/[‘][^’]{1,40}[’]/g,' ')
     .replace(/"[^"]{1,40}"/g,' ');
-  return normalizeContractText(withoutQuotedNickname);
+  return normalizeContractIdentityText(withoutQuotedNickname);
 }
 
 function curatedSeedSubject(article,profiles){
-  const subject=normalizeContractText(article?.subjectFighterName);
+  const subject=normalizeContractIdentityText(article?.subjectFighterName);
   if(!subject)return null;
   const title=` ${seedSubjectTitleText(article?.title)} `;
   if(!title.includes(` ${subject} `))return null;
-  const rows=profiles.filter(profile=>normalizeContractText(profile.fighter_name)===subject);
+  const rows=profiles.filter(profile=>normalizeContractIdentityText(profile.fighter_name)===subject);
   if(!rows.length)return null;
   return {name:subject,profiles:rows,ambiguous:rows.length!==1};
 }
 
 export function exactFighterMatches(value,profiles){
-  const haystack=` ${normalizeContractText(value)} `,matches=[],grouped=new Map();
-  for(const profile of profiles){const name=normalizeContractText(profile.fighter_name);if(!name||name.split(' ').length<2||name.length<6)continue;if(!grouped.has(name))grouped.set(name,[]);grouped.get(name).push(profile);}
+  const haystack=` ${normalizeContractIdentityText(value)} `,matches=[],grouped=new Map();
+  for(const profile of profiles){const name=normalizeContractIdentityText(profile.fighter_name);if(!name||name.split(' ').length<2||name.length<6)continue;if(!grouped.has(name))grouped.set(name,[]);grouped.get(name).push(profile);}
   for(const [name,rows] of grouped){if(haystack.includes(` ${name} `))matches.push({name,profiles:rows,ambiguous:rows.length!==1});}
   return matches;
 }
