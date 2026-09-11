@@ -25,8 +25,10 @@ test('post-deploy smoke validates modern scouting APIs and the retired validatio
 });
 
 
-test('production deploy has a merged-PR fallback when GitHub drops the merge push event', () => {
+test('production deploy runs once from the canonical main push', () => {
   const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /pull_request:\n    branches:\n      - main\n    types:\n      - closed/);
-  assert.match(workflow, /github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.merged == true/);
+  assert.match(workflow, /push:\n    branches:\n      - main/);
+  assert.doesNotMatch(workflow, /\bpull_request:/);
+  assert.match(workflow, /group: cagemetrix-production/);
+  assert.match(workflow, /cancel-in-progress: false/);
 });
