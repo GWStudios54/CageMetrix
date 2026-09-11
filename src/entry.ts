@@ -13,6 +13,7 @@ import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
+import {generateRecruitingCandidatesApi,recruitingCandidateApi,recruitingOpeningApi,recruitingOpeningPage,recruitingOpeningsApi,recruitingPage} from './recruiting.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -83,6 +84,13 @@ export default {
     if(path==='/api/admin/talent/contracts/candidates'||path==='/api/admin/talent/contracts/candidates/')return contractCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
+    if(path==='/api/admin/recruiting/openings'||path==='/api/admin/recruiting/openings/')return recruitingOpeningsApi(request,env);
+    const recruitingGenerateMatch=path.match(/^\/api\/admin\/recruiting\/openings\/([1-9]\d*)\/generate\/?$/);
+    if(recruitingGenerateMatch)return generateRecruitingCandidatesApi(request,env,Number(recruitingGenerateMatch[1]));
+    const recruitingOpeningApiMatch=path.match(/^\/api\/admin\/recruiting\/openings\/([1-9]\d*)\/?$/);
+    if(recruitingOpeningApiMatch)return recruitingOpeningApi(request,env,Number(recruitingOpeningApiMatch[1]));
+    const recruitingCandidateMatch=path.match(/^\/api\/admin\/recruiting\/candidates\/([1-9]\d*)\/?$/);
+    if(recruitingCandidateMatch)return recruitingCandidateApi(request,env,Number(recruitingCandidateMatch[1]));
 
     if(request.method==='GET'&&(path==='/data-policy'||path==='/data-policy/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/data-policy',request.url),308);
@@ -123,6 +131,15 @@ export default {
     if(request.method==='GET'&&(path==='/talent'||path==='/talent/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/talent',request.url),308);
       return page(talentPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting'||path==='/recruiting/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/recruiting',request.url),308);
+      return page(recruitingPage(request,env),request,env);
+    }
+    const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
+    if(request.method==='GET'&&recruitingPageMatch){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/openings/${recruitingPageMatch[1]}`,request.url),308);
+      return page(recruitingOpeningPage(request,env,Number(recruitingPageMatch[1])),request,env);
     }
     if(request.method==='GET'&&(path==='/management'||path==='/management/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/management',request.url),308);
