@@ -254,7 +254,7 @@ export async function recruitingPage(request:Request,env:Env){
   const who=await admin(request,env);if(!who)return authPage();
   const openings=await openingCounts(env,Number(who.id));
   const cards=openings.map(o=>`<a class="opening-card" href="/recruiting/openings/${o.id}"><div><span class="eyebrow">${esc(String(o.status).toUpperCase())}</span><h2>${esc(o.title)}</h2><p>${esc(openingBrief(o))}</p></div><div class="opening-counts"><span><strong>${Number(o.candidate_count||0)}</strong> candidates</span><span><strong>${Number(o.shortlisted_count||0)}</strong> shortlisted</span><span><strong>${Number(o.contacted_count||0)}</strong> contacted</span></div></a>`).join('');
-  const bodyHtml=`<section class="recruit-hero"><span class="eyebrow">RECRUITING WORKSPACE</span><h1>Openings, shortlists, and the intel behind the call.</h1><p>Create a recruiting need, generate candidates from the verified fighter graph, then track review, outreach and intelligence gaps privately.</p></section>
+  const bodyHtml=`<section class="recruit-hero"><span class="eyebrow">RECRUITING WORKSPACE</span><h1>Openings, shortlists, and the intel behind the call.</h1><p>Create a recruiting need, generate candidates from the verified fighter graph, then track review, outreach and intelligence gaps privately.</p><div class="hero-actions"><a class="button primary" href="/recruiting/intel">Open intelligence queue →</a></div></section>
   <section class="recruit-layout"><div><div class="section-heading"><div><span class="eyebrow">ACTIVE BOARD</span><h2>Your openings</h2></div></div><div class="opening-grid">${cards||'<div class="recruit-empty">No recruiting openings yet.</div>'}</div></div>
   <aside class="opening-create"><span class="eyebrow">NEW OPENING</span><h2>Create a recruiting brief</h2><form id="opening-create-form">
     <label>Title<input name="title" required maxlength="160" placeholder="Lightweight for Nov. 14"></label>
@@ -273,6 +273,43 @@ export async function recruitingPage(request:Request,env:Env){
   </form></aside></section>`;
   const script=`<script>(()=>{const f=document.querySelector('#opening-create-form'),s=document.querySelector('[data-form-status]');f?.addEventListener('submit',async e=>{e.preventDefault();s.textContent='Creating…';const fd=new FormData(f),payload=Object.fromEntries(fd.entries());for(const k of ['age_min','age_max','min_wins','active_months','min_rating','min_evidence'])if(payload[k]==='')payload[k]=null;try{const r=await fetch('/api/admin/recruiting/openings',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}),j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');location.href='/recruiting/openings/'+j.id;}catch(err){s.textContent=err.message||'Could not create opening.';}});})();</script>`;
   return new Response(shell(bodyHtml,script),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-robots-tag':'noindex,nofollow'}});
+}
+
+const INTEL_GAPS=new Set(['all','management','contract','availability','base','contact']);
+
+export async function recruitingIntelQueuePage(request:Request,env:Env){
+  const who=await admin(request,env);if(!who)return authPage();
+  const url=new URL(request.url),gap=INTEL_GAPS.has(String(url.searchParams.get('gap')||'all'))?String(url.searchParams.get('gap')||'all'):'all';
+  const division=String(url.searchParams.get('weight_class')||'').trim().slice(0,80);
+  const minRating=num(url.searchParams.get('min_rating'),0,100);
+  const clauses=[`(c.management_status='unknown' OR c.contract_status='unknown' OR c.open_to_fights='unknown' OR COALESCE(c.base_city,c.base_region,c.base_country) IS NULL OR c.public_contact_url IS NULL)`];
+  const binds:any[]=[GLOBAL_MODEL];
+  if(gap==='management')clauses.push(`c.management_status='unknown'`);
+  if(gap==='contract')clauses.push(`c.contract_status='unknown'`);
+  if(gap==='availability')clauses.push(`c.open_to_fights='unknown'`);
+  if(gap==='base')clauses.push(`COALESCE(c.base_city,c.base_region,c.base_country) IS NULL`);
+  if(gap==='contact')clauses.push(`c.public_contact_url IS NULL`);
+  if(division){clauses.push('c.current_weight_class=?');binds.push(division);}
+  if(minRating!==null){clauses.push('r.scout_rating>=?');binds.push(minRating);}
+  const rows=(await env.DB.prepare(`
+    SELECT c.*,r.scout_rating global_rating,r.evidence_strength,
+           COALESCE(o.public_contact_url,c.public_contact_url) resolved_contact_url
+    FROM scout_fighter_intel_coverage c
+    JOIN scout_public_global_profiles p ON p.source_key=c.source_key AND p.source_fighter_id=c.source_fighter_id
+    LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
+    LEFT JOIN fighter_opportunity_status o ON o.source_key=c.source_key AND o.source_fighter_id=c.source_fighter_id
+    WHERE ${clauses.join(' AND ')}
+    ORDER BY CASE WHEN c.last_fight_date IS NOT NULL AND date(substr(c.last_fight_date,1,10))>=date('now','-18 months') THEN 0 ELSE 1 END,
+             r.scout_rating IS NULL,r.scout_rating DESC,r.evidence_strength DESC,c.last_fight_date DESC,c.fighter_name
+    LIMIT 300`).bind(...binds).all<Row>()).results||[];
+  const cards=rows.map(row=>{
+    const gaps=[];if(row.management_status==='unknown')gaps.push('management');if(row.contract_status==='unknown')gaps.push('contract');if(row.open_to_fights==='unknown')gaps.push('availability');if(!row.base_city&&!row.base_region&&!row.base_country)gaps.push('base');if(!row.resolved_contact_url)gaps.push('contact');
+    return `<article class="intel-queue-card"><div class="recruit-candidate-head"><div><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}${row.current_organization?' · '+esc(row.current_organization):''}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${row.last_fight_date?'Last fight '+esc(pretty(row.last_fight_date)):'No recorded fight date'} · Coverage ${Number(row.intel_coverage_pct||0).toFixed(1)}%</p></div><div class="recruit-score"><small>GLOBAL RATING</small><strong>${score(row.global_rating)}</strong><span>Evidence ${pct(row.evidence_strength)}</span></div></div><div class="recruit-gaps"><strong>Research next</strong>${gaps.map(g=>`<span>${esc(g)}</span>`).join('')}</div><div class="intel-queue-actions"><a class="button secondary" href="/scout/fighters/${esc(row.profile_slug)}">Open fighter intel →</a><a class="button secondary" href="/talent?q=${encodeURIComponent(String(row.fighter_name||''))}">Recruiting search →</a></div></article>`;
+  }).join('');
+  const bodyHtml=`<section class="recruit-hero"><a class="back-link" href="/recruiting">← Recruiting board</a><span class="eyebrow">INTELLIGENCE OPERATIONS</span><h1>Close the gaps that block recruiting decisions.</h1><p>This queue prioritizes useful, active fighter files with unresolved recruiting intelligence. Ordering uses existing performance/evidence data only; missing management, contract, availability, base or contact information never changes Global Rating.</p></section>
+  <section class="intel-filter-panel"><form method="get" action="/recruiting/intel"><label>Gap<select name="gap">${['all','management','contract','availability','base','contact'].map(v=>`<option value="${v}"${gap===v?' selected':''}>${v==='all'?'Any recruiting gap':v[0].toUpperCase()+v.slice(1)}</option>`).join('')}</select></label><label>Division<input name="weight_class" value="${esc(division)}" placeholder="Lightweight"></label><label>Min Global Rating<input name="min_rating" type="number" min="0" max="100" value="${minRating??''}" placeholder="70"></label><button class="button primary" type="submit">Build intel queue</button></form></section>
+  <section class="candidate-section"><div class="section-heading"><div><span class="eyebrow">RESEARCH QUEUE</span><h2>${rows.length} fighter files</h2></div><p class="queue-note">Up to 300 files · active/recent fighters first · no composite recruitability score.</p></div><div class="candidate-grid">${cards||'<div class="recruit-empty">No fighter files match that intelligence-gap filter.</div>'}</div></section>`;
+  return new Response(shell(bodyHtml),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-robots-tag':'noindex,nofollow'}});
 }
 
 export async function recruitingOpeningPage(request:Request,env:Env,id:number){
