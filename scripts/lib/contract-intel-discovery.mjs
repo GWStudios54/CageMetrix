@@ -14,7 +14,18 @@ export const CONTRACT_DISCOVERY_SOURCES=[
       {title:'Professional Fighters League Partners With Jake Paul In Historic Exclusive Agreement In MMA',url:'https://pflmma.com/news/professional-fighters-league-partners-with-jake-paul-in-historic-exclusive-agreement-in-mma',publishedAt:'2023-01-05'},
       {title:'Professional Fighters League Expands Global Talent Roster With Middle Eastern MMA Fighters',url:'https://pflmma.com/news/professional-fighters-league-expands-global-talent-roster-with-middle-eastern-mma-fighters',publishedAt:'2022-06-22'}
     ]},
-  {slug:'one-mma-rss',publisher:'ONE Championship',sourceType:'promotion_direct',promotionSlug:'one',kind:'rss',url:'https://www.onefc.com/category/mixed-martial-arts/feed/',host:'www.onefc.com',path:/\/(?:news|features)\//i},
+  {slug:'one-mma-rss',publisher:'ONE Championship',sourceType:'promotion_direct',promotionSlug:'one',kind:'rss',url:'https://www.onefc.com/category/mixed-martial-arts/feed/',host:'www.onefc.com',path:/\/(?:news|features)\//i,
+    seedArticles:[
+      {title:'Undefeated Heavyweight Dustin Joynson Signs With ONE Championship',url:'https://www.onefc.com/news/undefeated-heavyweight-dustin-joynson-signs-with-one-championship/',publishedAt:'2021-01-07'},
+      {title:'5-Time MMA Champion Stephen Loman Joins ONE Championship',url:'https://www.onefc.com/news/5-time-mma-champion-stephen-loman-joins-one-championship/',publishedAt:'2021-02-11'},
+      {title:'Mark Sangiao’s Son Jhanlo Signs With ONE Championship',url:'https://www.onefc.com/news/mark-sangiaos-son-jhanlo-signs-with-one-championship/',publishedAt:'2021-06-01'},
+      {title:'Team Lakay’s Jeremy Pacatiw Signs With ONE Championship',url:'https://www.onefc.com/news/team-lakays-jeremy-pacatiw-signs-with-one-championship/',publishedAt:'2021-06-15'},
+      {title:'Dagestani Sensation Saygid Izagakhmaev Signs With ONE Championship',url:'https://www.onefc.com/news/dagestani-sensation-saygid-izagakhmaev-signs-with-one-championship/',publishedAt:'2021-10-12'},
+      {title:'Marcus Almeida Officially Signs With ONE Championship',url:'https://www.onefc.com/news/marcus-almeida-officially-signs-with-one-championship/',publishedAt:'2020-07-31'},
+      {title:'India’s Kantharaj Shankar Agasa Signs With ONE Championship',url:'https://www.onefc.com/news/indias-kantharaj-shankar-agasa-signs-with-one-championship/',publishedAt:'2020-09-01'},
+      {title:'Indian Wrestling Champion Ritu Phogat Joins ONE Championship',url:'https://www.onefc.com/news/indian-wrestling-champion-ritu-phogat-joins-one-championship/',publishedAt:'2019-02-26'},
+      {title:'Undefeated MMA Star Willie Van Rooyen Joins ONE Championship, Draws Avazbek Kholmirzaev At ONE Fight Night 37',url:'https://www.onefc.com/news/undefeated-mma-star-willie-van-rooyen-joins-one-championship-draws-avazbek-kholmirzaev-at-one-fight-night-37/',publishedAt:'2025-10-15'}
+    ]},
   {slug:'cage-warriors-news',publisher:'Cage Warriors',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://cagewarriors.com/news/',host:'cagewarriors.com',path:/^\/(?!news\/?$|events\/?$|videos\/?$|champions\/?$|contact\/?$|about\/?$|athletes\/?$|careers\/?$)[a-z0-9-]+\/$/i,titleSignalOnly:true},
   {slug:'brave-cf-news',publisher:'BRAVE Combat Federation',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://www.bravecf.com/news',host:'www.bravecf.com',path:/^\/news\/[a-z0-9-]+\/?$/i,
     seedArticles:[
