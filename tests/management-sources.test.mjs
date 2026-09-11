@@ -45,6 +45,14 @@ test('management source registry separates roster sources from agency profile ev
   }
   assert.ok(koreps.urls.some(url=>/koreps\.com\/athletes/.test(url)));
   assert.ok(gladiator.urls.some(url=>/gladiatormgmtagency\.com\/roster/.test(url)));
+  for(const slug of ['hd-global-athlete-management','3mgt-sports-media-management','burns-mma-agency']){
+    const source=MANAGEMENT_SOURCES.find(row=>row.slug===slug);
+    assert.ok(source,slug);
+    assert.equal(source.confidence,'A');
+    assert.equal(source.rosterScope,'official_public_roster');
+    assert.ok(source.urls.length>0);
+    assert.ok(source.rosterSection);
+  }
 });
 
 test('warehouse-compatible normalization preserves cautious exact matching',()=>{
@@ -171,4 +179,30 @@ test('wave 5 management sources are official public roster evidence only',()=>{
   assert.deepEqual(gladiator.rosterSection,{start:'The Gladiators',end:'CONTACT US',selector:'h3'});
   assert.ok(koreps.profileUrls.every(url=>new URL(url).hostname==='www.koreps.com'));
   assert.ok(gladiator.profileUrls.every(url=>new URL(url).hostname==='www.gladiatormgmtagency.com'));
+});
+
+
+test('HD Global parser is bounded to the current featured MMA roster section',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='hd-global-athlete-management');
+  const html='<main><h2>The HD Global Athlete Management Roster</h2><h3>Dakota Ditcheva</h3><p>PFL</p><h3>Shanelle Dyer</h3><p>UFC</p><h3>Melissa Mullins</h3><p>UFC</p><h3>Connor Hughes</h3><p>PFL</p><h2>Why Choose Us</h2><h3>A Team of Passionate Individuals</h3></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Dakota Ditcheva','Shanelle Dyer','Melissa Mullins','Connor Hughes']);
+});
+
+test('3MGT parser reads only managed athlete headings from the official athlete section',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='3mgt-sports-media-management');
+  const html='<main><h2>Our Athletes</h2><h5>Islam Dulatov</h5><p>UFC Fighter - islam@3mgt.de</p><h5>Losene Keita</h5><p>MMA Champion - keita@3mgt.de</p><h5>Kerim Engizek</h5><p>MMA Champion - kerim@3mgt.de</p><h2>Case Studie</h2><h5>Kerim Engizek</h5></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Islam Dulatov','Losene Keita','Kerim Engizek']);
+});
+
+test('Burns parser keeps the named managed athlete and rejects site furniture',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='burns-mma-agency');
+  const html='<main><h4>Brands we build.</h4><h3>Rafael "Bipolar" Tobias</h3><p>UFC Fighter</p><h3>More Athletes soon</h3><h3>PARTNERS</h3><h3>Build something that lasts.</h3></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Rafael "Bipolar" Tobias']);
+});
+
+test('wave 6 roster sections fail closed when the expected boundary is absent',()=>{
+  for(const slug of ['hd-global-athlete-management','3mgt-sports-media-management','burns-mma-agency']){
+    const source=MANAGEMENT_SOURCES.find(row=>row.slug===slug);
+    assert.deepEqual(parseManagementRoster('<main><h3>Random Fighter Name</h3><p>Contact us today</p></main>',source),[],slug);
+  }
 });
