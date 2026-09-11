@@ -146,3 +146,27 @@ test('candidate discovery queues evidence without publishing contract events',()
   assert.match(discovery,/Automatically superseded by scoped subject-attributed discovery v4/);
   assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_contract_events/i);
 });
+
+
+test('contract review desk requires human publication before accepting discovery leads',()=>{
+  const page=read('src/contract-review.ts'),queue=read('src/contract-candidates.ts'),admin=read('src/contract-intel.ts'),entry=read('src/entry.ts');
+  assert.match(page,/Detection is a private lead, not a fact/);
+  assert.match(page,/Evidence explicitly supports this status as current now/);
+  assert.match(page,/Recency is not enough/);
+  assert.match(page,/Publish verified event/);
+  assert.match(page,/\/api\/admin\/talent\/contracts/);
+  assert.match(page,/review_status:'accepted'/);
+  assert.ok(page.indexOf("api('/api/admin/talent/contracts'")<page.indexOf("review_status:'accepted'"),'contract event must be written before candidate acceptance');
+  assert.match(queue,/sameOrigin\(request\)/);
+  assert.match(admin,/sameOrigin\(request\)/);
+  assert.match(entry,/path==='\/recruiting\/contracts'/);
+  assert.match(entry,/contractReviewPage/);
+});
+
+test('contract review never auto-promotes discovery candidates',()=>{
+  const discovery=read('scripts/discover-contract-intel.mjs'),page=read('src/contract-review.ts');
+  assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_contract_events/i);
+  assert.match(page,/Nothing is auto-published/);
+  assert.match(page,/needs_identity/);
+  assert.doesNotMatch(page,/<input[^>]*name=\\?"is_current\\?"[^>]*\\schecked(?:=|\\s|>)/i);
+});

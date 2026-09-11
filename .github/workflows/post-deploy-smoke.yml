@@ -114,6 +114,10 @@ jobs:
           test "$recruiting_code" = "403"
           grep -Fq 'Recruiting access required.' diagnostics/recruiting-private.body
           grep -Fq 'noindex,nofollow' diagnostics/recruiting-private.body
+          contract_review_code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/contract-review-private.body --write-out '%{http_code}' https://mmascouts.com/recruiting/contracts)
+          test "$contract_review_code" = "403"
+          grep -Fq 'Contract review access required.' diagnostics/contract-review-private.body
+          grep -Fq 'noindex,nofollow' diagnostics/contract-review-private.body
 
       - name: Verify legacy and www canonical redirects
         shell: bash
