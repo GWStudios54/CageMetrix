@@ -76,3 +76,13 @@ test('private intelligence queue prioritizes unresolved recruiting facts without
   assert.match(entry,/recruitingIntelQueuePage/);
   assert.match(entry,/path==='\/recruiting\/intel'/);
 });
+
+
+test('private recruiting workspace links the contract review desk without exposing it publicly',()=>{
+  const recruiting=read('src/recruiting.ts'),review=read('src/contract-review.ts'),smoke=read('.github/workflows/post-deploy-smoke.yml');
+  assert.match(recruiting,/href="\/recruiting\/contracts">Review contract leads/);
+  assert.match(review,/noindex,nofollow/);
+  assert.match(review,/adminAccount\(request,env\.DB\)/);
+  assert.match(smoke,/contract_review_code/);
+  assert.match(smoke,/Contract review access required\./);
+});
