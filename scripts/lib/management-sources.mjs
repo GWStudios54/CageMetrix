@@ -139,6 +139,30 @@ export const MANAGEMENT_SOURCES=[
     rosterSection:{start:'The Gladiators',end:'CONTACT US',selector:'h3'},
     profileUrls:['https://www.gladiatormgmtagency.com/fighter-management','https://www.gladiatormgmtagency.com/contact'],
     urls:['https://www.gladiatormgmtagency.com/roster']
+  },
+  {
+    slug:'hd-global-athlete-management',name:'HD Global Athlete Management',country:'United Kingdom',website:'https://hdglobalathlete.com/',confidence:'A',
+    description:'Full-service global combat-sports management agency with more than 20 years of industry experience. Its current official site publishes named managed MMA athletes across UFC, PFL, Cage Warriors and developmental competition and describes contract negotiation, career management, sponsorship, compliance and logistics support.',
+    rosterScope:'official_public_roster',
+    rosterSection:{start:'The HD Global Athlete Management Roster',end:'Why Choose Us',selector:'h3'},
+    profileUrls:['https://hdglobalathlete.com/','https://hdglobalathlete.com/about-us/'],
+    urls:['https://hdglobalathlete.com/']
+  },
+  {
+    slug:'3mgt-sports-media-management',name:'3MGT Sports and Media Management',country:'Germany',website:'https://3mgt.de/',confidence:'A',
+    description:'German sports and media management agency publishing a current MMA athlete roster and direct professional athlete contact routes. Its official site lists management, contract negotiation, promotion, brand, marketing and business support among its core services.',
+    rosterScope:'official_public_roster',
+    rosterSection:{start:'Our Athletes',end:'Case Studie',selector:'h5'},
+    profileUrls:['https://3mgt.de/'],
+    urls:['https://3mgt.de/']
+  },
+  {
+    slug:'burns-mma-agency',name:'Burns MMA Agency',country:'United States',website:'https://burns.agency/',confidence:'A',
+    description:'Florida-based MMA management agency founded by UFC veteran Gilbert Burns. Its current official site publishes managed athlete Rafael Tobias and describes long-term career, brand and partnership strategy for elite MMA fighters.',
+    rosterScope:'official_public_roster',
+    rosterSection:{start:'Brands we build.',end:'PARTNERS',selector:'h3'},
+    profileUrls:['https://burns.agency/'],
+    urls:['https://burns.agency/']
   }
 ];
 
