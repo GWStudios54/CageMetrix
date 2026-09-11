@@ -26,7 +26,7 @@ let profiles=[];
 if(!dry)profiles=query(`SELECT source_key,source_fighter_id,profile_slug,fighter_name FROM scout_active_global_profiles ORDER BY fighter_name`);
 for(const source of CONTRACT_DISCOVERY_SOURCES){
   try{
-    const listing=await fetchText(source.url),articles=parseContractListing(listing,source).slice(0,80),signalRows=[];
+    const listing=await fetchText(source.url),listed=parseContractListing(listing,source),seeded=Array.isArray(source.seedArticles)?source.seedArticles:[],mergedArticles=[...listed,...seeded],articleSeen=new Set(),articles=mergedArticles.filter(article=>{if(!article?.url||articleSeen.has(article.url))return false;articleSeen.add(article.url);return true;}).slice(0,80),signalRows=[];
     writeFileSync(`${cache}/${source.slug}-listing.${source.kind==='rss'?'xml':'html'}`,listing);
     for(const [index,article] of articles.entries()){
       try{
