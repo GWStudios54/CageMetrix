@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parsePflAjaxPayload,parsePflProfile,parsePflRoster} from './lib/promotion-location-sources.mjs';
+import {ONE_LOCATION_SOURCE,PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parseOneProfile,parseOneRoster,parsePflAjaxPayload,parsePflProfile,parsePflRoster} from './lib/promotion-location-sources.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
@@ -87,17 +87,72 @@ for(const [index,item] of links.entries()){
     const html=await fetchHtml(item.url);
     if(index<12)writeFileSync(cache+'/pfl-profile-'+(index+1)+'.html',html);
     const profile=parsePflProfile(html,item.url);
-    if(profile.normalized_name&&(profile.fighting_out_of||profile.fight_camp))candidates.push(profile);
+    if(profile.normalized_name&&(profile.fighting_out_of||profile.fight_camp))candidates.push({...profile,source,evidence_note:'Explicit FIGHTING OUT OF / FIGHT CAMP field on the official PFL fighter profile.'});
   }catch(error){
     errors.push({url:item.url,error:error instanceof Error?error.message:String(error)});
   }
 }
 
+const oneSource=ONE_LOCATION_SOURCE,oneRosterAudit=[],oneLinkMap=new Map(),oneErrors=[];
+const onePageLimit=dry?3:100;
+for(let page=1;page<=onePageLimit;page++){
+  const pageUrl=page===1?oneSource.rosterUrl:new URL('/athletes/page/'+page+'/',oneSource.rosterUrl).href;
+  try{
+    const html=await fetchHtml(pageUrl),pageLinks=parseOneRoster(html,{...oneSource,rosterUrl:pageUrl});
+    oneRosterAudit.push({page,url:pageUrl,links:pageLinks.length,status:'ok'});
+    if(!pageLinks.length)break;
+    let added=0;
+    for(const row of pageLinks){if(!oneLinkMap.has(row.url)){oneLinkMap.set(row.url,row);added++;}}
+    if(!added&&page>1)break;
+  }catch(error){
+    oneRosterAudit.push({page,url:pageUrl,links:0,status:'error',error:error instanceof Error?error.message:String(error)});
+    break;
+  }
+}
+const oneRosterLinks=[...oneLinkMap.values()];
+let oneProfileLinks=[];
 if(dry){
-  const summary={checked_at:checkedAt,mode:'dry-run',source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit,profiles_with_intel:candidates.length,with_location:candidates.filter(row=>row.fighting_out_of).length,with_team:candidates.filter(row=>row.fight_camp).length,errors};
+  oneProfileLinks=oneRosterLinks.slice(0,30);
+}else if(oneRosterLinks.length){
+  const oneNames=[...new Set(oneRosterLinks.map(row=>row.normalized_name).filter(Boolean))],oneWarehouse=[];
+  for(let i=0;i<oneNames.length;i+=70){
+    const batch=oneNames.slice(i,i+70);
+    oneWarehouse.push(...query('SELECT source_key,source_fighter_id,normalized_name FROM scout_active_global_profiles WHERE normalized_name IN ('+batch.map(q).join(',')+')'));
+  }
+  const oneCounts=new Map();
+  for(const row of oneWarehouse){const key=String(row.normalized_name||'');oneCounts.set(key,(oneCounts.get(key)||0)+1);}
+  oneProfileLinks=oneRosterLinks.filter(row=>oneCounts.get(row.normalized_name)===1);
+}
+for(const [index,item] of oneProfileLinks.entries()){
+  try{
+    const html=await fetchHtml(item.url);
+    if(index<12)writeFileSync(cache+'/one-profile-'+(index+1)+'.html',html);
+    const profile=parseOneProfile(html,item.url);
+    if(profile.normalized_name!==item.normalized_name){
+      oneErrors.push({url:item.url,error:'profile_identity_changed',roster_name:item.fighter_name,profile_name:profile.fighter_name});
+      continue;
+    }
+    if(profile.fighting_out_of||profile.fight_camp)candidates.push({...profile,source:oneSource,evidence_note:'Explicit fighting-out-of wording on the official ONE Championship athlete profile.'});
+  }catch(error){
+    oneErrors.push({url:item.url,error:error instanceof Error?error.message:String(error)});
+  }
+}
+
+if(dry){
+  const summary={
+    checked_at:checkedAt,mode:'dry-run',
+    sources:[
+      {source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit,profile_errors:errors.length},
+      {source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_probed:oneProfileLinks.length,profile_errors:oneErrors.length}
+    ],
+    profiles_with_intel:candidates.length,
+    with_location:candidates.filter(row=>row.fighting_out_of).length,
+    with_team:candidates.filter(row=>row.fight_camp).length,
+    errors:[...errors,...oneErrors]
+  };
   writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
-  if(!links.length)throw new Error('PFL roster returned no fighter profile links');
-  console.log('PFL location probe found '+summary.with_location+' fighting-out-of and '+summary.with_team+' fight-camp profile(s) across '+links.length+' roster link(s).');
+  if(!links.length&&!oneRosterLinks.length)throw new Error('No official promotion roster returned fighter profile links');
+  console.log('Promotion location probe found '+summary.with_location+' explicit bases and '+summary.with_team+' fight-camp/team fields across PFL + bounded ONE profile probes.');
   process.exit(0);
 }
 
@@ -123,19 +178,19 @@ for(const candidate of candidates){
 
 const statements=[];
 for(const row of matched){
-  const p=row.profile,loc=row.location;
+  const p=row.profile,loc=row.location,rowSource=row.source||source;
   if(row.fighting_out_of){
     statements.push(
       'INSERT INTO fighter_location_evidence(source_key,source_fighter_id,location_kind,city,region,country,raw_value,source_url,source_title,publisher,source_type,confidence,is_current,verified_at,last_checked_at,notes) VALUES('+
-      [q(p.source_key),q(p.source_fighter_id),q('fighting_out_of'),q(loc.city),q(loc.region),q(loc.country),q(loc.raw_value),q(row.source_url),q(row.fighter_name+' official PFL profile'),q(source.publisher),q('promotion_direct'),q('A'),'1',q(checkedAt),q(checkedAt),q('Explicit FIGHTING OUT OF field on the official PFL fighter profile.')].join(',')+
+      [q(p.source_key),q(p.source_fighter_id),q('fighting_out_of'),q(loc.city),q(loc.region),q(loc.country),q(loc.raw_value),q(row.source_url),q(row.fighter_name+' official '+rowSource.publisher+' profile'),q(rowSource.publisher),q(rowSource.sourceType),q(rowSource.confidence),'1',q(checkedAt),q(checkedAt),q(row.evidence_note||'Explicit professional-base wording on an official promotion fighter profile.')].join(',')+
       ') ON CONFLICT(source_key,source_fighter_id,source_url,location_kind,raw_value) DO UPDATE SET city=excluded.city,region=excluded.region,country=excluded.country,is_current=1,verified_at=excluded.verified_at,last_checked_at=excluded.last_checked_at;'
     );
   }
   if(row.fight_camp){
-    const fingerprint='promotion:pfl:'+p.source_key+':'+p.source_fighter_id+':team.primary:'+normalizeFighterName(row.fight_camp);
+    const fingerprint='promotion:'+rowSource.promotionSlug+':'+p.source_key+':'+p.source_fighter_id+':team.primary:'+normalizeFighterName(row.fight_camp);
     statements.push(
       'INSERT INTO fighter_intel_facts(fingerprint,source_key,source_fighter_id,category,fact_key,value_text,is_current,source_slug,source_url,source_type,confidence,verified_at,last_checked_at,notes) VALUES('+
-      [q(fingerprint),q(p.source_key),q(p.source_fighter_id),q('team'),q('team.primary'),q(row.fight_camp),'1',q('promotion-sites'),q(row.source_url),q('promotion_direct'),q('A'),q(checkedAt),q(checkedAt),q('Explicit FIGHT CAMP field on the official PFL fighter profile.')].join(',')+
+      [q(fingerprint),q(p.source_key),q(p.source_fighter_id),q('team'),q('team.primary'),q(row.fight_camp),'1',q('promotion-sites'),q(row.source_url),q(rowSource.sourceType),q(rowSource.confidence),q(checkedAt),q(checkedAt),q(row.evidence_note||'Explicit team/camp wording on an official promotion fighter profile.')].join(',')+
       ') ON CONFLICT(fingerprint) DO UPDATE SET value_text=excluded.value_text,is_current=1,verified_at=excluded.verified_at,last_checked_at=excluded.last_checked_at;'
     );
   }
@@ -145,6 +200,6 @@ if(statements.length){
   wrangler(['d1','execute','cagemetrix',target,'--file',cache+'/sync.sql']);
 }
 const coverage=query("SELECT COUNT(*) fighters,ROUND(AVG(intel_coverage_pct),1) avg_coverage,SUM(CASE WHEN COALESCE(base_city,base_region,base_country) IS NOT NULL THEN 1 ELSE 0 END) base_known,SUM(CASE WHEN gym IS NOT NULL AND trim(gym)<>'' THEN 1 ELSE 0 END) gym_known FROM scout_fighter_intel_coverage")[0]||{};
-const summary={checked_at:checkedAt,mode:remote?'remote':'local',source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit,candidates:candidates.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors,unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
+const summary={checked_at:checkedAt,mode:remote?'remote':'local',sources:[{source:source.slug,roster_links:links.length,roster_pages:rosterAudit,ajax_pages:ajaxAudit},{source:oneSource.slug,roster_links:oneRosterLinks.length,roster_pages:oneRosterAudit,profiles_fetched:oneProfileLinks.length}],candidates:candidates.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors:[...errors,...oneErrors],unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
 writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
 console.log('Promotion location sync matched '+matched.length+'/'+candidates.length+' profiles ('+unmatched.length+' unmatched, '+ambiguous.length+' ambiguous); base known '+Number(coverage.base_known||0)+'/'+Number(coverage.fighters||0)+'.');
