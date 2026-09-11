@@ -32,6 +32,20 @@ export function parseProfessionalLocation(value){
 function clean(value){return String(value??'').replace(/\s+/g,' ').trim();}
 function absolute(href,base){try{return new URL(href,base).href}catch{return null;}}
 
+export function extractPflCsrfToken(html){
+  const match=String(html||'').match(/['"]X-CSRF-TOKEN['"]\s*:\s*['"]([^'"]+)['"]/i);
+  return match?.[1]||null;
+}
+
+export function parsePflAjaxPayload(value){
+  const data=typeof value==='string'?JSON.parse(value):value;
+  return {
+    html:String(data?.html||''),
+    count:Number(data?.count||0),
+    total:Number(data?.total||0)
+  };
+}
+
 export function parsePflRoster(html,source=PFL_LOCATION_SOURCE){
   const dom=new JSDOM(String(html||'')),doc=dom.window.document,out=[],seen=new Set();
   for(const anchor of doc.querySelectorAll('a[href]')){
