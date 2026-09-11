@@ -31,7 +31,10 @@ test('candidate generation preserves publication controls and evidence standards
   assert.match(source,/r\.model_version=\?/);
   assert.match(source,/COALESCE\(o\.contract_status,'unknown'\)/);
   assert.match(source,/CASE WHEN cm\.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE\(o\.management_status,'unknown'\) END/);
-  assert.match(source,/o\.open_to_fights='yes'/);
+  assert.match(source,/function availabilityExpr\(\)/);
+  assert.match(source,/COALESCE\(o\.open_to_fights,'unknown'\)<>'unknown' THEN o\.open_to_fights ELSE COALESCE\(ca\.open_to_fights,'unknown'\)/);
+  assert.match(source,/LEFT JOIN scout_current_availability ca/);
+  assert.match(source,/availabilityExpr\(\)\+"='yes'"/);
   assert.match(source,/INSERT OR IGNORE INTO recruiting_opening_candidates/);
 });
 

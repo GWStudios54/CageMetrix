@@ -8,11 +8,18 @@ on:
     workflows:
       - Refresh UFC scouting data
       - Sync MMA management data
+      - Sync fighter availability intelligence
+      - Sync promotion location intelligence
     types:
       - completed
   pull_request:
     paths:
       - 'migrations/0030_fighter_intelligence.sql'
+      - 'migrations/0039_location_intelligence.sql'
+      - 'migrations/0040_availability_intelligence.sql'
+      - 'scripts/sync-availability.mjs'
+      - 'scripts/lib/availability-sources.mjs'
+      - 'tests/availability-intel.test.mjs'
       - 'src/fighter-intel.ts'
       - 'src/entry.ts'
       - 'src/recruiting.ts'
@@ -27,6 +34,11 @@ on:
       - main
     paths:
       - 'migrations/0030_fighter_intelligence.sql'
+      - 'migrations/0039_location_intelligence.sql'
+      - 'migrations/0040_availability_intelligence.sql'
+      - 'scripts/sync-availability.mjs'
+      - 'scripts/lib/availability-sources.mjs'
+      - 'tests/availability-intel.test.mjs'
       - 'src/fighter-intel.ts'
       - 'src/entry.ts'
       - 'scripts/sync-fighter-intel.mjs'
@@ -36,7 +48,9 @@ on:
       - '.github/workflows/fighter-intel.yml'
 
 concurrency:
-  group: mmascouts-fighter-intel
+  # PR validation must not be cancelled by production refreshes triggered when
+  # management/location/availability workflows finish.
+  group: mmascouts-fighter-intel-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'production' }}
   cancel-in-progress: false
 
 jobs:
