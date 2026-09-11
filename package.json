@@ -32,7 +32,8 @@
     "locations:sync": "node scripts/sync-promotion-location.mjs --remote",
     "deploy:worker": "wrangler deploy",
     "availability:sync": "node scripts/sync-availability.mjs --remote",
-    "management:contacts:sync": "node scripts/sync-management-contacts.mjs --remote"
+    "management:contacts:sync": "node scripts/sync-management-contacts.mjs --remote",
+    "fighter:contacts:sync": "node scripts/sync-fighter-contacts.mjs --remote"
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
