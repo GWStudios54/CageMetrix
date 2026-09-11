@@ -8,9 +8,10 @@ const target=remote?'--remote':'--local',cache='.cache/contract-intel';mkdirSync
 const checkedAt=new Date().toISOString(),q=value=>value===null||value===undefined||value===''?'NULL':`'${String(value).replaceAll("'","''")}'`;
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const LEGACY_METHODS="'exact_name+keyword','signal_block_exact_name_v2','signal_block_subject_v3'";
+const UPGRADEABLE_METHODS="'exact_name+keyword','signal_block_exact_name_v2','signal_block_subject_v3','signal_block_scoped_subject_v4'";
 const V2_SUPERSEDED_NOTE='Automatically superseded by signal-local discovery v2 after the initial extractor proved over-broad.';
-const SUPERSEDED_NOTE='Automatically superseded by scoped subject-attributed discovery v4 after evidence-scope and subject-attribution hardening.';
-const REACTIVATED_NOTE='Automatically reactivated by scoped subject-attributed discovery v4 after passing evidence-scope and subject-attribution filters.';
+const SUPERSEDED_NOTE='Automatically superseded by current scoped subject-attributed discovery after evidence-scope and subject-attribution hardening.';
+const REACTIVATED_NOTE='Automatically reactivated or upgraded by current scoped subject-attributed discovery after passing evidence-scope and subject-attribution filters.';
 function wrangler(params,capture=false){return execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js',...params],{encoding:'utf8',stdio:capture?['ignore','pipe','pipe']:'inherit',maxBuffer:80*1024*1024,env:process.env})||'';}
 function query(sql){const blocks=JSON.parse(wrangler(['d1','execute','cagemetrix',target,'--command',sql,'--json'],true));return blocks.flatMap(block=>block?.results||[]);}
 async function fetchText(url,attempts=3){
@@ -47,19 +48,19 @@ writeFileSync(`${cache}/summary.json`,JSON.stringify(summary,null,2)+'\n');
 if(dry){if(!summary.sources_ok)throw new Error('All contract discovery sources failed');console.log(`Contract discovery probe found ${summary.signal_articles} contract-signal article(s) across ${summary.sources_ok}/${CONTRACT_DISCOVERY_SOURCES.length} reachable sources.`);process.exit(0);}
 
 // A candidate key identifies the source + fighter + detected event, not the
-// extractor version. When v4 rediscovers a candidate created by a legacy
-// extractor, upgrade that same private queue row in place rather than letting
-// INSERT OR IGNORE hide the clean rediscovery. Human-reviewed rows are never
+// extractor version. When a stronger current extractor rediscovers an
+// unreviewed candidate created by a weaker extractor, upgrade that same private
+// queue row in place rather than letting INSERT OR IGNORE hide cleaner evidence. Human-reviewed rows are never
 // reactivated automatically; only unreviewed legacy rows or rows auto-rejected
 // by the v2 supersession pass are eligible.
 let restored=0;
 if(unique.length){
   const keys=unique.map(row=>q(row.candidateKey)).join(',');
-  restored=Number(query(`SELECT COUNT(*) count FROM contract_intel_candidates WHERE candidate_key IN (${keys}) AND extraction_method IN (${LEGACY_METHODS}) AND (review_status IN ('pending','needs_identity') OR (review_status='rejected' AND instr(COALESCE(notes,''),${q(V2_SUPERSEDED_NOTE)})>0))`)[0]?.count||0);
+  restored=Number(query(`SELECT COUNT(*) count FROM contract_intel_candidates WHERE candidate_key IN (${keys}) AND extraction_method IN (${UPGRADEABLE_METHODS}) AND (review_status IN ('pending','needs_identity') OR (review_status='rejected' AND instr(COALESCE(notes,''),${q(V2_SUPERSEDED_NOTE)})>0))`)[0]?.count||0);
 }
 const reconciliation=[];
 for(const row of unique){
-  reconciliation.push(`UPDATE contract_intel_candidates SET source_url=${q(row.sourceUrl)},source_title=${q(row.sourceTitle)},publisher=${q(row.publisher)},published_at=${q(row.publishedAt)},source_type=${q(row.sourceType)},fighter_name=${q(row.fighterName)},normalized_name=${q(row.normalizedName)},source_key=${q(row.sourceKey)},source_fighter_id=${q(row.sourceFighterId)},promotion_slug=${q(row.promotionSlug)},detected_event_type=${q(row.detectedEventType)},detected_status=${q(row.detectedStatus)},detected_summary=${q(row.detectedSummary)},extraction_method=${q(row.extractionMethod||'signal_block_scoped_subject_v4')},review_status=${q(row.reviewStatus)},discovered_at=${q(checkedAt)},reviewed_at=NULL,notes=${q(REACTIVATED_NOTE)} WHERE candidate_key=${q(row.candidateKey)} AND extraction_method IN (${LEGACY_METHODS}) AND (review_status IN ('pending','needs_identity') OR (review_status='rejected' AND instr(COALESCE(notes,''),${q(V2_SUPERSEDED_NOTE)})>0));`);
+  reconciliation.push(`UPDATE contract_intel_candidates SET source_url=${q(row.sourceUrl)},source_title=${q(row.sourceTitle)},publisher=${q(row.publisher)},published_at=${q(row.publishedAt)},source_type=${q(row.sourceType)},fighter_name=${q(row.fighterName)},normalized_name=${q(row.normalizedName)},source_key=${q(row.sourceKey)},source_fighter_id=${q(row.sourceFighterId)},promotion_slug=${q(row.promotionSlug)},detected_event_type=${q(row.detectedEventType)},detected_status=${q(row.detectedStatus)},detected_summary=${q(row.detectedSummary)},extraction_method=${q(row.extractionMethod||'signal_block_scoped_subject_v4')},review_status=${q(row.reviewStatus)},discovered_at=${q(checkedAt)},reviewed_at=NULL,notes=${q(REACTIVATED_NOTE)} WHERE candidate_key=${q(row.candidateKey)} AND extraction_method IN (${UPGRADEABLE_METHODS}) AND extraction_method<>${q(row.extractionMethod||'signal_block_scoped_subject_v4')} AND (review_status IN ('pending','needs_identity') OR (review_status='rejected' AND instr(COALESCE(notes,''),${q(V2_SUPERSEDED_NOTE)})>0));`);
 }
 if(reconciliation.length){writeFileSync(`${cache}/reconcile.sql`,reconciliation.join('\n')+'\n');wrangler(['d1','execute','cagemetrix',target,'--file',`${cache}/reconcile.sql`]);}
 
