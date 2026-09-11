@@ -13,7 +13,9 @@ export const FIGHTER_CONTACT_SOURCES=[
     endHeading:'Case Studie',
     athleteHeadingSelector:'h5',
     emailDomain:'3mgt.de',
-    excludedEmails:['3mgt@3mgt.de']
+    excludedEmails:['3mgt@3mgt.de'],
+    minimumRosterCount:3,
+    minimumContactCount:2
   }
 ];
 
