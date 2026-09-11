@@ -38,18 +38,26 @@ const US_STATE_MAP=new Map(Object.entries({
 const COUNTRIES=new Set([
   'Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahrain','Bangladesh','Belarus','Belgium','Bolivia','Bosnia and Herzegovina','Brazil','Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Dominican Republic','Ecuador','Egypt','El Salvador','England','Estonia','Finland','France','Georgia','Germany','Ghana','Greece','Guatemala','Honduras','Hong Kong','Hong Kong SAR China','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lithuania','Malaysia','Mexico','Moldova','Mongolia','Montenegro','Morocco','Myanmar','Myanmar [Burma]','Nepal','Netherlands','New Zealand','Nicaragua','Nigeria','North Macedonia','Norway','Pakistan','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Puerto Rico','Qatar','Romania','Russia','Samoa','Saudi Arabia','Scotland','Senegal','Serbia','Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Thailand','Tonga','Tunisia','Turkey','Turkiye','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Venezuela','Vietnam','Wales'
 ]);
+const COUNTRY_MAP=new Map([...COUNTRIES].map(country=>[country.toLowerCase(),country]));
 
 export function parseProfessionalLocation(value){
   const raw=String(value??'').replace(/\s+/g,' ').trim();
   if(!raw)return {raw_value:null,city:null,region:null,country:null};
   const parts=raw.split(',').map(x=>x.trim()).filter(Boolean);
-  if(parts.length>=3)return {raw_value:raw,city:parts[0],region:parts.slice(1,-1).join(', '),country:parts[parts.length-1]};
+  if(parts.length>=3){
+    const country=COUNTRY_MAP.get(parts[parts.length-1].toLowerCase());
+    if(country)return {raw_value:raw,city:parts[0],region:parts.slice(1,-1).join(', '),country};
+    return {raw_value:raw,city:null,region:null,country:null};
+  }
   if(parts.length===2){
     const state=US_STATE_MAP.get(parts[1].toLowerCase());
     if(state)return {raw_value:raw,city:parts[0],region:state,country:'United States'};
-    return {raw_value:raw,city:parts[0],region:null,country:parts[1]};
+    const country=COUNTRY_MAP.get(parts[1].toLowerCase());
+    if(country)return {raw_value:raw,city:parts[0],region:null,country};
+    return {raw_value:raw,city:null,region:null,country:null};
   }
-  if(COUNTRIES.has(raw))return {raw_value:raw,city:null,region:null,country:raw};
+  const country=COUNTRY_MAP.get(raw.toLowerCase());
+  if(country)return {raw_value:raw,city:null,region:null,country};
   return {raw_value:raw,city:null,region:null,country:null};
 }
 
@@ -146,6 +154,14 @@ export function parseOneProfile(html,url){
     if(withMatch){
       raw=clean(withMatch[1]);
       fightCamp=clean(withMatch[2].replace(/,\s*(?:he|she|they|who|the fighter)\b[\s\S]*$/i,''));
+    }
+  }
+  if(raw){
+    const parts=raw.split(',').map(value=>clean(value)).filter(Boolean);
+    for(let count=1;count<=parts.length;count++){
+      const candidate=parts.slice(0,count).join(', ');
+      const parsed=parseProfessionalLocation(candidate);
+      if(parsed.city||parsed.region||parsed.country){raw=candidate;break;}
     }
   }
   const location=parseProfessionalLocation(raw);
