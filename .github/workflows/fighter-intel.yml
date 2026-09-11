@@ -10,6 +10,8 @@ on:
       - Sync MMA management data
       - Sync fighter availability intelligence
       - Sync promotion location intelligence
+      - Sync management contact intelligence
+      - Sync fighter professional contact intelligence
     types:
       - completed
   pull_request:
@@ -17,6 +19,14 @@ on:
       - 'migrations/0030_fighter_intelligence.sql'
       - 'migrations/0039_location_intelligence.sql'
       - 'migrations/0040_availability_intelligence.sql'
+      - 'migrations/0041_management_contact_intelligence.sql'
+      - 'migrations/0042_fighter_professional_contact_intelligence.sql'
+      - 'scripts/sync-management-contacts.mjs'
+      - 'scripts/lib/management-contact-sources.mjs'
+      - 'scripts/sync-fighter-contacts.mjs'
+      - 'scripts/lib/fighter-contact-sources.mjs'
+      - 'tests/management-contact-intel.test.mjs'
+      - 'tests/fighter-contact-intel.test.mjs'
       - 'scripts/sync-availability.mjs'
       - 'scripts/lib/availability-sources.mjs'
       - 'tests/availability-intel.test.mjs'
@@ -35,6 +45,14 @@ on:
       - 'migrations/0030_fighter_intelligence.sql'
       - 'migrations/0039_location_intelligence.sql'
       - 'migrations/0040_availability_intelligence.sql'
+      - 'migrations/0041_management_contact_intelligence.sql'
+      - 'migrations/0042_fighter_professional_contact_intelligence.sql'
+      - 'scripts/sync-management-contacts.mjs'
+      - 'scripts/lib/management-contact-sources.mjs'
+      - 'scripts/sync-fighter-contacts.mjs'
+      - 'scripts/lib/fighter-contact-sources.mjs'
+      - 'tests/management-contact-intel.test.mjs'
+      - 'tests/fighter-contact-intel.test.mjs'
       - 'scripts/sync-availability.mjs'
       - 'scripts/lib/availability-sources.mjs'
       - 'tests/availability-intel.test.mjs'
