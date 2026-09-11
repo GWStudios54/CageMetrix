@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {PFL_LOCATION_SOURCE,normalizeFighterName,parsePflProfile,parsePflRoster} from './lib/promotion-location-sources.mjs';
+import {PFL_LOCATION_SOURCE,extractPflCsrfToken,normalizeFighterName,parsePflAjaxPayload,parsePflProfile,parsePflRoster} from './lib/promotion-location-sources.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
@@ -34,7 +34,34 @@ async function fetchHtml(url,attempts=3){
 const source=PFL_LOCATION_SOURCE;
 const rosterHtml=await fetchHtml(source.rosterUrl);
 writeFileSync(cache+'/pfl-roster.html',rosterHtml);
-const links=parsePflRoster(rosterHtml,source);
+const linkMap=new Map(parsePflRoster(rosterHtml,source).map(row=>[row.url,row]));
+const csrf=extractPflCsrfToken(rosterHtml);
+const ajaxAudit=[];
+if(csrf){
+  const endpoint=new URL('/ajax/query_fighters',source.rosterUrl).href;
+  for(let page=2;page<=100;page++){
+    try{
+      const form=new FormData();
+      form.append('season_type','');
+      form.append('season_year','');
+      form.append('weightclass','');
+      form.append('gender','');
+      form.append('query_s','');
+      form.append('page',String(page));
+      const response=await fetch(endpoint,{method:'POST',redirect:'follow',signal:AbortSignal.timeout(35000),headers:{'accept':'application/json,text/plain,*/*','accept-language':'en-US,en;q=0.8','user-agent':'Mozilla/5.0 (compatible; MMA Scouts professional location research; +https://mmascouts.com/)','x-csrf-token':csrf,'referer':source.rosterUrl,'x-requested-with':'XMLHttpRequest'},body:form});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const payload=parsePflAjaxPayload(await response.text());
+      const pageLinks=parsePflRoster(payload.html,source);
+      for(const row of pageLinks)linkMap.set(row.url,row);
+      ajaxAudit.push({page,count:payload.count,total:payload.total,links:pageLinks.length});
+      if(payload.total===0||payload.count===0)break;
+    }catch(error){
+      ajaxAudit.push({page,error:error instanceof Error?error.message:String(error)});
+      break;
+    }
+  }
+}
+const links=[...linkMap.values()];
 const candidates=[],errors=[];
 for(const [index,item] of links.entries()){
   try{
@@ -48,7 +75,7 @@ for(const [index,item] of links.entries()){
 }
 
 if(dry){
-  const summary={checked_at:checkedAt,mode:'dry-run',source:source.slug,roster_links:links.length,profiles_with_intel:candidates.length,with_location:candidates.filter(row=>row.fighting_out_of).length,with_team:candidates.filter(row=>row.fight_camp).length,errors};
+  const summary={checked_at:checkedAt,mode:'dry-run',source:source.slug,roster_links:links.length,ajax_pages:ajaxAudit,profiles_with_intel:candidates.length,with_location:candidates.filter(row=>row.fighting_out_of).length,with_team:candidates.filter(row=>row.fight_camp).length,errors};
   writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
   if(!links.length)throw new Error('PFL roster returned no fighter profile links');
   console.log('PFL location probe found '+summary.with_location+' fighting-out-of and '+summary.with_team+' fight-camp profile(s) across '+links.length+' roster link(s).');
@@ -99,6 +126,6 @@ if(statements.length){
   wrangler(['d1','execute','cagemetrix',target,'--file',cache+'/sync.sql']);
 }
 const coverage=query("SELECT COUNT(*) fighters,ROUND(AVG(intel_coverage_pct),1) avg_coverage,SUM(CASE WHEN COALESCE(base_city,base_region,base_country) IS NOT NULL THEN 1 ELSE 0 END) base_known,SUM(CASE WHEN gym IS NOT NULL AND trim(gym)<>'' THEN 1 ELSE 0 END) gym_known FROM scout_fighter_intel_coverage")[0]||{};
-const summary={checked_at:checkedAt,mode:remote?'remote':'local',source:source.slug,roster_links:links.length,candidates:candidates.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors,unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
+const summary={checked_at:checkedAt,mode:remote?'remote':'local',source:source.slug,roster_links:links.length,ajax_pages:ajaxAudit,candidates:candidates.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,with_location:matched.filter(row=>row.fighting_out_of).length,with_team:matched.filter(row=>row.fight_camp).length,coverage,errors,unmatched_names:unmatched.slice(0,100).map(row=>row.fighter_name),ambiguous_names:ambiguous.map(row=>({fighter_name:row.fighter_name,matches:row.matches}))};
 writeFileSync(cache+'/summary.json',JSON.stringify(summary,null,2)+'\n');
 console.log('Promotion location sync matched '+matched.length+'/'+candidates.length+' profiles ('+unmatched.length+' unmatched, '+ambiguous.length+' ambiguous); base known '+Number(coverage.base_known||0)+'/'+Number(coverage.fighters||0)+'.');
