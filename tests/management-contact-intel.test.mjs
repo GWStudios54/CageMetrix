@@ -44,7 +44,9 @@ test('wave 1 contact registry uses official source-backed recruiter routes',()=>
     'first-round-management':'info@firstroundmanagement.com',
     'fair-play-mma':'info@fairplaymma.com',
     'ak-fighter-management':'info@akfightermanagement.com',
-    'knock-out-representation':'info@koreps.com'
+    'knock-out-representation':'info@koreps.com',
+    'galaktik-sports':'javad@galaktiksports.com',
+    'magnar-sports-entertainment':'info@magnarentertainment.com'
   };
   for(const [slug,email] of Object.entries(expected)){
     const source=bySlug(slug);
@@ -59,6 +61,14 @@ test('wave 1 contact registry uses official source-backed recruiter routes',()=>
   const gladiator=bySlug('gladiator-management-agency');
   assert.equal(gladiator.contactKind,'contact_form');
   assert.equal(gladiator.contactFormUrl,'https://www.gladiatormgmtagency.com/contact');
+  for(const slug of ['dominance-mma','ruby-sports-entertainment','goat-worldwide','tam-global']){
+    const source=bySlug(slug);
+    assert.ok(source,slug);
+    assert.equal(source.contactKind,'contact_form');
+    assert.equal(source.confidence,'A');
+    assert.equal(new URL(source.contactFormUrl).hostname,source.host);
+  }
+  assert.ok(MANAGEMENT_CONTACT_SOURCES.length>=11);
 });
 
 test('contact sync retires stale routes only after a reachable official source',()=>{
