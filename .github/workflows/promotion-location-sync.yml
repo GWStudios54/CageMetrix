@@ -10,7 +10,6 @@ on:
       - 'scripts/sync-promotion-location.mjs'
       - 'scripts/lib/promotion-location-sources.mjs'
       - 'tests/promotion-location-intel.test.mjs'
-      - 'package.json'
       - '.github/workflows/promotion-location-sync.yml'
   push:
     branches:
@@ -20,7 +19,6 @@ on:
       - 'scripts/sync-promotion-location.mjs'
       - 'scripts/lib/promotion-location-sources.mjs'
       - 'tests/promotion-location-intel.test.mjs'
-      - 'package.json'
       - '.github/workflows/promotion-location-sync.yml'
 
 concurrency:

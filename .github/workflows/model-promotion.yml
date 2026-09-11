@@ -1,9 +1,6 @@
 name: Promote CMR 0.3.2 and Predictor 0.2.1
 
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/model-promotion.yml']
   workflow_dispatch:
 
 concurrency:

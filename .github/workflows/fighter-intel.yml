@@ -27,7 +27,6 @@ on:
       - 'scripts/sync-fighter-intel.mjs'
       - 'scripts/lib/fighter-intel-policy.mjs'
       - 'tests/fighter-intel.test.mjs'
-      - 'package.json'
       - '.github/workflows/fighter-intel.yml'
   push:
     branches:
@@ -44,7 +43,6 @@ on:
       - 'scripts/sync-fighter-intel.mjs'
       - 'scripts/lib/fighter-intel-policy.mjs'
       - 'tests/fighter-intel.test.mjs'
-      - 'package.json'
       - '.github/workflows/fighter-intel.yml'
 
 concurrency:
