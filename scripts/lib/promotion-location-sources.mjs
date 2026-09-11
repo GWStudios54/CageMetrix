@@ -17,12 +17,25 @@ export const PFL_LOCATION_SOURCE={
   confidence:'A'
 };
 
+export const ONE_LOCATION_SOURCE={
+  slug:'one-athletes',
+  publisher:'ONE Championship',
+  rosterUrl:'https://www.onefc.com/athletes/',
+  host:'www.onefc.com',
+  sourceType:'promotion_direct',
+  confidence:'A'
+};
+
 export function normalizeFighterName(value){
   return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
 
-const US_STATES=new Set(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC']);
-const COUNTRIES=new Set(['Australia','Austria','Azerbaijan','Bahrain','Belgium','Brazil','Bulgaria','Cameroon','Canada','China','Croatia','Czech Republic','Egypt','England','Finland','France','Georgia','Germany','Greece','India','Indonesia','Ireland','Israel','Italy','Japan','Jordan','Kazakhstan','Kyrgyzstan','Lebanon','Mexico','Moldova','Mongolia','Montenegro','Morocco','Netherlands','New Zealand','Nigeria','Norway','Philippines','Poland','Portugal','Puerto Rico','Romania','Russia','Saudi Arabia','Scotland','Serbia','Singapore','Slovakia','South Africa','South Korea','Spain','Sweden','Switzerland','Syria','Tajikistan','Thailand','Tunisia','Turkey','Turkiye','Ukraine','United Arab Emirates','United Kingdom','United States','Uzbekistan','Venezuela','Wales']);
+const US_STATE_MAP=new Map(Object.entries({
+  Alabama:'AL',Alaska:'AK',Arizona:'AZ',Arkansas:'AR',California:'CA',Colorado:'CO',Connecticut:'CT',Delaware:'DE',Florida:'FL',Georgia:'GA',Hawaii:'HI',Idaho:'ID',Illinois:'IL',Indiana:'IN',Iowa:'IA',Kansas:'KS',Kentucky:'KY',Louisiana:'LA',Maine:'ME',Maryland:'MD',Massachusetts:'MA',Michigan:'MI',Minnesota:'MN',Mississippi:'MS',Missouri:'MO',Montana:'MT',Nebraska:'NE',Nevada:'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND',Ohio:'OH',Oklahoma:'OK',Oregon:'OR',Pennsylvania:'PA','Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD',Tennessee:'TN',Texas:'TX',Utah:'UT',Vermont:'VT',Virginia:'VA',Washington:'WA','West Virginia':'WV',Wisconsin:'WI',Wyoming:'WY','District of Columbia':'DC'
+}).flatMap(([name,abbr])=>[[name.toLowerCase(),abbr],[abbr.toLowerCase(),abbr]]));
+const COUNTRIES=new Set([
+  'Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahrain','Bangladesh','Belarus','Belgium','Bolivia','Bosnia and Herzegovina','Brazil','Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Dominican Republic','Ecuador','Egypt','El Salvador','England','Estonia','Finland','France','Georgia','Germany','Ghana','Greece','Guatemala','Honduras','Hong Kong','Hong Kong SAR China','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lithuania','Malaysia','Mexico','Moldova','Mongolia','Montenegro','Morocco','Myanmar','Myanmar [Burma]','Nepal','Netherlands','New Zealand','Nicaragua','Nigeria','North Macedonia','Norway','Pakistan','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Puerto Rico','Qatar','Romania','Russia','Samoa','Saudi Arabia','Scotland','Senegal','Serbia','Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Thailand','Tonga','Tunisia','Turkey','Turkiye','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Venezuela','Vietnam','Wales'
+]);
 
 export function parseProfessionalLocation(value){
   const raw=String(value??'').replace(/\s+/g,' ').trim();
@@ -30,7 +43,8 @@ export function parseProfessionalLocation(value){
   const parts=raw.split(',').map(x=>x.trim()).filter(Boolean);
   if(parts.length>=3)return {raw_value:raw,city:parts[0],region:parts.slice(1,-1).join(', '),country:parts[parts.length-1]};
   if(parts.length===2){
-    if(US_STATES.has(parts[1].toUpperCase()))return {raw_value:raw,city:parts[0],region:parts[1].toUpperCase(),country:'United States'};
+    const state=US_STATE_MAP.get(parts[1].toLowerCase());
+    if(state)return {raw_value:raw,city:parts[0],region:state,country:'United States'};
     return {raw_value:raw,city:parts[0],region:null,country:parts[1]};
   }
   if(COUNTRIES.has(raw))return {raw_value:raw,city:null,region:null,country:raw};
@@ -81,4 +95,64 @@ export function parsePflProfile(html,url){
   const fightCamp=between(body,'FIGHT CAMP','SOCIAL');
   dom.window.close();
   return {source_url:url,fighter_name:fighterName||null,normalized_name:normalizeFighterName(fighterName),fighting_out_of:fightingOutOf,location:parseProfessionalLocation(fightingOutOf),fight_camp:fightCamp};
+}
+
+
+export function stripQuotedNickname(value){
+  return clean(String(value??'').replace(/[“"][^”"]+[”"]/g,' '));
+}
+
+export function parseOneRoster(html,source=ONE_LOCATION_SOURCE){
+  const dom=new JSDOM(String(html||'')),doc=dom.window.document,out=[],seen=new Set();
+  for(const anchor of doc.querySelectorAll('a[href]')){
+    const url=absolute(anchor.getAttribute('href'),source.rosterUrl);if(!url)continue;
+    const parsed=new URL(url);
+    if(parsed.hostname!==source.host)continue;
+    if(!/^\/athletes\/[a-z0-9-]+\/?$/i.test(parsed.pathname))continue;
+    const canonical=parsed.origin+parsed.pathname.replace(/\/$/,'');
+    if(seen.has(canonical))continue;
+    seen.add(canonical);out.push({url:canonical});
+  }
+  dom.window.close();return out;
+}
+
+function oneAboutBody(doc){
+  const body=clean(doc.body?.textContent);
+  const heading=[...doc.querySelectorAll('h2,h3')].find(node=>/^About\b/i.test(clean(node.textContent)));
+  if(!heading)return body;
+  const marker=clean(heading.textContent),start=body.indexOf(marker);
+  if(start<0)return body;
+  const tail=body.slice(start+marker.length);
+  const end=tail.search(/\bONE Championship Records\b/i);
+  return clean(end>=0?tail.slice(0,end):tail);
+}
+
+export function parseOneProfile(html,url){
+  const dom=new JSDOM(String(html||'')),doc=dom.window.document;
+  const h1=clean(doc.querySelector('h1')?.textContent);
+  const title=clean(doc.querySelector('meta[property="og:title"]')?.getAttribute('content')||doc.title);
+  const displayName=h1||clean(title.split(' - ONE Championship')[0].split(' | ONE Championship')[0]);
+  const fighterName=stripQuotedNickname(displayName);
+  const about=oneAboutBody(doc);
+  const match=about.match(/\b(?:currently\s+)?fighting out of\s+([^.!?]+)/i);
+  let raw=clean(match?.[1]),fightCamp=null;
+  if(raw){
+    if(/\b(?:southpaw|orthodox)\s+stance\b/i.test(raw)||/^the\s+\w+\s+stance\b/i.test(raw))raw='';
+    const withMatch=raw.match(/^(.+?),\s+with\s+(.+)$/i);
+    if(withMatch){
+      raw=clean(withMatch[1]);
+      fightCamp=clean(withMatch[2].replace(/,\s*(?:he|she|they|who|the fighter)\b[\s\S]*$/i,''));
+    }
+  }
+  const location=parseProfessionalLocation(raw);
+  const usable=Boolean(location.city||location.region||location.country);
+  dom.window.close();
+  return {
+    source_url:url,
+    fighter_name:fighterName||null,
+    normalized_name:normalizeFighterName(fighterName),
+    fighting_out_of:usable?location.raw_value:null,
+    location:usable?location:{raw_value:null,city:null,region:null,country:null},
+    fight_camp:fightCamp||null
+  };
 }
