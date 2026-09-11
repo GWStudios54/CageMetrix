@@ -124,14 +124,16 @@ test('signal-local discovery excludes comparison and opponent names from contrac
   assert.ok(rows.every(row=>row.extractionMethod==='signal_block_scoped_subject_v4'));
 });
 
-test('candidate discovery reconciles clean v4 rediscoveries instead of hiding them behind legacy keys',()=>{
+test('candidate discovery upgrades stronger current rediscoveries instead of hiding them behind existing keys',()=>{
   const discovery=read('scripts/discover-contract-intel.mjs');
   assert.match(discovery,/candidate key identifies the source \+ fighter \+ detected event/i);
   assert.match(discovery,/UPDATE contract_intel_candidates SET source_url=.*extraction_method=.*review_status=.*reviewed_at=NULL/s);
-  assert.match(discovery,/Automatically reactivated by scoped subject-attributed discovery v4/);
+  assert.match(discovery,/Automatically reactivated or upgraded by current scoped subject-attributed discovery/);
   assert.match(discovery,/review_status='rejected' AND instr\(COALESCE\(notes,''\)/);
   assert.match(discovery,/restored_legacy_candidates/);
   assert.match(discovery,/LEGACY_METHODS=.*signal_block_subject_v3/);
+  assert.match(discovery,/UPGRADEABLE_METHODS=.*signal_block_scoped_subject_v4/);
+  assert.match(discovery,/extraction_method<>/);
 });
 
 test('candidate discovery queues evidence without publishing contract events',()=>{
@@ -143,7 +145,7 @@ test('candidate discovery queues evidence without publishing contract events',()
   assert.match(discovery,/source\.seedArticles/);
   assert.match(discovery,/INSERT OR IGNORE INTO contract_intel_candidates/);
   assert.match(discovery,/signal_block_scoped_subject_v4/);
-  assert.match(discovery,/Automatically superseded by scoped subject-attributed discovery v4/);
+  assert.match(discovery,/Automatically superseded by current scoped subject-attributed discovery/);
   assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_contract_events/i);
 });
 
@@ -169,4 +171,26 @@ test('contract review never auto-promotes discovery candidates',()=>{
   assert.match(page,/Nothing is auto-published/);
   assert.match(page,/needs_identity/);
   assert.doesNotMatch(page,/<input[^>]*name=\\?"is_current\\?"[^>]*\\schecked(?:=|\\s|>)/i);
+});
+
+
+test('signal-bearing headlines create title-scoped v5 candidates while body-only evidence stays v4',()=>{
+  const source={publisher:'ONE Championship',sourceType:'promotion_direct',promotionSlug:'one'};
+  const profiles=[{source_key:'mma',source_fighter_id:'1',fighter_name:'Dustin Joynson'},{source_key:'mma',source_fighter_id:'2',fighter_name:'Stephen Loman'}];
+  const titleRows=candidateRows(
+    {title:'Undefeated Heavyweight Dustin Joynson Signs With ONE Championship',url:'https://www.onefc.com/news/dustin-signs'},
+    source,
+    'Dustin Joynson officially put pen to paper with the promotion.',
+    profiles
+  );
+  assert.equal(titleRows.length,1);
+  assert.equal(titleRows[0].extractionMethod,'signal_title_exact_subject_v5');
+  const bodyRows=candidateRows(
+    {title:'Stephen Loman Joins ONE Championship',url:'https://www.onefc.com/news/loman-joins'},
+    source,
+    'ONE Championship announced the signing of five-time Mixed Martial Arts Champion Stephen Loman.',
+    profiles
+  );
+  assert.equal(bodyRows.length,1);
+  assert.equal(bodyRows[0].extractionMethod,'signal_block_scoped_subject_v4');
 });
