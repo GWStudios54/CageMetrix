@@ -52,9 +52,11 @@ test('recruiting data never enters Global Rating',()=>{
   assert.doesNotMatch(rating,/recruiting_openings|recruiting_opening_candidates|management_filter|contract_filter|opportunity_filter/);
 });
 
-test('production deploy installs the idempotent recruiting schema and private smoke verifies access control',()=>{
+test('production deploy applies all pending migrations and private smoke verifies recruiting access control',()=>{
   const deploy=read('.github/workflows/deploy.yml'),smoke=read('.github/workflows/post-deploy-smoke.yml'),config=read('wrangler.jsonc'),nav=read('src/navigation.ts');
-  assert.match(deploy,/wrangler d1 execute cagemetrix --remote --file migrations\/0038_recruiting_workspace\.sql/);
+  assert.match(deploy,/npm run db:migrate:remote/);
+  assert.match(deploy,/Currently processing a long-running import/);
+  assert.match(deploy,/run: npm run deploy:worker/);
   assert.match(config,/"\/recruiting"/);
   assert.match(config,/"\/recruiting\/\*"/);
   assert.match(smoke,/recruiting_code/);
