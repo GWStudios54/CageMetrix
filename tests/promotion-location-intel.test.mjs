@@ -79,6 +79,8 @@ test('PFL load-more contract is parsed without inventing endpoints or pagination
   assert.equal(extractPflCsrfToken(script),'abc123');
   assert.deepEqual(parsePflAjaxPayload(JSON.stringify({html:'<a href="/all-fighter/a">A</a>',count:8,total:99})),{html:'<a href="/all-fighter/a">A</a>',count:8,total:99});
   const source=read('scripts/sync-promotion-location.mjs');
+  assert.ok(PFL_LOCATION_SOURCE.rosterUrls.length>=6);
+  for(const path of ['regular-fighter-roster','cs-fighter-roster','mena-fighter-roster','europe-fighter-roster','africa-fighter-roster'])assert.ok(PFL_LOCATION_SOURCE.rosterUrls.some(url=>url.includes(path)),path);
   assert.match(source,/\/ajax\/query_fighters/);
   assert.match(source,/for\(let page=2;page<=100;page\+\+\)/);
   for(const field of ['season_type','season_year','weightclass','gender','query_s','page'])assert.match(source,new RegExp("form\\.append\\('"+field+"'"));
