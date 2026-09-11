@@ -39,24 +39,38 @@ const COUNTRIES=new Set([
   'Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahrain','Bangladesh','Belarus','Belgium','Bolivia','Bosnia and Herzegovina','Brazil','Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Dominican Republic','Ecuador','Egypt','El Salvador','England','Estonia','Finland','France','Georgia','Germany','Ghana','Greece','Guatemala','Honduras','Hong Kong','Hong Kong SAR China','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lithuania','Malaysia','Mexico','Moldova','Mongolia','Montenegro','Morocco','Myanmar','Myanmar [Burma]','Nepal','Netherlands','New Zealand','Nicaragua','Nigeria','North Macedonia','Norway','Pakistan','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Puerto Rico','Qatar','Romania','Russia','Samoa','Saudi Arabia','Scotland','Senegal','Serbia','Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Thailand','Tonga','Tunisia','Turkey','Turkiye','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Venezuela','Vietnam','Wales'
 ]);
 const COUNTRY_MAP=new Map([...COUNTRIES].map(country=>[country.toLowerCase(),country]));
+const COUNTRY_ALIASES=new Map([
+  ['usa','United States'],['u.s.a.','United States'],['united states of america','United States'],
+  ['uk','United Kingdom'],['u.k.','United Kingdom'],
+  ['uae','United Arab Emirates'],['u.a.e.','United Arab Emirates'],
+  ['republic of ireland','Ireland'],['the netherlands','Netherlands']
+]);
+function canonicalCountry(value){
+  const key=String(value??'').trim().toLowerCase();
+  return COUNTRY_MAP.get(key)||COUNTRY_ALIASES.get(key)||null;
+}
 
 export function parseProfessionalLocation(value){
   const raw=String(value??'').replace(/\s+/g,' ').trim();
   if(!raw)return {raw_value:null,city:null,region:null,country:null};
   const parts=raw.split(',').map(x=>x.trim()).filter(Boolean);
   if(parts.length>=3){
-    const country=COUNTRY_MAP.get(parts[parts.length-1].toLowerCase());
-    if(country)return {raw_value:raw,city:parts[0],region:parts.slice(1,-1).join(', '),country};
+    const country=canonicalCountry(parts[parts.length-1]);
+    if(country){
+      const middle=parts.slice(1,-1).join(', ');
+      const region=country==='United States'?(US_STATE_MAP.get(middle.toLowerCase())||middle):middle;
+      return {raw_value:raw,city:parts[0],region,country};
+    }
     return {raw_value:raw,city:null,region:null,country:null};
   }
   if(parts.length===2){
     const state=US_STATE_MAP.get(parts[1].toLowerCase());
     if(state)return {raw_value:raw,city:parts[0],region:state,country:'United States'};
-    const country=COUNTRY_MAP.get(parts[1].toLowerCase());
+    const country=canonicalCountry(parts[1]);
     if(country)return {raw_value:raw,city:parts[0],region:null,country};
     return {raw_value:raw,city:null,region:null,country:null};
   }
-  const country=COUNTRY_MAP.get(raw.toLowerCase());
+  const country=canonicalCountry(raw);
   if(country)return {raw_value:raw,city:null,region:null,country};
   return {raw_value:raw,city:null,region:null,country:null};
 }
