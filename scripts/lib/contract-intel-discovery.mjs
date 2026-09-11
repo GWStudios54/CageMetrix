@@ -52,12 +52,13 @@ export const CONTRACT_DISCOVERY_SOURCES=[
       {title:'Roberto Soldic announces free agency after ONE Championship contract expires',subjectFighterName:'Roberto Soldic',promotionSlug:'one',url:'https://www.mmafighting.com/one/503724/roberto-soldic-announces-free-agency-after-one-championship-contract-expires',publishedAt:'2026-08-07'},
       {title:'Michel Pereira removed from UFC roster after loss to Shara Bullet in Baku',subjectFighterName:'Michel Pereira',promotionSlug:'ufc',url:'https://www.mmafighting.com/ufc/499434/michel-pereira-removed-from-ufc-roster-after-loss-to-shara-bullet-in-baku',publishedAt:'2026-07-14'},
       {title:'PFL releases Francis Ngannou',subjectFighterName:'Francis Ngannou',promotionSlug:'pfl',url:'https://www.mmafighting.com/pfl/475059/pfl-releases-francis-ngannou',publishedAt:'2026-03-06'},
-      {title:'Former ONE champion Adriano Moraes enters free agency, confident ‘I can be part of the UFC roster’',subjectFighterName:'Adriano Moraes',promotionSlug:'one',url:'https://www.mmafighting.com/one/474625/former-one-champion-adriano-moraes-enters-free-agency-confident-i-can-be-part-of-the-ufc-roster',publishedAt:'2026-03-03'}
+      {title:'Former ONE champion Adriano Moraes enters free agency, confident ‘I can be part of the UFC roster’',subjectFighterName:'Adriano Moraes',promotionSlug:'one',url:'https://www.mmafighting.com/one/474625/former-one-champion-adriano-moraes-enters-free-agency-confident-i-can-be-part-of-the-ufc-roster',publishedAt:'2026-03-03'},
+      {title:'Dana White responds to Usman Nurmagomedov free agency and UFC’s interest, decision coming ‘very soon’',subjectFighterName:'Usman Nurmagomedov',promotionSlug:'pfl',url:'https://www.mmafighting.com/ufc/502930/dana-white-responds-to-usman-nurmagomedov-free-agency-and-potentially-signing-him-to-ufc',publishedAt:'2026-08-02'}
     ]},
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
 ];
 
-const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*(?:[a-z0-9-]+\s+){0,3}contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}(?:contract|deal))\b/i;
+const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*(?:[a-z0-9-]+\s+){0,3}contract|(?:complet(?:e|es|ed|ing)|finish(?:es|ed|ing)?)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}(?:contract|deal))\b/i;
 const NON_FIGHTER_RE=/\b(?:media rights|broadcast|streaming|sponsorship deal|partnership|venue deal|rights agreement)\b/i;
 const PROMOTIONS=[
   ['ufc','(?:ultimate fighting championship|ufc)'],['pfl','(?:professional fighters league|pfl)'],['one','one championship'],['brave-cf','(?:brave combat federation|brave cf)'],['cffc','(?:cage fury fighting championships?|cage fury fc|cffc)'],['cage-warriors','cage warriors'],['oktagon','oktagon(?: mma)?'],['ksw','(?:konfrontacja sztuk walki|ksw)'],['rizin','rizin(?: fighting federation)?'],['lfa','(?:legacy fighting alliance|lfa)'],['fury-fc','(?:fury fighting championship|fury fc)'],['pancrase','pancrase'],['shooto','shooto'],['aca','(?:absolute championship akhmat|aca)'],['tuff-n-uff','tuff n uff'],['fnc','(?:fight nation championship|fnc)']
@@ -69,7 +70,7 @@ function semanticContractText(value){return normalizeContractText(value).replace
 export function hasContractSignal(value){const text=semanticContractText(value);return SIGNAL_RE.test(text)&&!NON_FIGHTER_RE.test(text);}
 export function detectContractSignal(value){
   const text=semanticContractText(value);
-  if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}(?:contract|deal)\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
+  if(/\b(?:complet(?:e|es|ed|ing)|finish(?:es|ed|ing)?)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}(?:contract|deal)\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
   if(/\bdeclin(?:e|es|ed|ing)\s+to\s+re\s?sign\b|\bnot\s+re\s?sign(?:s|ed|ing)?\b/.test(text))return {eventType:'status_update',status:'unknown'};
   if(/\bfree\s+agent(?:cy)?\b/.test(text))return {eventType:'free_agency',status:'free_agent'};
   if(/\brelease(?:d|s)?\b|\bpart(?:s|ed)?\s+ways\b/.test(text))return {eventType:'release',status:'released'};
@@ -99,7 +100,7 @@ export function detectContractPromotion(value,fallback=null){
       new RegExp(`\\b${promotion}\\s+(?:release(?:s|d)?|waive(?:s|d)?|cuts?)\\b`),
       new RegExp(`\\b(?:release(?:s|d)?|waive(?:s|d)?|part(?:s|ed)?\\s+ways)\\b.{0,120}\\b(?:by|from|with)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:removed|depart(?:s|ed)?|exits?)\\b.{0,100}\\b(?:from|the)\\s+(?:the\\s+)?${promotion}\\s+(?:roster|promotion|organization)\\b`),
-      new RegExp(`\\bcomplet(?:e|es|ed|ing)\\b.{0,100}\\b(?:contract|deal)\\b.{0,80}\\b(?:with|under)\\s+(?:the\\s+)?${promotion}\\b`),
+      new RegExp(`\\b(?:complet(?:e|es|ed|ing)|finish(?:es|ed|ing)?)\\b.{0,100}\\b(?:contract|deal)\\b.{0,80}\\b(?:with|under)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:contract|deal|extension)\\b.{0,100}\\b(?:with|under)\\s+(?:the\\s+)?${promotion}\\b`)
     ];
     if(patterns.some(pattern=>pattern.test(text)))return slug;
