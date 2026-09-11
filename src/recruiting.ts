@@ -97,7 +97,7 @@ function candidateQuery(opening:Row,limit=100){
            p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
-           ${managementExpr()} management_status,cm.agency_name,cm.manager_name,cm.verified_at management_verified_at,
+           ${managementExpr()} management_status,cm.agency_name,cm.agency_website,cm.manager_name,cm.verified_at management_verified_at,
            COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
            o.base_city,o.base_region,o.base_country,o.public_contact_url,o.verified_at opportunity_verified_at
     FROM scout_public_global_profiles p
@@ -116,7 +116,7 @@ function intelligenceGaps(row:Row){
   if(row.management_status==='unknown')gaps.push('management');
   if(row.contract_status==='unknown')gaps.push('contract');
   if(!row.base_city&&!row.base_region&&!row.base_country)gaps.push('base');
-  if(!row.public_contact_url)gaps.push('contact');
+  if(!row.public_contact_url&&!row.agency_website)gaps.push('contact');
   if(row.open_to_fights==='unknown')gaps.push('availability');
   const stale=(value:unknown,days:number)=>{const t=Date.parse(String(value||''));return !Number.isFinite(t)||Date.now()-t>days*86400000;};
   if(row.management_status!=='unknown'&&stale(row.management_verified_at,180))gaps.push('management stale');
@@ -132,7 +132,7 @@ async function candidateRows(env:Env,openingId:number){
            p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
-           ${managementExpr()} management_status,cm.agency_name,cm.manager_name,cm.verified_at management_verified_at,
+           ${managementExpr()} management_status,cm.agency_name,cm.agency_website,cm.manager_name,cm.verified_at management_verified_at,
            COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
            o.base_city,o.base_region,o.base_country,o.public_contact_url,o.verified_at opportunity_verified_at
     FROM recruiting_opening_candidates c
@@ -226,7 +226,7 @@ function openingBrief(o:Row){
 }
 function candidateCard(row:Row){
   const gaps=row.intelligence_gaps as string[];
-  const contact=row.public_contact_url?`<a href="${esc(row.public_contact_url)}" rel="nofollow noopener" target="_blank">Public contact ↗</a>`:'No public contact path';
+  const contact=row.public_contact_url?`<a href="${esc(row.public_contact_url)}" rel="nofollow noopener" target="_blank">Direct public contact ↗</a>`:row.agency_website?`<a href="${esc(row.agency_website)}" rel="nofollow noopener" target="_blank">Agency contact path ↗</a>`:'No public contact path';
   const rep=row.management_status==='represented'?(row.agency_name||row.manager_name||'Represented'):row.management_status==='unmanaged'?'Verified unmanaged':'Management unknown';
   const base=[row.base_city,row.base_region,row.base_country].filter(Boolean).join(', ')||'Base unknown';
   return `<article class="recruit-candidate" data-candidate="${row.candidate_id}">
@@ -282,22 +282,23 @@ export async function recruitingIntelQueuePage(request:Request,env:Env){
   const url=new URL(request.url),gap=INTEL_GAPS.has(String(url.searchParams.get('gap')||'all'))?String(url.searchParams.get('gap')||'all'):'all';
   const division=String(url.searchParams.get('weight_class')||'').trim().slice(0,80);
   const minRating=num(url.searchParams.get('min_rating'),0,100);
-  const clauses=[`(c.management_status='unknown' OR c.contract_status='unknown' OR c.open_to_fights='unknown' OR COALESCE(c.base_city,c.base_region,c.base_country) IS NULL OR c.public_contact_url IS NULL)`];
+  const clauses=[`(c.management_status='unknown' OR c.contract_status='unknown' OR c.open_to_fights='unknown' OR COALESCE(c.base_city,c.base_region,c.base_country) IS NULL OR (c.public_contact_url IS NULL AND cm.agency_website IS NULL))`];
   const binds:any[]=[GLOBAL_MODEL];
   if(gap==='management')clauses.push(`c.management_status='unknown'`);
   if(gap==='contract')clauses.push(`c.contract_status='unknown'`);
   if(gap==='availability')clauses.push(`c.open_to_fights='unknown'`);
   if(gap==='base')clauses.push(`COALESCE(c.base_city,c.base_region,c.base_country) IS NULL`);
-  if(gap==='contact')clauses.push(`c.public_contact_url IS NULL`);
+  if(gap==='contact')clauses.push(`c.public_contact_url IS NULL AND cm.agency_website IS NULL`);
   if(division){clauses.push('c.current_weight_class=?');binds.push(division);}
   if(minRating!==null){clauses.push('r.scout_rating>=?');binds.push(minRating);}
   const rows=(await env.DB.prepare(`
     SELECT c.*,r.scout_rating global_rating,r.evidence_strength,
-           COALESCE(o.public_contact_url,c.public_contact_url) resolved_contact_url
+           COALESCE(o.public_contact_url,c.public_contact_url,cm.agency_website) resolved_contact_url
     FROM scout_fighter_intel_coverage c
     JOIN scout_public_global_profiles p ON p.source_key=c.source_key AND p.source_fighter_id=c.source_fighter_id
     LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
     LEFT JOIN fighter_opportunity_status o ON o.source_key=c.source_key AND o.source_fighter_id=c.source_fighter_id
+    LEFT JOIN scout_current_management cm ON cm.source_key=c.source_key AND cm.source_fighter_id=c.source_fighter_id
     WHERE ${clauses.join(' AND ')}
     ORDER BY CASE WHEN c.last_fight_date IS NOT NULL AND date(substr(c.last_fight_date,1,10))>=date('now','-18 months') THEN 0 ELSE 1 END,
              r.scout_rating IS NULL,r.scout_rating DESC,r.evidence_strength DESC,c.last_fight_date DESC,c.fighter_name
