@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {MANAGEMENT_SOURCES,applyManagementAliases,normalizeManagementName,parseManagementRoster} from '../scripts/lib/management-sources.mjs';
 
 test('management source registry separates roster sources from agency profile evidence',()=>{
@@ -107,6 +108,6 @@ test('source-aware parser extracts only official roster elements for representat
 });
 
 test('management sync always supplies source metadata to roster extraction',()=>{
-  const source=await import('node:fs').then(fs=>fs.readFileSync('scripts/sync-management.mjs','utf8'));
+  const source=fs.readFileSync('scripts/sync-management.mjs','utf8');
   assert.match(source,/parseManagementRoster\(html,agency\)/);
 });
