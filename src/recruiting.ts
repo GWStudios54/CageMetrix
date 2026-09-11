@@ -75,6 +75,10 @@ async function openingCounts(env:Env,ownerId:number){
 }
 
 function managementExpr(){return `CASE WHEN cm.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE(o.management_status,'unknown') END`;}
+function availabilityExpr(){return `CASE WHEN COALESCE(o.open_to_fights,'unknown')<>'unknown' THEN o.open_to_fights ELSE COALESCE(ca.open_to_fights,'unknown') END`;}
+function baseCityExpr(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_city ELSE cl.base_city END`;}
+function baseRegionExpr(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_region ELSE cl.base_region END`;}
+function baseCountryExpr(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_country ELSE cl.base_country END`;}
 
 function candidateQuery(opening:Row,limit=100){
   const clauses=[`COALESCE(controls.public_status,'public')='public'`,`r.model_version=?`];
@@ -88,7 +92,7 @@ function candidateQuery(opening:Row,limit=100){
   if(opening.active_months!==null){clauses.push(`p.last_fight_date IS NOT NULL AND date(substr(p.last_fight_date,1,10))>=date('now',?)`);binds.push('-'+Math.round(Number(opening.active_months))+' months');}
   if(opening.management_filter!=='any'){clauses.push(managementExpr()+'=?');binds.push(opening.management_filter);}
   if(opening.contract_filter!=='any'){clauses.push(`COALESCE(o.contract_status,'unknown')=?`);binds.push(opening.contract_filter);}
-  if(opening.opportunity_filter==='fights')clauses.push(`o.open_to_fights='yes'`);
+  if(opening.opportunity_filter==='fights')clauses.push(availabilityExpr()+"='yes'");
   if(opening.opportunity_filter==='management')clauses.push(`o.open_to_management='yes'`);
   if(opening.opportunity_filter==='team')clauses.push(`o.open_to_team='yes'`);
   binds.push(limit);
@@ -98,13 +102,18 @@ function candidateQuery(opening:Row,limit=100){
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
            ${managementExpr()} management_status,cm.agency_name,cm.agency_website,cm.manager_name,cm.verified_at management_verified_at,
-           COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
-           o.base_city,o.base_region,o.base_country,o.public_contact_url,o.verified_at opportunity_verified_at
+           COALESCE(o.contract_status,'unknown') contract_status,${availabilityExpr()} open_to_fights,
+           ${baseCityExpr()} base_city,${baseRegionExpr()} base_region,${baseCountryExpr()} base_country,
+           o.public_contact_url,o.verified_at opportunity_verified_at,
+           CASE WHEN COALESCE(o.open_to_fights,'unknown')<>'unknown' THEN o.verified_at ELSE ca.verified_at END availability_verified_at,
+           CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.verified_at ELSE cl.verified_at END base_verified_at
     FROM scout_public_global_profiles p
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
     LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id
     LEFT JOIN fighter_publication_controls controls ON controls.source_key=p.source_key AND controls.source_fighter_id=p.source_fighter_id
     LEFT JOIN fighter_opportunity_status o ON o.source_key=p.source_key AND o.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_availability ca ON ca.source_key=p.source_key AND ca.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_location cl ON cl.source_key=p.source_key AND cl.source_fighter_id=p.source_fighter_id
     LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
     WHERE ${clauses.join(' AND ')}
     ORDER BY r.scout_rating IS NULL,r.scout_rating DESC,r.evidence_strength DESC,p.last_fight_date DESC,p.fighter_name
@@ -120,7 +129,9 @@ function intelligenceGaps(row:Row){
   if(row.open_to_fights==='unknown')gaps.push('availability');
   const stale=(value:unknown,days:number)=>{const t=Date.parse(String(value||''));return !Number.isFinite(t)||Date.now()-t>days*86400000;};
   if(row.management_status!=='unknown'&&stale(row.management_verified_at,180))gaps.push('management stale');
-  if((row.contract_status!=='unknown'||row.open_to_fights!=='unknown'||row.base_city||row.base_country||row.public_contact_url)&&stale(row.opportunity_verified_at,120))gaps.push('opportunity stale');
+  if(row.contract_status!=='unknown'&&stale(row.opportunity_verified_at,120))gaps.push('contract stale');
+  if(row.open_to_fights!=='unknown'&&stale(row.availability_verified_at||row.opportunity_verified_at,90))gaps.push('availability stale');
+  if((row.base_city||row.base_region||row.base_country)&&stale(row.base_verified_at||row.opportunity_verified_at,180))gaps.push('base stale');
   if(!Number.isFinite(Number(row.evidence_strength))||Number(row.evidence_strength)<50)gaps.push('performance evidence');
   return gaps;
 }
@@ -133,13 +144,18 @@ async function candidateRows(env:Env,openingId:number){
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
            ${managementExpr()} management_status,cm.agency_name,cm.agency_website,cm.manager_name,cm.verified_at management_verified_at,
-           COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
-           o.base_city,o.base_region,o.base_country,o.public_contact_url,o.verified_at opportunity_verified_at
+           COALESCE(o.contract_status,'unknown') contract_status,${availabilityExpr()} open_to_fights,
+           ${baseCityExpr()} base_city,${baseRegionExpr()} base_region,${baseCountryExpr()} base_country,
+           o.public_contact_url,o.verified_at opportunity_verified_at,
+           CASE WHEN COALESCE(o.open_to_fights,'unknown')<>'unknown' THEN o.verified_at ELSE ca.verified_at END availability_verified_at,
+           CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.verified_at ELSE cl.verified_at END base_verified_at
     FROM recruiting_opening_candidates c
     JOIN scout_public_global_profiles p ON p.source_key=c.source_key AND p.source_fighter_id=c.source_fighter_id
     LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
     LEFT JOIN fighter_opportunity_status o ON o.source_key=p.source_key AND o.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_availability ca ON ca.source_key=p.source_key AND ca.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_location cl ON cl.source_key=p.source_key AND cl.source_fighter_id=p.source_fighter_id
     LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
     WHERE c.opening_id=?
     ORDER BY CASE c.status WHEN 'booked' THEN 0 WHEN 'contacted' THEN 1 WHEN 'shortlisted' THEN 2 WHEN 'suggested' THEN 3 WHEN 'declined' THEN 4 ELSE 5 END,
