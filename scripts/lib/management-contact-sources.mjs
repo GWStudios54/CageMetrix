@@ -7,8 +7,8 @@ export const MANAGEMENT_CONTACT_SOURCES=[
     url:'https://1str.com/clients/mixed-martial-arts/',
     host:'1str.com',
     expectedEmail:'info@firstroundmanagement.com',
-    contactKind:'booking_email',
-    label:'MMA booking / commercial enquiries',
+    contactKind:'general_email',
+    label:'General agency contact',
     confidence:'A'
   },
   {
