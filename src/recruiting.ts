@@ -140,7 +140,7 @@ function intelligenceGaps(row:Row){
   if(row.management_status==='unknown')gaps.push('management');
   if(row.contract_status==='unknown')gaps.push('contract');
   if(!row.base_city&&!row.base_region&&!row.base_country)gaps.push('base');
-  if(!row.public_contact_url&&!row.agency_contact_value&&!row.agency_website)gaps.push('contact');
+  if(!row.public_contact_url&&!row.agency_contact_value)gaps.push('contact');
   if(row.open_to_fights==='unknown')gaps.push('availability');
   const stale=(value:unknown,days:number)=>{const t=Date.parse(String(value||''));return !Number.isFinite(t)||Date.now()-t>days*86400000;};
   if(row.management_status!=='unknown'&&stale(row.management_verified_at,180))gaps.push('management stale');
@@ -315,13 +315,13 @@ export async function recruitingIntelQueuePage(request:Request,env:Env){
   const url=new URL(request.url),gap=INTEL_GAPS.has(String(url.searchParams.get('gap')||'all'))?String(url.searchParams.get('gap')||'all'):'all';
   const division=String(url.searchParams.get('weight_class')||'').trim().slice(0,80);
   const minRating=num(url.searchParams.get('min_rating'),0,100);
-  const clauses=[`(c.management_status='unknown' OR c.contract_status='unknown' OR c.open_to_fights='unknown' OR COALESCE(c.base_city,c.base_region,c.base_country) IS NULL OR (c.public_contact_url IS NULL AND cm.agency_contact_value IS NULL AND cm.agency_website IS NULL))`];
+  const clauses=[`(c.management_status='unknown' OR c.contract_status='unknown' OR c.open_to_fights='unknown' OR COALESCE(c.base_city,c.base_region,c.base_country) IS NULL OR (c.public_contact_url IS NULL AND cm.agency_contact_value IS NULL))`];
   const binds:any[]=[GLOBAL_MODEL];
   if(gap==='management')clauses.push(`c.management_status='unknown'`);
   if(gap==='contract')clauses.push(`c.contract_status='unknown'`);
   if(gap==='availability')clauses.push(`c.open_to_fights='unknown'`);
   if(gap==='base')clauses.push(`COALESCE(c.base_city,c.base_region,c.base_country) IS NULL`);
-  if(gap==='contact')clauses.push(`c.public_contact_url IS NULL AND cm.agency_contact_value IS NULL AND cm.agency_website IS NULL`);
+  if(gap==='contact')clauses.push(`c.public_contact_url IS NULL AND cm.agency_contact_value IS NULL`);
   if(division){clauses.push('c.current_weight_class=?');binds.push(division);}
   if(minRating!==null){clauses.push('r.scout_rating>=?');binds.push(minRating);}
   const rows=(await env.DB.prepare(`
