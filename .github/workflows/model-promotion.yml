@@ -65,7 +65,7 @@ jobs:
           npx wrangler d1 execute cagemetrix --remote --command "SELECT (SELECT COUNT(*) FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id WHERE mv.name='CageMetrix Win Probability' AND mv.version='0.2.0') AS predictor_0_2_0_predictions,(SELECT COUNT(*) FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id WHERE mv.name='CageMetrix Win Probability' AND mv.version='0.2.1') AS predictor_0_2_1_predictions,(SELECT COUNT(*) FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id JOIN bouts b ON b.id=p.bout_id WHERE mv.name='CageMetrix Win Probability' AND mv.version='0.2.1' AND b.status='scheduled') AS scheduled_predictions,(SELECT COUNT(*) FROM predictions p JOIN model_versions mv ON mv.id=p.model_version_id WHERE mv.name='CageMetrix Win Probability' AND mv.version='0.2.1' AND json_extract(p.input_snapshot_json,'$.model_version')='0.2.1' AND json_extract(p.input_snapshot_json,'$.cmr_version')='0.3.2') AS verified_new_snapshots" --json > .cache/promotion/predictor-verification.json
           node scripts/verify-production-model-state.mjs predictor
       - name: Deploy CMR 0.3.2 Worker
-        run: npm run deploy
+        run: npm run deploy:worker
       - name: Smoke-test production cutover and canonical profiles
         run: |
           base='https://cagemetrix.aarin54.workers.dev'
