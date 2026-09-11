@@ -160,3 +160,29 @@ test('ONE location evidence is first-party Grade A and remains rating-independen
   const rating=read('scripts/build-global-scout-rating-v2.py');
   assert.doesNotMatch(rating,/one-athletes|fighter_location_evidence|scout_current_location/);
 });
+
+
+test('successful promotion profile checks retire stale base/team evidence before reactivation',()=>{
+  const source=read('scripts/sync-promotion-location.mjs');
+  assert.match(source,/const candidates=\[\],checkedProfiles=\[\],errors=\[\]/);
+  assert.match(source,/checkedProfiles\.push\(observation\)/);
+  assert.match(source,/for\(const row of checkedMatched\)/);
+  assert.match(source,/UPDATE fighter_location_evidence SET is_current=0/);
+  assert.match(source,/source_url=.*location_kind='fighting_out_of'/);
+  assert.match(source,/UPDATE fighter_intel_facts SET is_current=0/);
+  assert.match(source,/source_slug='promotion-sites'.*fact_key='team\.primary'/);
+  assert.match(source,/country=excluded\.country,is_current=1,verified_at=excluded\.verified_at/);
+  assert.match(source,/value_text=excluded\.value_text,is_current=1,verified_at=excluded\.verified_at/);
+});
+
+test('failed profile fetches are audit errors, not evidence-retirement observations',()=>{
+  const source=read('scripts/sync-promotion-location.mjs');
+  const pflTry=source.indexOf("const profile=parsePflProfile");
+  const pflCatch=source.indexOf("errors.push({url:item.url",pflTry);
+  const oneTry=source.indexOf("const profile=parseOneProfile");
+  const oneCatch=source.indexOf("oneErrors.push({url:item.url",oneTry);
+  assert.ok(pflTry>0&&pflCatch>pflTry);
+  assert.ok(oneTry>0&&oneCatch>oneTry);
+  assert.doesNotMatch(source.slice(pflCatch,pflCatch+220),/checkedProfiles\.push/);
+  assert.doesNotMatch(source.slice(oneCatch,oneCatch+220),/checkedProfiles\.push/);
+});
