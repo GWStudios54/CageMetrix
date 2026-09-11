@@ -15,7 +15,7 @@ test('generic production deploy no longer duplicates full data refresh or PR-clo
   assert.doesNotMatch(workflow,/\bpull_request:/);
   assert.match(workflow,/run: npm run deploy:worker/);
   assert.doesNotMatch(workflow,/run: npm run deploy(?:\s|$)/m);
-  assert.doesNotMatch(workflow,/refresh-data\.mjs|sync-forecasts\.mjs|scripts\/build\.mjs/);
+  assert.doesNotMatch(workflow,/run:\s+(?:node\s+scripts\/build\.mjs|npm run data:refresh|npm run forecasts:sync)/);
   assert.match(workflow,/npm run db:migrate:remote/);
   assert.match(workflow,/Currently processing a long-running import/);
   assert.match(workflow,/retrying migration apply in 15 seconds/);
