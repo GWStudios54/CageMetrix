@@ -37,7 +37,6 @@ test('ONE joining headlines still require signing language in article body',()=>
 
 test('ONE direct signing language resolves to ONE under-contract evidence',()=>{
   for(const sentence of [
-    'Dustin Joynson officially put pen to paper with ONE Championship.',
     'Jhanlo Sangiao has officially signed with ONE Championship.',
     'Saygid Izagakhmaev has signed a contract with ONE Championship.',
     'Willie Van Rooyen has officially signed with ONE Championship.'
@@ -46,6 +45,20 @@ test('ONE direct signing language resolves to ONE under-contract evidence',()=>{
     assert.deepEqual(detectContractSignal(sentence),{eventType:'signing',status:'under_contract'});
     assert.equal(detectContractPromotion(sentence,'one'),'one');
   }
+});
+
+test('contract-signal headline can carry a signing when article prose uses non-keyword wording',()=>{
+  const profiles=[{source_key:'mma',source_fighter_id:'one-dj',fighter_name:'Dustin Joynson'}];
+  const article=source.seedArticles.find(row=>/Dustin Joynson/.test(row.title));
+  assert.equal(hasContractSignal('Dustin Joynson officially put pen to paper with ONE Championship.'),false);
+  const rows=candidateRows(article,source,'Dustin Joynson officially put pen to paper with ONE Championship. He described ONE as a long-term home.',profiles);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].fighterName,'Dustin Joynson');
+  assert.equal(rows[0].detectedEventType,'signing');
+  assert.equal(rows[0].detectedStatus,'under_contract');
+  assert.equal(rows[0].promotionSlug,'one');
+  assert.equal(rows[0].extractionMethod,'signal_title_exact_subject_v5');
+  assert.equal(rows[0].detectedSummary,article.title);
 });
 
 test('ONE seed candidates remain private and exact-identity scoped',()=>{
