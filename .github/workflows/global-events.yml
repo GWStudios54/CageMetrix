@@ -27,7 +27,6 @@ on:
       - 'tests/global-event-sync.test.mjs'
       - 'tests/global-event-bouts.test.mjs'
       - 'tests/sitemap.test.mjs'
-      - 'package.json'
       - '.github/workflows/global-events.yml'
   push:
     branches:
@@ -54,7 +53,6 @@ on:
       - 'tests/global-event-sync.test.mjs'
       - 'tests/global-event-bouts.test.mjs'
       - 'tests/sitemap.test.mjs'
-      - 'package.json'
       - '.github/workflows/global-events.yml'
 
 concurrency:
