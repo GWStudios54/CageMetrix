@@ -22,14 +22,14 @@ test('legacy discussion-link implementation remains preserved but is not a publi
   assert.match(entry,/Response\.redirect\(new URL\('\/scout'/);
 });
 
-test('homepage is a scouting dashboard instead of a prediction or community dashboard',()=>{
+test('homepage is a recruiter-first scouting dashboard instead of a prediction or community dashboard',()=>{
   const source=fs.readFileSync('src/static-seo.ts','utf8'),html=fs.readFileSync('public/index.html','utf8'),client=fs.readFileSync('public/home.js','utf8');
   assert.match(source,/EVENT SCOUT/);
   assert.match(source,/Who has faced stronger opposition/);
-  assert.match(html,/THE MMA SCOUTING ENGINE/);
-  assert.match(html,/Ask MMA Scouts/);
-  assert.match(html,/Fighter Reports/);
-  assert.match(html,/Prospect Scout/);
+  assert.match(html,/FIGHTER RECRUITING INTELLIGENCE/);
+  assert.match(html,/Research a candidate/);
+  assert.match(html,/Find a Fighter/);
+  assert.match(html,/PROSPECT PIPELINE/);
   assert.match(html,/SCOUT RANKINGS · FIGHTER DATABASE/);
   assert.match(client,/\/api\/fighters\?q=/);
   assert.match(client,/\/scout\?q=/);
