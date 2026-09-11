@@ -14,7 +14,8 @@ export const PFL_LOCATION_SOURCE={
   ],
   host:'pflmma.com',
   sourceType:'promotion_direct',
-  confidence:'A'
+  confidence:'A',
+  promotionSlug:'pfl'
 };
 
 export const ONE_LOCATION_SOURCE={
@@ -23,7 +24,8 @@ export const ONE_LOCATION_SOURCE={
   rosterUrl:'https://www.onefc.com/athletes/',
   host:'www.onefc.com',
   sourceType:'promotion_direct',
-  confidence:'A'
+  confidence:'A',
+  promotionSlug:'one'
 };
 
 export function normalizeFighterName(value){
@@ -111,7 +113,9 @@ export function parseOneRoster(html,source=ONE_LOCATION_SOURCE){
     if(!/^\/athletes\/[a-z0-9-]+\/?$/i.test(parsed.pathname))continue;
     const canonical=parsed.origin+parsed.pathname.replace(/\/$/,'');
     if(seen.has(canonical))continue;
-    seen.add(canonical);out.push({url:canonical});
+    const anchorText=stripQuotedNickname(clean(anchor.textContent));
+    if(!anchorText)continue;
+    seen.add(canonical);out.push({url:canonical,fighter_name:anchorText,normalized_name:normalizeFighterName(anchorText)});
   }
   dom.window.close();return out;
 }
