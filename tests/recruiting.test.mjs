@@ -21,7 +21,7 @@ test('recruiting APIs are admin-gated, same-origin and use exact fighter identit
   assert.match(source,/source_key=c\.source_key AND p\.source_fighter_id=c\.source_fighter_id/);
   assert.doesNotMatch(source,/fuzzy|levenshtein|similarity/i);
   assert.match(entry,/api\/admin\/recruiting\/openings/);
-  assert.match(entry,/api\/admin\/recruiting\/candidates/);
+  assert.match(entry,/recruitingCandidateMatch/);
   assert.match(entry,/recruitingOpeningPage/);
 });
 
