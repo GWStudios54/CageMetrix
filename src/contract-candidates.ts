@@ -1,4 +1,4 @@
-import {adminAccount} from './admin-session.ts';
+import {adminAccount,sameOrigin} from './admin-session.ts';
 
 type Env={DB:D1Database};
 type Row=Record<string,any>;
@@ -19,6 +19,7 @@ export async function contractCandidatesAdminApi(request:Request,env:Env){
     return json({data:rows.results||[],meta:{status,limit,count:rows.results?.length||0,policy:'Discovery candidates are private review leads, not published contract facts.'}});
   }
   if(request.method!=='POST')return json({error:'method_not_allowed'},405);
+  if(!sameOrigin(request))return json({error:'cross_origin'},403);
   const value=await body(request);if(!value)return json({error:'invalid_json'},400);
   const id=Number(value.id);if(!Number.isInteger(id)||id<=0)return json({error:'candidate_id_required'},400);
   const status=String(value.review_status||'');if(!REVIEW.has(status)||status==='pending')return json({error:'invalid_review_status'},400);
