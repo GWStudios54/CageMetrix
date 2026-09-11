@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
-import {MANAGEMENT_SOURCES,applyManagementAliases,normalizeManagementName,parseManagementRoster} from './lib/management-sources.mjs';
+import {MANAGEMENT_SOURCES,applyManagementAliases,managementLookupKeys,normalizeManagementName,parseManagementRoster} from './lib/management-sources.mjs';
 
 const args=process.argv.slice(2);
 const remote=args.includes('--remote'),local=args.includes('--local'),dry=args.includes('--dry-run');
@@ -34,10 +34,10 @@ for(const agency of MANAGEMENT_SOURCES){
     try{
       const html=await fetchHtml(url);rosterReachable++;
       writeFileSync(`${cache}/${agency.slug}-roster-${index+1}.html`,html);
-      const names=parseManagementRoster(html);
+      const names=parseManagementRoster(html,agency);
       for(const rawName of names){
-        const canonical=applyManagementAliases(rawName,aliases),normalized=normalizeManagementName(canonical);
-        if(normalized)entries.push({agency_slug:agency.slug,agency_name:agency.name,confidence:agency.confidence,source_url:url,raw_name:rawName,canonical_name:canonical,normalized_name:normalized});
+        const canonical=applyManagementAliases(rawName,aliases),lookupKeys=managementLookupKeys(canonical),normalized=lookupKeys[0]||'';
+        if(normalized)entries.push({agency_slug:agency.slug,agency_name:agency.name,confidence:agency.confidence,source_url:url,raw_name:rawName,canonical_name:canonical,normalized_name:normalized,lookup_keys:lookupKeys});
       }
       sourceRows.push({url,status:'ok',candidates:names.length});
     }catch(error){sourceRows.push({url,status:'error',error:error instanceof Error?error.message:String(error),candidates:0});}
@@ -68,7 +68,7 @@ if(dry){
   process.exit(0);
 }
 
-const uniqueNames=[...new Set(deduped.map(row=>row.normalized_name))];
+const uniqueNames=[...new Set(deduped.flatMap(row=>row.lookup_keys||[row.normalized_name]))];
 const profiles=[];
 for(let i=0;i<uniqueNames.length;i+=70){
   const batch=uniqueNames.slice(i,i+70);
@@ -78,14 +78,27 @@ for(let i=0;i<uniqueNames.length;i+=70){
 const byName=new Map();
 for(const profile of profiles){const key=String(profile.normalized_name||'');if(!byName.has(key))byName.set(key,[]);byName.get(key).push(profile);}
 
-const matched=[],unmatched=[],ambiguous=[];
+const matchedPreConflict=[],unmatched=[],ambiguous=[];
 for(const row of deduped){
   if(conflictNames.has(row.normalized_name))continue;
-  const hits=byName.get(row.normalized_name)||[];
-  if(hits.length===1)matched.push({...row,profile:hits[0]});
+  const hitMap=new Map();
+  for(const key of row.lookup_keys||[row.normalized_name]){
+    for(const hit of byName.get(key)||[])hitMap.set(hit.source_key+':'+hit.source_fighter_id,hit);
+  }
+  const hits=[...hitMap.values()];
+  if(hits.length===1)matchedPreConflict.push({...row,profile:hits[0],matched_lookup_keys:(row.lookup_keys||[]).filter(key=>(byName.get(key)||[]).some(hit=>hit.source_key===hits[0].source_key&&hit.source_fighter_id===hits[0].source_fighter_id))});
   else if(hits.length>1)ambiguous.push({...row,matches:hits.map(h=>({profile_slug:h.profile_slug,fighter_name:h.fighter_name,source_fighter_id:h.source_fighter_id}))});
   else unmatched.push(row);
 }
+const resolvedClaims=new Map();
+for(const row of matchedPreConflict){
+  const key=row.profile.source_key+':'+row.profile.source_fighter_id;
+  if(!resolvedClaims.has(key))resolvedClaims.set(key,new Set());
+  resolvedClaims.get(key).add(row.agency_slug);
+}
+const resolvedConflictIds=new Set([...resolvedClaims.entries()].filter(([,agencies])=>agencies.size>1).map(([key])=>key));
+const resolvedIdentityConflicts=matchedPreConflict.filter(row=>resolvedConflictIds.has(row.profile.source_key+':'+row.profile.source_fighter_id));
+const matched=matchedPreConflict.filter(row=>!resolvedConflictIds.has(row.profile.source_key+':'+row.profile.source_fighter_id));
 
 const sql=[];
 for(const agency of reachableAgencies){
@@ -113,6 +126,6 @@ if(sql.length)wrangler(['d1','execute','cagemetrix',target,'--file',`${cache}/sy
 const verification=query(`SELECT a.slug,a.name,COUNT(h.id) current_fighters FROM management_agencies a LEFT JOIN fighter_management_history h ON h.agency_id=a.id AND h.is_current=1 WHERE a.active=1 GROUP BY a.id ORDER BY current_fighters DESC,a.name`);
 const currentOfficial=query(`SELECT p.profile_slug,p.fighter_name,a.name current_agency,m.confidence,m.source_url,m.verified_at FROM scout_current_management m JOIN management_agencies a ON a.id=m.agency_id JOIN scout_active_global_profiles p ON p.source_key=m.source_key AND p.source_fighter_id=m.source_fighter_id WHERE m.source_type='official_agency_roster' ORDER BY a.name,p.fighter_name LIMIT 1000`);
 const evidenceVerification=query(`SELECT a.slug,COUNT(DISTINCT s.id) agency_sources,COUNT(DISTINCT me.id) representation_evidence FROM management_agencies a LEFT JOIN management_agency_sources s ON s.agency_id=a.id LEFT JOIN fighter_management_history h ON h.agency_id=a.id AND h.is_current=1 LEFT JOIN fighter_management_evidence me ON me.management_history_id=h.id WHERE a.active=1 GROUP BY a.id ORDER BY a.slug`);
-const summary={checked_at:checkedAt,mode:remote?'remote':'local',agencies:agencies.map(a=>({slug:a.slug,name:a.name,reachable:a.reachable,roster_scope:a.rosterScope,roster_reachable:a.rosterReachable,profile_reachable:a.profileReachable,sources:a.sources,profile_sources:a.profileSources})),candidate_names:deduped.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,cross_agency_conflict_names:conflictNames.size,verification,evidence_verification:evidenceVerification,matched_rows:matched.map(r=>({agency_slug:r.agency_slug,raw_name:r.raw_name,canonical_name:r.canonical_name,profile_slug:r.profile.profile_slug,fighter_name:r.profile.fighter_name,source_url:r.source_url,confidence:r.confidence})),unmatched_rows:unmatched,ambiguous_rows:ambiguous,cross_agency_conflicts:sourceConflicts,current_official_rows:currentOfficial};
+const summary={checked_at:checkedAt,mode:remote?'remote':'local',agencies:agencies.map(a=>({slug:a.slug,name:a.name,reachable:a.reachable,roster_scope:a.rosterScope,roster_reachable:a.rosterReachable,profile_reachable:a.profileReachable,sources:a.sources,profile_sources:a.profileSources})),candidate_names:deduped.length,matched:matched.length,unmatched:unmatched.length,ambiguous:ambiguous.length,cross_agency_conflict_names:conflictNames.size,resolved_identity_conflict_fighters:resolvedConflictIds.size,verification,evidence_verification:evidenceVerification,matched_rows:matched.map(r=>({agency_slug:r.agency_slug,raw_name:r.raw_name,canonical_name:r.canonical_name,profile_slug:r.profile.profile_slug,fighter_name:r.profile.fighter_name,source_url:r.source_url,confidence:r.confidence,matched_lookup_keys:r.matched_lookup_keys})),unmatched_rows:unmatched,ambiguous_rows:ambiguous,cross_agency_conflicts:sourceConflicts,resolved_identity_conflicts:resolvedIdentityConflicts.map(r=>({agency_slug:r.agency_slug,raw_name:r.raw_name,canonical_name:r.canonical_name,profile_slug:r.profile.profile_slug,fighter_name:r.profile.fighter_name,source_url:r.source_url})),current_official_rows:currentOfficial};
 writeFileSync(`${cache}/summary.json`,JSON.stringify(summary,null,2)+'\n');
-console.log(`Management sync matched ${matched.length}/${deduped.length} roster candidates (${unmatched.length} unmatched, ${ambiguous.length} ambiguous, ${conflictNames.size} cross-agency conflicts) across ${reachableAgencies.length}/${agencies.length} reachable verified agency profiles.`);
+console.log(`Management sync matched ${matched.length}/${deduped.length} roster candidates (${unmatched.length} unmatched, ${ambiguous.length} ambiguous, ${conflictNames.size} source-name conflicts, ${resolvedConflictIds.size} resolved identity conflicts) across ${reachableAgencies.length}/${agencies.length} reachable verified agency profiles.`);
