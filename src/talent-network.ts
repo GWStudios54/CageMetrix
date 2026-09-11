@@ -33,6 +33,18 @@ function availabilityExpression(){return `CASE WHEN COALESCE(o.open_to_fights,'u
 function baseCityExpression(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_city ELSE cl.base_city END`;}
 function baseRegionExpression(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_region ELSE cl.base_region END`;}
 function baseCountryExpression(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_country ELSE cl.base_country END`;}
+function agencyContactHref(value:unknown,kind:unknown){
+  const raw=String(value||'').trim();if(!raw)return null;
+  if(kind==='booking_email'||kind==='general_email')return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw)?'mailto:'+raw:null;
+  try{const url=new URL(raw);return url.protocol==='https:'?url.href:null}catch{return null;}
+}
+function agencyContactLabel(kind:unknown){
+  if(kind==='booking_email')return 'Booking email';
+  if(kind==='general_email')return 'Agency email';
+  if(kind==='booking_form')return 'Booking form';
+  if(kind==='contact_form')return 'Contact form';
+  return 'Agency contact';
+}
 
 function talentWhere(url:URL){
   const clauses=['1=1'];const binds:any[]=[GLOBAL_MODEL];
@@ -204,7 +216,7 @@ export async function managementAgenciesApi(request:Request,env:Env){
 
 export async function managementAgencyApi(request:Request,env:Env,slug:string){
   if(request.method!=='GET')return json({error:'method_not_allowed'},405);
-  const agency=await env.DB.prepare(`SELECT * FROM management_agencies WHERE slug=? AND active=1 LIMIT 1`).bind(slug).first<Row>();
+  const agency=await env.DB.prepare(`SELECT a.*,c.contact_kind,c.contact_value,c.label contact_label,c.source_url contact_source_url,c.confidence contact_confidence,c.verified_at contact_verified_at FROM management_agencies a LEFT JOIN scout_primary_management_contact c ON c.agency_id=a.id WHERE a.slug=? AND a.active=1 LIMIT 1`).bind(slug).first<Row>();
   if(!agency)return json({error:'agency_not_found'},404);
   const roster=(await env.DB.prepare(`
     SELECT p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,p.current_promotion_slug,p.career_wins,p.career_losses,p.career_draws,p.last_fight_date,
@@ -241,14 +253,14 @@ export async function managementAgencyPage(request:Request,env:Env,slug:string){
   const managers=(meta.managers||[]).map((name:string)=>`<span class="talent-badge">${esc(name)}</span>`).join('');
   const footprint=rows.length?`<section class="talent-results"><div class="talent-section-head"><span class="eyebrow">ROSTER FOOTPRINT</span><h2>Where the verified roster competes</h2></div>${promotions?`<h3>Promotions</h3><div class="talent-statuses">${promotions}</div>`:''}${divisions?`<h3>Divisions</h3><div class="talent-statuses">${divisions}</div>`:''}${managers?`<h3>Named managers</h3><div class="talent-statuses">${managers}</div>`:''}</section>`:'';
   const empty=`<div class="talent-empty"><strong>Agency profile verified; complete roster not publicly ingested.</strong><p>MMA Scouts does not interpret an empty verified roster as zero clients. Fighter relationships will appear only when an official roster or another sufficiently strong public source supports them.</p></div>`;
-  const body=`<section class="talent-hero"><a class="directory-back" href="/management">← Management directory</a><span class="eyebrow">REPRESENTATION INTELLIGENCE</span><h1>${esc(agency.name)}</h1><p>${esc(agency.country||'')}${agency.website_url?` · <a href="${esc(agency.website_url)}" rel="nofollow noopener">Official site ↗</a>`:''}${agency.verified_at?` · Profile checked ${esc(pretty(agency.verified_at))}`:''}</p><p>${esc(agency.description||'')}</p></section>${stats}${footprint}<section class="talent-results"><div class="talent-section-head"><span class="eyebrow">SOURCE-BACKED ROSTER</span><h2>${rows.length?`${rows.length} verified fighter${rows.length===1?'':'s'}`:'No complete verified roster yet'}</h2></div>${roster||empty}</section><p class="talent-policy"><strong>Verification rule:</strong> roster membership is published only when a source supports the relationship. Missing public evidence never means a fighter is unmanaged, and a missing fighter never automatically ends historical representation.</p>`;
+  const agencyContact=agencyContactHref(agency.contact_value,agency.contact_kind); const body=`<section class="talent-hero"><a class="directory-back" href="/management">← Management directory</a><span class="eyebrow">REPRESENTATION INTELLIGENCE</span><h1>${esc(agency.name)}</h1><p>${esc(agency.country||'')}${agency.website_url?` · <a href="${esc(agency.website_url)}" rel="nofollow noopener">Official site ↗</a>`:''}${agency.verified_at?` · Profile checked ${esc(pretty(agency.verified_at))}`:''}</p><p>${esc(agency.description||'')}</p>${agencyContact?`<p><a class="button secondary" href="${esc(agencyContact)}" rel="nofollow noopener">${esc(agencyContactLabel(agency.contact_kind))} ↗</a>${agency.contact_verified_at?` <small>Verified ${esc(pretty(agency.contact_verified_at))}</small>`:''}</p>`:''}</section>${stats}${footprint}<section class="talent-results"><div class="talent-section-head"><span class="eyebrow">SOURCE-BACKED ROSTER</span><h2>${rows.length?`${rows.length} verified fighter${rows.length===1?'':'s'}`:'No complete verified roster yet'}</h2></div>${roster||empty}</section><p class="talent-policy"><strong>Verification rule:</strong> roster membership is published only when a source supports the relationship. Missing public evidence never means a fighter is unmanaged, and a missing fighter never automatically ends historical representation.</p>`;
   return new Response(shell(`${agency.name} MMA Management Intelligence | MMA Scouts`,`Source-backed ${agency.name} agency profile, verified MMA roster, Global Ratings, activity and promotion/division footprint on MMA Scouts.`,`/management/${slug}`,body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60, s-maxage=300'}});
 }
 
 async function fighterTalent(env:Env,slug:string){
   return env.DB.prepare(`
     SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,
-           ${managementExpression()} management_status,cm.agency_slug,cm.agency_name,cm.agency_website,cm.manager_name,cm.source_url management_source_url,cm.source_type management_source_type,cm.confidence management_confidence,cm.verified_at management_verified_at,
+           ${managementExpression()} management_status,cm.agency_slug,cm.agency_name,cm.agency_website,cm.agency_contact_kind,cm.agency_contact_value,cm.agency_contact_label,cm.agency_contact_source_url,cm.agency_contact_confidence,cm.agency_contact_verified_at,cm.manager_name,cm.source_url management_source_url,cm.source_type management_source_type,cm.confidence management_confidence,cm.verified_at management_verified_at,
            COALESCE(o.contract_status,'unknown') contract_status,${availabilityExpression()} open_to_fights,
            COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
            o.preferred_weight_class,${baseCityExpression()} base_city,${baseRegionExpression()} base_region,${baseCountryExpression()} base_country,o.public_contact_url,o.availability_note,o.source_url opportunity_source_url,o.source_type opportunity_source_type,o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
@@ -269,9 +281,17 @@ export async function enhanceFighterTalentContext(response:Response,env:Env,slug
   const management=row.management_status==='represented'?(row.agency_name?`<a href="/management/${esc(row.agency_slug)}">${esc(row.agency_name)}</a>`:esc(row.manager_name||'Represented')):row.management_status==='unmanaged'?'Verified unmanaged':'Unknown';
   const contract=row.contract_status==='free_agent'?'Publicly verified free agent':row.contract_status==='non_exclusive'?'Non-exclusive':row.contract_status==='under_contract'?'Under contract':'Unknown';
   const open=[row.open_to_fights==='yes'?'Fights':null,row.open_to_management==='yes'?'Management':null,row.open_to_team==='yes'?'Teams':null].filter(Boolean);
-  const verified=row.opportunity_verified_at||row.management_verified_at;
-  const source=row.opportunity_source_url||row.management_source_url;
-  const section=`<section class="dossier-grid talent-dossier"><div class="dossier-panel"><span class="eyebrow">RECRUITING INTELLIGENCE</span><h2>Recruiting file</h2><div class="dossier-facts"><div><small>Management</small><strong>${management}</strong></div><div><small>Contract</small><strong>${esc(contract)}</strong></div><div><small>Open to</small><strong>${open.length?esc(open.join(' · ')):'Not publicly verified'}</strong></div>${row.base_country||row.base_city?`<div><small>Base</small><strong>${esc([row.base_city,row.base_region,row.base_country].filter(Boolean).join(', '))}</strong></div>`:''}${row.preferred_weight_class?`<div><small>Preferred weight</small><strong>${esc(row.preferred_weight_class)}</strong></div>`:''}</div>${row.availability_note?`<p class="dossier-note">${esc(row.availability_note)}</p>`:''}${row.public_contact_url?`<p><a class="button secondary" href="${esc(row.public_contact_url)}" rel="nofollow noopener">Public contact channel ↗</a></p>`:''}</div><div class="dossier-panel"><span class="eyebrow">VERIFICATION</span><h2>What we actually know</h2><p class="dossier-note">Missing public evidence stays unknown. MMA Scouts never labels a fighter unmanaged or a free agent just because no contract or agency record was found.</p><div class="dossier-facts">${verified?`<div><small>Last verified</small><strong>${esc(pretty(verified))}</strong></div>`:''}${row.management_confidence||row.opportunity_confidence?`<div><small>Evidence grade</small><strong>${esc(row.opportunity_confidence||row.management_confidence)}</strong></div>`:''}</div>${source?`<p><a href="${esc(source)}" rel="nofollow noopener">Verification source ↗</a></p>`:''}</div></section>`;
+  const verified=row.opportunity_verified_at||row.agency_contact_verified_at||row.management_verified_at;
+  const source=row.opportunity_source_url||row.agency_contact_source_url||row.management_source_url;
+  const agencyHref=agencyContactHref(row.agency_contact_value,row.agency_contact_kind);
+  const contact=row.public_contact_url
+    ? `<p><a class="button secondary" href="${esc(row.public_contact_url)}" rel="nofollow noopener">Direct public contact ↗</a></p>`
+    : agencyHref
+      ? `<p><a class="button secondary" href="${esc(agencyHref)}" rel="nofollow noopener">${esc(agencyContactLabel(row.agency_contact_kind))} ↗</a></p>`
+      : row.agency_website
+        ? `<p><a class="button secondary" href="${esc(row.agency_website)}" rel="nofollow noopener">Agency website ↗</a></p>`
+        : '';
+  const section=`<section class="dossier-grid talent-dossier"><div class="dossier-panel"><span class="eyebrow">RECRUITING INTELLIGENCE</span><h2>Recruiting file</h2><div class="dossier-facts"><div><small>Management</small><strong>${management}</strong></div><div><small>Contract</small><strong>${esc(contract)}</strong></div><div><small>Open to</small><strong>${open.length?esc(open.join(' · ')):'Not publicly verified'}</strong></div>${row.base_country||row.base_city?`<div><small>Base</small><strong>${esc([row.base_city,row.base_region,row.base_country].filter(Boolean).join(', '))}</strong></div>`:''}${row.preferred_weight_class?`<div><small>Preferred weight</small><strong>${esc(row.preferred_weight_class)}</strong></div>`:''}</div>${row.availability_note?`<p class="dossier-note">${esc(row.availability_note)}</p>`:''}${contact}</div><div class="dossier-panel"><span class="eyebrow">VERIFICATION</span><h2>What we actually know</h2><p class="dossier-note">Missing public evidence stays unknown. MMA Scouts never labels a fighter unmanaged or a free agent just because no contract or agency record was found.</p><div class="dossier-facts">${verified?`<div><small>Last verified</small><strong>${esc(pretty(verified))}</strong></div>`:''}${row.management_confidence||row.opportunity_confidence?`<div><small>Evidence grade</small><strong>${esc(row.opportunity_confidence||row.management_confidence)}</strong></div>`:''}</div>${source?`<p><a href="${esc(source)}" rel="nofollow noopener">Verification source ↗</a></p>`:''}</div></section>`;
   return new HTMLRewriter().on('.dossier-component-grid',{element(el){el.after(section,{html:true});}}).transform(response);
 }
 

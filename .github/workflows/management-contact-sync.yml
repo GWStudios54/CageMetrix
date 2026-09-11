@@ -1,0 +1,69 @@
+name: Sync management contact intelligence
+
+on:
+  schedule:
+    - cron: '35 10 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'migrations/0041_management_contact_intelligence.sql'
+      - 'scripts/sync-management-contacts.mjs'
+      - 'scripts/lib/management-contact-sources.mjs'
+      - 'tests/management-contact-intel.test.mjs'
+      - 'src/recruiting.ts'
+      - 'src/talent-network.ts'
+      - 'src/fighter-intel.ts'
+      - '.github/workflows/management-contact-sync.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/0041_management_contact_intelligence.sql'
+      - 'scripts/sync-management-contacts.mjs'
+      - 'scripts/lib/management-contact-sources.mjs'
+      - 'tests/management-contact-intel.test.mjs'
+      - 'src/recruiting.ts'
+      - 'src/talent-network.ts'
+      - 'src/fighter-intel.ts'
+      - '.github/workflows/management-contact-sync.yml'
+
+concurrency:
+  group: mmascouts-management-contact-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Validate management contact evidence
+        run: node --test tests/management-contact-intel.test.mjs tests/recruiting.test.mjs tests/talent-network.test.mjs
+      - name: Probe official management contacts without writes
+        if: github.event_name == 'pull_request'
+        run: node scripts/sync-management-contacts.mjs --dry-run
+      - name: Apply management contact schema
+        if: github.event_name != 'pull_request'
+        run: npx wrangler d1 migrations apply cagemetrix --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Sync verified public management contacts
+        if: github.event_name != 'pull_request'
+        run: npm run management:contacts:sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: management-contact-audit
+          path: .cache/management-contacts/
+          if-no-files-found: ignore
+          retention-days: 14

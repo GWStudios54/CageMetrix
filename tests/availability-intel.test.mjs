@@ -98,8 +98,11 @@ test('recruiting and public talent search consume source-backed availability wit
 test('fighter intel exposes agency availability evidence and resolved professional contact kind',()=>{
   const intel=read('src/fighter-intel.ts'),sync=read('scripts/sync-fighter-intel.mjs');
   assert.match(intel,/professional_contact_url/);
-  assert.match(intel,/management_agency/);
-  assert.match(intel,/Management contact path/);
+  assert.match(intel,/management_booking_email/);
+  assert.match(intel,/management_email/);
+  assert.match(intel,/management_website/);
+  assert.match(intel,/Agency booking email/);
+  assert.match(intel,/Agency website/);
   assert.match(sync,/source_slug='agency-availability'/);
   assert.match(sync,/FROM scout_current_availability a/);
   assert.match(sync,/Explicit public fight availability from an authorized management agency/);
