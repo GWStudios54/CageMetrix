@@ -103,7 +103,8 @@ test('fighter intel coverage prefers direct fighter contact, then verified agenc
   assert.match(sql,/WHEN cm\.agency_contact_kind IN \('booking_email','general_email'\).*'mailto:'\|\|cm\.agency_contact_value/s);
   assert.match(sql,/WHEN cm\.agency_contact_value IS NOT NULL THEN cm\.agency_contact_value/);
   assert.match(sql,/ELSE cm\.agency_website/);
-  assert.match(sql,/COALESCE\(o\.public_contact_url,cm\.agency_contact_value,cm\.agency_website\) IS NOT NULL/);
+  assert.match(sql,/COALESCE\(o\.public_contact_url,cm\.agency_contact_value\) IS NOT NULL/);
+  assert.match(sql,/ELSE cm\.agency_website/);
   assert.match(sql,/agency_contact_verified_at/);
 });
 
@@ -114,7 +115,8 @@ test('recruiting uses verified agency contacts before generic agency websites',(
   assert.match(source,/agency_contact_value/);
   assert.match(source,/Agency booking email/);
   assert.match(source,/Agency website/);
-  assert.match(source,/!row\.public_contact_url&&!row\.agency_contact_value&&!row\.agency_website/);
+  assert.match(source,/!row\.public_contact_url&&!row\.agency_contact_value/);
+  assert.doesNotMatch(source,/!row\.public_contact_url&&!row\.agency_contact_value&&!row\.agency_website/);
   assert.match(source,/contact stale/);
   assert.match(source,/COALESCE\(o\.public_contact_url,c\.public_contact_url,cm\.agency_contact_value,cm\.agency_website\) resolved_contact_url/);
 });
