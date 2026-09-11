@@ -29,6 +29,10 @@ function shell(title:string,description:string,path:string,body:string){
 }
 
 function managementExpression(){return `CASE WHEN cm.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE(o.management_status,'unknown') END`;}
+function availabilityExpression(){return `CASE WHEN COALESCE(o.open_to_fights,'unknown')<>'unknown' THEN o.open_to_fights ELSE COALESCE(ca.open_to_fights,'unknown') END`;}
+function baseCityExpression(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_city ELSE cl.base_city END`;}
+function baseRegionExpression(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_region ELSE cl.base_region END`;}
+function baseCountryExpression(){return `CASE WHEN COALESCE(o.base_city,o.base_region,o.base_country) IS NOT NULL THEN o.base_country ELSE cl.base_country END`;}
 
 function talentWhere(url:URL){
   const clauses=['1=1'];const binds:any[]=[GLOBAL_MODEL];
@@ -47,10 +51,10 @@ function talentWhere(url:URL){
   if(division){clauses.push('p.current_weight_class=?');binds.push(division);}
   if(promotion){clauses.push('p.current_promotion_slug=?');binds.push(promotion);}
   if(region){clauses.push('sp.region=?');binds.push(region);}
-  if(country){clauses.push(`lower(COALESCE(NULLIF(o.base_country,''),p.nationality,''))=lower(?)`);binds.push(country);}
+  if(country){clauses.push(`lower(COALESCE(NULLIF(${baseCountryExpression()},''),p.nationality,''))=lower(?)`);binds.push(country);}
   if(MANAGEMENT.has(management)){clauses.push(`${managementExpression()}=?`);binds.push(management);}
   if(CONTRACT.has(contract)){clauses.push(`COALESCE(o.contract_status,'unknown')=?`);binds.push(contract);}
-  if(opportunity==='fights')clauses.push(`o.open_to_fights='yes'`);
+  if(opportunity==='fights')clauses.push(availabilityExpression()+"='yes'");
   if(opportunity==='management')clauses.push(`o.open_to_management='yes'`);
   if(opportunity==='team')clauses.push(`o.open_to_team='yes'`);
   if(ageMax!==null){clauses.push(`p.dob IS NOT NULL AND CAST((julianday('now')-julianday(substr(p.dob,1,10)))/365.2425 AS INTEGER)<=?`);binds.push(ageMax);}
@@ -85,13 +89,15 @@ async function talentRows(request:Request,env:Env){
       SELECT ranked.*,sp.name promotion_name,sp.region,
              CASE WHEN cm.source_fighter_id IS NOT NULL THEN 'represented' ELSE COALESCE(o.management_status,'unknown') END management_status,
              cm.agency_slug,cm.agency_name,cm.manager_name,cm.confidence management_confidence,cm.verified_at management_verified_at,
-             COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
+             COALESCE(o.contract_status,'unknown') contract_status,${availabilityExpression()} open_to_fights,
              COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
-             o.preferred_weight_class,o.base_city,o.base_region,o.base_country,o.public_contact_url,o.availability_note,
+             o.preferred_weight_class,${baseCityExpression()} base_city,${baseRegionExpression()} base_region,${baseCountryExpression()} base_country,o.public_contact_url,o.availability_note,
              o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
       FROM ranked
       LEFT JOIN scout_promotions sp ON sp.slug=ranked.current_promotion_slug
       LEFT JOIN fighter_opportunity_status o ON o.source_key=ranked.source_key AND o.source_fighter_id=ranked.source_fighter_id
+      LEFT JOIN scout_current_availability ca ON ca.source_key=ranked.source_key AND ca.source_fighter_id=ranked.source_fighter_id
+      LEFT JOIN scout_current_location cl ON cl.source_key=ranked.source_key AND cl.source_fighter_id=ranked.source_fighter_id
       LEFT JOIN scout_current_management cm ON cm.source_key=ranked.source_key AND cm.source_fighter_id=ranked.source_fighter_id
       ORDER BY ranked.global_rating DESC,ranked.evidence_strength DESC,ranked.last_fight_date DESC,ranked.fighter_name
     `).bind(GLOBAL_MODEL,take,skip).all<Row>();
@@ -104,14 +110,16 @@ async function talentRows(request:Request,env:Env){
            sp.name promotion_name,sp.region,
            r.scout_rating global_rating,r.evidence_strength,r.global_rank,r.division_rank,
            ${managementExpression()} management_status,cm.agency_slug,cm.agency_name,cm.manager_name,cm.confidence management_confidence,cm.verified_at management_verified_at,
-           COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
+           COALESCE(o.contract_status,'unknown') contract_status,${availabilityExpression()} open_to_fights,
            COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
-           o.preferred_weight_class,o.base_city,o.base_region,o.base_country,o.public_contact_url,o.availability_note,
+           o.preferred_weight_class,${baseCityExpression()} base_city,${baseRegionExpression()} base_region,${baseCountryExpression()} base_country,o.public_contact_url,o.availability_note,
            o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
     FROM scout_public_global_profiles p
     LEFT JOIN scout_promotions sp ON sp.slug=p.current_promotion_slug
     LEFT JOIN scout_active_global_ratings r ON r.source_key=p.source_key AND r.snapshot_id=p.snapshot_id AND r.source_fighter_id=p.source_fighter_id AND r.model_version=?
     LEFT JOIN fighter_opportunity_status o ON o.source_key=p.source_key AND o.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_availability ca ON ca.source_key=p.source_key AND ca.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_location cl ON cl.source_key=p.source_key AND cl.source_fighter_id=p.source_fighter_id
     LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
     WHERE ${clauses.join(' AND ')}
     ORDER BY r.scout_rating IS NULL,r.scout_rating DESC,r.evidence_strength DESC,p.last_fight_date DESC,p.fighter_name
@@ -241,11 +249,13 @@ async function fighterTalent(env:Env,slug:string){
   return env.DB.prepare(`
     SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,
            ${managementExpression()} management_status,cm.agency_slug,cm.agency_name,cm.agency_website,cm.manager_name,cm.source_url management_source_url,cm.source_type management_source_type,cm.confidence management_confidence,cm.verified_at management_verified_at,
-           COALESCE(o.contract_status,'unknown') contract_status,COALESCE(o.open_to_fights,'unknown') open_to_fights,
+           COALESCE(o.contract_status,'unknown') contract_status,${availabilityExpression()} open_to_fights,
            COALESCE(o.open_to_management,'unknown') open_to_management,COALESCE(o.open_to_team,'unknown') open_to_team,
-           o.preferred_weight_class,o.base_city,o.base_region,o.base_country,o.public_contact_url,o.availability_note,o.source_url opportunity_source_url,o.source_type opportunity_source_type,o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
+           o.preferred_weight_class,${baseCityExpression()} base_city,${baseRegionExpression()} base_region,${baseCountryExpression()} base_country,o.public_contact_url,o.availability_note,o.source_url opportunity_source_url,o.source_type opportunity_source_type,o.confidence opportunity_confidence,o.verified_at opportunity_verified_at
     FROM scout_public_global_profiles p
     LEFT JOIN fighter_opportunity_status o ON o.source_key=p.source_key AND o.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_availability ca ON ca.source_key=p.source_key AND ca.source_fighter_id=p.source_fighter_id
+    LEFT JOIN scout_current_location cl ON cl.source_key=p.source_key AND cl.source_fighter_id=p.source_fighter_id
     LEFT JOIN scout_current_management cm ON cm.source_key=p.source_key AND cm.source_fighter_id=p.source_fighter_id
     WHERE p.profile_slug=? LIMIT 1
   `).bind(slug).first<Row>();
