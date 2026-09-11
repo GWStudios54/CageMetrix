@@ -123,6 +123,22 @@ export const MANAGEMENT_SOURCES=[
     rosterSection:{start:'Our Fighters',end:'Apply to Be Talent',selector:'h3:not(.roster-category)'},
     profileUrls:['https://akfightermanagement.com/'],
     urls:['https://akfightermanagement.com/']
+  },
+  {
+    slug:'knock-out-representation',name:'Knock Out Representation',country:'United States',website:'https://www.koreps.com/',confidence:'A',
+    description:'Full-service MMA management agency whose official athlete page states that the named roster receives Knock Out Representation management and career support. The public roster includes established UFC/PFL talent and developing professional fighters.',
+    rosterScope:'official_public_roster',
+    rosterSelectors:['h1 a'],
+    profileUrls:['https://www.koreps.com/'],
+    urls:['https://www.koreps.com/athletes/']
+  },
+  {
+    slug:'gladiator-management-agency',name:'Gladiator Management Agency',country:'United States',website:'https://www.gladiatormgmtagency.com/',confidence:'A',
+    description:'Sacramento-based MMA management agency providing fight opportunities, contract guidance, sponsorship and career planning. Its official roster page publishes named managed fighters and links to individual fighter profiles.',
+    rosterScope:'official_public_roster',
+    rosterSection:{start:'The Gladiators',end:'CONTACT US',selector:'h3'},
+    profileUrls:['https://www.gladiatormgmtagency.com/fighter-management','https://www.gladiatormgmtagency.com/contact'],
+    urls:['https://www.gladiatormgmtagency.com/roster']
   }
 ];
 

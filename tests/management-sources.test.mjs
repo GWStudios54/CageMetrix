@@ -35,6 +35,16 @@ test('management source registry separates roster sources from agency profile ev
   }
   assert.ok(fairPlay.urls.some(url=>/fairplaymma\.com/.test(url)));
   assert.ok(ak.urls.some(url=>/akfightermanagement\.com/.test(url)));
+  const koreps=MANAGEMENT_SOURCES.find(source=>source.slug==='knock-out-representation');
+  const gladiator=MANAGEMENT_SOURCES.find(source=>source.slug==='gladiator-management-agency');
+  for(const source of [koreps,gladiator]){
+    assert.ok(source);
+    assert.equal(source.confidence,'A');
+    assert.equal(source.rosterScope,'official_public_roster');
+    assert.ok(source.urls.length>0);
+  }
+  assert.ok(koreps.urls.some(url=>/koreps\.com\/athletes/.test(url)));
+  assert.ok(gladiator.urls.some(url=>/gladiatormgmtagency\.com\/roster/.test(url)));
 });
 
 test('warehouse-compatible normalization preserves cautious exact matching',()=>{
@@ -139,4 +149,26 @@ test('management sync rechecks cross-agency conflicts after resolving exact figh
   assert.match(source,/const resolvedConflictIds=new Set/);
   assert.match(source,/const matched=matchedPreConflict\.filter\(row=>!resolvedConflictIds\.has/);
   assert.match(source,/resolved_identity_conflicts/);
+});
+
+
+test('KOREPS parser reads linked athlete name cards instead of page navigation',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='knock-out-representation');
+  const html='<main><h2>Athletes</h2><h2>Our Athletes</h2><h1><a href="/aljamain-sterling/">Aljamain Sterling</a></h1><h1><a href="/merab-dvalishvili/">Merab Dvalishvili</a></h1><h1><a href="/renato-moicano/">Renato Moicano</a></h1><footer><h1><a href="/contact/">Contact Us</a></h1></footer></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Aljamain Sterling','Merab Dvalishvili','Renato Moicano']);
+});
+
+test('Gladiator parser is bounded to the official roster section',()=>{
+  const source=MANAGEMENT_SOURCES.find(row=>row.slug==='gladiator-management-agency');
+  const html='<main><h2>Common Questions</h2><h3>Will you help me get fights?</h3><h1>The Gladiators</h1><h3>Rafael Carvalho</h3><h3>Vanessa Melo</h3><h3>Elaman Sayassatov</h3><h2>CONTACT US</h2><h3>Contact Us</h3></main>';
+  assert.deepEqual(parseManagementRoster(html,source),['Rafael Carvalho','Vanessa Melo','Elaman Sayassatov']);
+});
+
+test('wave 5 management sources are official public roster evidence only',()=>{
+  const koreps=MANAGEMENT_SOURCES.find(row=>row.slug==='knock-out-representation');
+  const gladiator=MANAGEMENT_SOURCES.find(row=>row.slug==='gladiator-management-agency');
+  assert.deepEqual(koreps.rosterSelectors,['h1 a']);
+  assert.deepEqual(gladiator.rosterSection,{start:'The Gladiators',end:'CONTACT US',selector:'h3'});
+  assert.ok(koreps.profileUrls.every(url=>new URL(url).hostname==='www.koreps.com'));
+  assert.ok(gladiator.profileUrls.every(url=>new URL(url).hostname==='www.gladiatormgmtagency.com'));
 });
