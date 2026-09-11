@@ -88,7 +88,10 @@ export function detectContractPromotion(value,fallback=null){
     const patterns=[
       new RegExp(`\\b(?:sign(?:s|ed|ing)?|re\\s?sign(?:s|ed|ing)?|contract(?:s|ed)?)\\b.{0,160}\\b(?:with|to|by)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:earn(?:s|ed|ing)?|secur(?:e|es|ed|ing)?|grant(?:s|ed|ing)?|award(?:s|ed|ing)?|hand(?:s|ed|ing)?)\\b.{0,100}\\b(?:a\\s+|an\\s+|the\\s+)?${promotion}\\s+(?:contract|deal)\\b`),
-      new RegExp(`\\b${promotion}\\s+(?:contract|deal|extension|renewal|signing)\\b`)
+      new RegExp(`\\b${promotion}\\s+(?:contract|deal|extension|renewal|signing)\\b`),
+      new RegExp(`\\b${promotion}\\s+(?:release(?:s|d)?|waive(?:s|d)?|cuts?)\\b`),
+      new RegExp(`\\b(?:release(?:s|d)?|waive(?:s|d)?|part(?:s|ed)?\\s+ways)\\b.{0,120}\\b(?:by|from|with)\\s+(?:the\\s+)?${promotion}\\b`),
+      new RegExp(`\\b(?:removed|depart(?:s|ed)?|exits?)\\b.{0,100}\\b(?:from|the)\\s+(?:the\\s+)?${promotion}\\s+(?:roster|promotion|organization)\\b`)
     ];
     if(patterns.some(pattern=>pattern.test(text)))return slug;
   }
