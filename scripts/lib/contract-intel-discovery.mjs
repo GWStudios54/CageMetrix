@@ -13,7 +13,7 @@ export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
 ];
 
-const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
+const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
 const NON_FIGHTER_RE=/\b(?:media rights|broadcast|streaming|sponsorship deal|partnership|venue deal|rights agreement)\b/i;
 const PROMOTIONS=[
   ['ufc','(?:ultimate fighting championship|ufc)'],['pfl','(?:professional fighters league|pfl)'],['one','one championship'],['brave-cf','(?:brave combat federation|brave cf)'],['cffc','(?:cage fury fighting championships?|cage fury fc|cffc)'],['cage-warriors','cage warriors'],['oktagon','oktagon(?: mma)?'],['ksw','(?:konfrontacja sztuk walki|ksw)'],['rizin','rizin(?: fighting federation)?'],['lfa','(?:legacy fighting alliance|lfa)'],['fury-fc','(?:fury fighting championship|fury fc)'],['pancrase','pancrase'],['shooto','shooto'],['aca','(?:absolute championship akhmat|aca)'],['tuff-n-uff','tuff n uff'],['fnc','(?:fight nation championship|fnc)']
@@ -34,7 +34,7 @@ export function detectContractSignal(value){
   if(/\bextension\b|\bre\s?sign(?:s|ed|ing)?\b/.test(text))return {eventType:'extension',status:'under_contract'};
   if(/\brenew(?:s|ed|al)?\b/.test(text))return {eventType:'renewal',status:'under_contract'};
   if(/\blast\s+fight\s+(?:on|under)\b|\bremaining\s+fights?\b/.test(text))return {eventType:'status_update',status:'unknown'};
-  if(/\bsign(?:s|ed|ing)?\b|\bnew\s+(?:multi\s+fight\s+)?deal\b|\bcontract(?:s|ed)?\b/.test(text))return {eventType:'signing',status:'under_contract'};
+  if(/\bsign(?:s|ed|ing)?\b|\bnew\s+(?:multi\s+fight\s+)?deal\b|\b(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)\b|\bcontract(?:s|ed)?\b/.test(text))return {eventType:'signing',status:'under_contract'};
   return {eventType:'status_update',status:'unknown'};
 }
 
