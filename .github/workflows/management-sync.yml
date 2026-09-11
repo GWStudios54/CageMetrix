@@ -13,7 +13,6 @@ on:
       - 'src/management-about.ts'
       - 'src/talent-admin.ts'
       - 'tests/management-sources.test.mjs'
-      - 'package.json'
       - '.github/workflows/management-sync.yml'
   push:
     branches:
@@ -26,7 +25,6 @@ on:
       - 'src/management-about.ts'
       - 'src/talent-admin.ts'
       - 'tests/management-sources.test.mjs'
-      - 'package.json'
       - '.github/workflows/management-sync.yml'
 
 # Keep management refreshes from overlapping each other, but do not put this
