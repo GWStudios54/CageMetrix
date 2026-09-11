@@ -30,11 +30,14 @@ test('talent search never infers unmanaged or free-agent status from missing dat
 
 test('talent discovery supports performance, representation and opportunity filters',()=>{
   const source=read('src/talent-network.ts');
-  for(const needle of ['weight_class','promotion','region','country','management','contract','opportunity','age_max','age_min','min_rating','min_evidence','min_wins'])assert.ok(source.includes(needle),`missing ${needle} filter`);
+  for(const needle of ['weight_class','promotion','region','country','management','contract','opportunity','age_max','age_min','min_rating','min_evidence','min_wins','active_months'])assert.ok(source.includes(needle),`missing ${needle} filter`);
   assert.match(source,/o\.open_to_fights='yes'/);
   assert.match(source,/o\.open_to_management='yes'/);
   assert.match(source,/o\.open_to_team='yes'/);
   assert.match(source,/r\.scout_rating>=\?/);
+  assert.match(source,/p\.last_fight_date IS NOT NULL/);
+  assert.match(source,/Find the right fighter\. Know who to call\./);
+  assert.match(source,/Open recruiting file/);
 });
 
 test('management pages expose roster strength, activity and organizational footprint without inventing roster size',()=>{
@@ -58,7 +61,7 @@ test('talent and management pages are first-class public routes and fighter doss
   assert.match(entry,/path==='\/talent'/);
   assert.match(entry,/path==='\/management'/);
   assert.match(entry,/enhanceFighterTalentContext/);
-  assert.match(nav,/href="\/talent">Talent/);
+  assert.match(nav,/href="\/talent">Find a Fighter/);
 });
 
 test('representation context never feeds the fighter performance rating',()=>{
@@ -93,4 +96,14 @@ test('blank numeric talent filters remain unset instead of being clamped from ze
   const source=read('src/talent-network.ts');
   assert.match(source,/if\(value===null\|\|value\.trim\(\)===''\)return null/);
   assert.doesNotMatch(source,/const number=\(value:string\|null,min:number,max:number\)=>\{const n=Number\(value\)/);
+});
+
+
+test('homepage makes recruiting the primary MMA Scouts product',()=>{
+  const home=read('public/index.html'),nav=read('src/navigation.ts');
+  assert.match(home,/FIGHTER RECRUITING INTELLIGENCE/);
+  assert.match(home,/href="\/talent">Find a fighter/);
+  assert.match(home,/Management Intelligence/);
+  assert.match(home,/Unknown stays unknown/);
+  assert.match(nav,/href="\/talent">Find a Fighter<\/a><a href="\/scout">Scout AI/);
 });
