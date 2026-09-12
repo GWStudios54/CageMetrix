@@ -2,7 +2,7 @@ name: Sync MMA master database
 
 on:
   schedule:
-    - cron: '17 10 * * 1'
+    - cron: '17 10 * * 1,4'
   pull_request:
     paths:
       - 'migrations/0012_mma_master_database.sql'
