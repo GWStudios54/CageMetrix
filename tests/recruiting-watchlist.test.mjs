@@ -58,6 +58,13 @@ test('the recruiting board and intel queue link to the watchlist, and the intel 
   assert.match(recruiting,/fetch\('\/api\/admin\/recruiting\/watchlist'/);
 });
 
+test('watchlist cards surface finish speed and durability alongside finish rate',()=>{
+  const source=read('src/recruiting-watchlist.ts');
+  assert.match(source,/p\.finish_round_sum,p\.first_round_finishes,p\.times_finished,/);
+  assert.match(source,/Avg finish round \$\{\(Number\(row\.finish_round_sum\|\|0\)\/finishes\)\.toFixed\(1\)\}/);
+  assert.match(source,/if\(timesFinished>0\)facts\.push\(`Finished \$\{timesFinished\}x`\);/);
+});
+
 test('post-deploy smoke verifies the watchlist page is private like the rest of the recruiting workspace',()=>{
   const smoke=read('.github/workflows/post-deploy-smoke.yml');
   assert.match(smoke,/watchlist_code/);

@@ -45,12 +45,20 @@ function agencyContactLabel(kind:unknown){
 }
 function fightProfileFacts(row:Row){
   const facts:string[]=[];
-  const wins=Number(row.career_wins||0),ko=Number(row.ko_tko_wins||0),sub=Number(row.submission_wins||0);
-  if(wins>0){const finishPct=Math.round(((ko+sub)/wins)*100);facts.push(`${finishPct}% finish rate (${ko} KO/TKO · ${sub} SUB)`);}
+  const wins=Number(row.career_wins||0),ko=Number(row.ko_tko_wins||0),sub=Number(row.submission_wins||0),finishes=ko+sub;
+  if(wins>0){const finishPct=Math.round((finishes/wins)*100);facts.push(`${finishPct}% finish rate (${ko} KO/TKO · ${sub} SUB)`);}
+  if(finishes>0){
+    facts.push(`Avg finish round ${(Number(row.finish_round_sum||0)/finishes).toFixed(1)}`);
+    const firstRound=Number(row.first_round_finishes||0);
+    if(firstRound>0)facts.push(`${firstRound} first-round finish${firstRound===1?'':'es'}`);
+  }
   const titleBouts=Number(row.title_fight_bouts||0);
   if(titleBouts>0)facts.push(`Title fights: ${Number(row.title_fight_wins||0)}-${titleBouts-Number(row.title_fight_wins||0)}`);
   const l5w=Number(row.last_five_wins||0),l5l=Number(row.last_five_losses||0);
   if(l5w+l5l>0)facts.push(`Last 5: ${l5w}-${l5l}`);
+  const timesFinished=Number(row.times_finished||0),bouts=Number(row.career_bouts||0);
+  if(timesFinished>0)facts.push(`Finished ${timesFinished}x`);
+  else if(bouts>=3)facts.push('Never finished');
   return facts.map(v=>`<span>${esc(v)}</span>`).join('');
 }
 
@@ -74,8 +82,8 @@ async function ownedEntry(env:Env,ownerId:number,id:number){
 async function watchlistRows(env:Env,ownerId:number){
   const rows=(await env.DB.prepare(`
     SELECT w.*,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,p.current_promotion_slug,
-           p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,
-           p.ko_tko_wins,p.submission_wins,p.title_fight_bouts,p.title_fight_wins,p.last_five_wins,p.last_five_losses,
+           p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,p.career_bouts,
+           p.ko_tko_wins,p.submission_wins,p.title_fight_bouts,p.title_fight_wins,p.last_five_wins,p.last_five_losses,p.finish_round_sum,p.first_round_finishes,p.times_finished,
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
            ${managementExpr()} management_status,cm.agency_slug,cm.agency_name,cm.agency_website,cm.agency_contact_kind,cm.agency_contact_value,cm.manager_name,

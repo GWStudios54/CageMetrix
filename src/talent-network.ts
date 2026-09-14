@@ -90,7 +90,7 @@ async function talentRows(request:Request,env:Env){
       WITH ranked AS MATERIALIZED (
         SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,
                p.current_promotion_slug,p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,p.career_bouts,p.data_completeness,
-               p.ko_tko_wins,p.submission_wins,p.decision_wins,p.title_fight_bouts,p.title_fight_wins,p.organization_count,p.last_five_wins,p.last_five_losses,
+               p.ko_tko_wins,p.submission_wins,p.decision_wins,p.title_fight_bouts,p.title_fight_wins,p.organization_count,p.last_five_wins,p.last_five_losses,p.finish_round_sum,p.first_round_finishes,p.times_finished,
                r.scout_rating global_rating,r.evidence_strength,r.global_rank,r.division_rank
         FROM scout_global_ratings AS r INDEXED BY idx_scout_global_rating_division
         JOIN mma_source_registry registry
@@ -124,7 +124,7 @@ async function talentRows(request:Request,env:Env){
   const rows=await env.DB.prepare(`
     SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,
            p.current_promotion_slug,p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,p.career_bouts,p.data_completeness,
-           p.ko_tko_wins,p.submission_wins,p.decision_wins,p.title_fight_bouts,p.title_fight_wins,p.organization_count,p.last_five_wins,p.last_five_losses,
+           p.ko_tko_wins,p.submission_wins,p.decision_wins,p.title_fight_bouts,p.title_fight_wins,p.organization_count,p.last_five_wins,p.last_five_losses,p.finish_round_sum,p.first_round_finishes,p.times_finished,
            sp.name promotion_name,sp.region,
            r.scout_rating global_rating,r.evidence_strength,r.global_rank,r.division_rank,
            ${managementExpression()} management_status,cm.agency_slug,cm.agency_name,cm.manager_name,cm.confidence management_confidence,cm.verified_at management_verified_at,
@@ -167,12 +167,20 @@ function opportunityTags(row:Row){const tags=[];if(row.open_to_fights==='yes')ta
 function age(dob:unknown){const raw=String(dob||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return null;const born=new Date(`${raw}T00:00:00Z`),today=new Date();let value=today.getUTCFullYear()-born.getUTCFullYear();if(today.getUTCMonth()<born.getUTCMonth()||(today.getUTCMonth()===born.getUTCMonth()&&today.getUTCDate()<born.getUTCDate()))value--;return value;}
 function fightProfileTags(row:Row){
   const tags:string[]=[];
-  const wins=Number(row.career_wins||0),ko=Number(row.ko_tko_wins||0),sub=Number(row.submission_wins||0);
-  if(wins>0){const finishPct=Math.round(((ko+sub)/wins)*100);tags.push(`${finishPct}% finish rate (${ko} KO/TKO · ${sub} SUB)`);}
+  const wins=Number(row.career_wins||0),ko=Number(row.ko_tko_wins||0),sub=Number(row.submission_wins||0),finishes=ko+sub;
+  if(wins>0){const finishPct=Math.round((finishes/wins)*100);tags.push(`${finishPct}% finish rate (${ko} KO/TKO · ${sub} SUB)`);}
+  if(finishes>0){
+    tags.push(`Avg finish round ${(Number(row.finish_round_sum||0)/finishes).toFixed(1)}`);
+    const firstRound=Number(row.first_round_finishes||0);
+    if(firstRound>0)tags.push(`${firstRound} first-round finish${firstRound===1?'':'es'}`);
+  }
   const titleBouts=Number(row.title_fight_bouts||0);
   if(titleBouts>0)tags.push(`Title fights: ${Number(row.title_fight_wins||0)}-${titleBouts-Number(row.title_fight_wins||0)}`);
   const l5w=Number(row.last_five_wins||0),l5l=Number(row.last_five_losses||0);
   if(l5w+l5l>0)tags.push(`Last 5: ${l5w}-${l5l}`);
+  const timesFinished=Number(row.times_finished||0),bouts=Number(row.career_bouts||0);
+  if(timesFinished>0)tags.push(`Finished ${timesFinished}x`);
+  else if(bouts>=3)tags.push('Never finished');
   return tags.map(v=>`<span class="talent-badge">${esc(v)}</span>`).join('');
 }
 

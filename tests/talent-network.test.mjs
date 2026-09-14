@@ -114,6 +114,15 @@ test('talent search surfaces finish rate, title experience and recent form inste
   assert.match(source,/p\.title_fight_bouts>0/);
 });
 
+test('talent search surfaces finish speed and durability signals computed from existing fight-method data',()=>{
+  const source=read('src/talent-network.ts');
+  assert.match(source,/p\.finish_round_sum,p\.first_round_finishes,p\.times_finished,/g);
+  assert.match(source,/Avg finish round \$\{\(Number\(row\.finish_round_sum\|\|0\)\/finishes\)\.toFixed\(1\)\}/);
+  assert.match(source,/\$\{firstRound\} first-round finish\$\{firstRound===1\?'':'es'\}/);
+  assert.match(source,/if\(timesFinished>0\)tags\.push\(`Finished \$\{timesFinished\}x`\);/);
+  assert.match(source,/else if\(bouts>=3\)tags\.push\('Never finished'\);/);
+});
+
 test('homepage makes recruiting the primary MMA Scouts product',()=>{
   const home=read('public/index.html'),nav=read('src/navigation.ts');
   assert.match(home,/FIGHTER RECRUITING INTELLIGENCE/);

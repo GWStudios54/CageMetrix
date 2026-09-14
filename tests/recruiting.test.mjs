@@ -94,6 +94,14 @@ test('recruiting candidates and the intel queue surface finish rate, title exper
   assert.match(source,/\$\{fightProfileFacts\(row\)\}<\/div>/);
 });
 
+test('recruiting candidates and the intel queue surface finish speed and durability alongside finish rate',()=>{
+  const source=read('src/recruiting.ts');
+  assert.match(source,/p\.finish_round_sum,p\.first_round_finishes,p\.times_finished,/g);
+  assert.match(source,/Avg finish round \$\{\(Number\(row\.finish_round_sum\|\|0\)\/finishes\)\.toFixed\(1\)\}/);
+  assert.match(source,/if\(timesFinished>0\)facts\.push\(`Finished \$\{timesFinished\}x`\);/);
+  assert.match(source,/else if\(bouts>=3\)facts\.push\('Never finished'\);/);
+});
+
 test('private recruiting workspace links the contract review desk without exposing it publicly',()=>{
   const recruiting=read('src/recruiting.ts'),review=read('src/contract-review.ts'),smoke=read('.github/workflows/post-deploy-smoke.yml');
   assert.match(recruiting,/href="\/recruiting\/contracts">Review contract leads/);
