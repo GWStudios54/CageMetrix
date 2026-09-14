@@ -7,6 +7,7 @@ import {eventPage} from './event-page.ts';
 import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
+import {ownerAdminLogin} from './admin-auth.ts';
 import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
 import {contractCandidatesAdminApi} from './contract-candidates.ts';
 import {contractReviewPage} from './contract-review.ts';
@@ -57,6 +58,7 @@ export default {
     if(request.method==='GET'&&(path==='/community'||path==='/community/'||path==='/forum'||path==='/forum/'||path==='/watchlist'||path==='/watchlist/'||/^\/forum\//.test(path)||/^\/u\//.test(path)))return Response.redirect(new URL('/scout',request.url),308);
     if(request.method==='GET'&&/^\/fights\/[1-9]\d*\/?$/.test(path))return (await legacyFightRedirect(path,request,env))!;
 
+    if(path==='/api/community/login'&&request.method==='POST')return ownerAdminLogin(request,env);
     if(path==='/api/forecasts'||path.startsWith('/api/community')||path.startsWith('/api/forum')||path.startsWith('/api/fans')||/^\/api\/fights\/[1-9]\d*\/(fans|fan-prediction|fan-scorecard)$/.test(path))return retiredJson();
 
     if(path==='/api/profile-removal')return profileRemovalApi(request,env);

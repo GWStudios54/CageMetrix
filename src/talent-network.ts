@@ -1,4 +1,4 @@
-import {adminAccount} from './admin-session.ts';
+import {adminAccount,sameOrigin} from './admin-session.ts';
 import {BRAND_NAME,SITE_ORIGIN} from './brand.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string};
@@ -303,6 +303,7 @@ function validPublicContact(value:unknown){if(!value)return null;try{const url=n
 export async function talentAdminApi(request:Request,env:Env,action:string){
   if(!await requireAdmin(request,env))return json({error:'unauthorized'},401,NO_STORE);
   if(request.method!=='POST')return json({error:'method_not_allowed'},405,NO_STORE);
+  if(!sameOrigin(request))return json({error:'cross_origin'},403,NO_STORE);
   const input=await body(request);if(!input)return json({error:'invalid_json'},400,NO_STORE);
   if(action==='agency'){
     const name=String(input.name||'').trim().slice(0,160),slug=slugify(String(input.slug||name));if(!name||!slug)return json({error:'name_required'},400,NO_STORE);
