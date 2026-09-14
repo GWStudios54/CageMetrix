@@ -17,6 +17,7 @@ import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
 import {generateRecruitingCandidatesApi,recruitingCandidateApi,recruitingIntelQueuePage,recruitingOpeningApi,recruitingOpeningPage,recruitingOpeningsApi,recruitingPage} from './recruiting.ts';
 import {promoteWatchlistItemApi,watchlistApi,watchlistItemApi,watchlistPage} from './recruiting-watchlist.ts';
+import {recruitingActivityPage} from './recruiting-activity.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -152,6 +153,10 @@ export default {
     if(request.method==='GET'&&(path==='/recruiting/watchlist'||path==='/recruiting/watchlist/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/recruiting/watchlist',request.url),308);
       return page(watchlistPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/activity'||path==='/recruiting/activity/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/activity${url.search}`,request.url),308);
+      return page(recruitingActivityPage(request,env),request,env);
     }
     if(request.method==='GET'&&(path==='/recruiting/contracts'||path==='/recruiting/contracts/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/contracts${url.search}`,request.url),308);
