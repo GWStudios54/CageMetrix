@@ -16,6 +16,7 @@ import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scout
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
 import {generateRecruitingCandidatesApi,recruitingCandidateApi,recruitingIntelQueuePage,recruitingOpeningApi,recruitingOpeningPage,recruitingOpeningsApi,recruitingPage} from './recruiting.ts';
+import {promoteWatchlistItemApi,watchlistApi,watchlistItemApi,watchlistPage} from './recruiting-watchlist.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -94,6 +95,11 @@ export default {
     if(recruitingOpeningApiMatch)return recruitingOpeningApi(request,env,Number(recruitingOpeningApiMatch[1]));
     const recruitingCandidateMatch=path.match(/^\/api\/admin\/recruiting\/candidates\/([1-9]\d*)\/?$/);
     if(recruitingCandidateMatch)return recruitingCandidateApi(request,env,Number(recruitingCandidateMatch[1]));
+    if(path==='/api/admin/recruiting/watchlist'||path==='/api/admin/recruiting/watchlist/')return watchlistApi(request,env);
+    const watchlistPromoteMatch=path.match(/^\/api\/admin\/recruiting\/watchlist\/([1-9]\d*)\/promote\/?$/);
+    if(watchlistPromoteMatch)return promoteWatchlistItemApi(request,env,Number(watchlistPromoteMatch[1]));
+    const watchlistItemMatch=path.match(/^\/api\/admin\/recruiting\/watchlist\/([1-9]\d*)\/?$/);
+    if(watchlistItemMatch)return watchlistItemApi(request,env,Number(watchlistItemMatch[1]));
 
     if(request.method==='GET'&&(path==='/data-policy'||path==='/data-policy/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/data-policy',request.url),308);
@@ -142,6 +148,10 @@ export default {
     if(request.method==='GET'&&(path==='/recruiting/intel'||path==='/recruiting/intel/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/intel${url.search}`,request.url),308);
       return page(recruitingIntelQueuePage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/watchlist'||path==='/recruiting/watchlist/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/recruiting/watchlist',request.url),308);
+      return page(watchlistPage(request,env),request,env);
     }
     if(request.method==='GET'&&(path==='/recruiting/contracts'||path==='/recruiting/contracts/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/contracts${url.search}`,request.url),308);
