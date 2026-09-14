@@ -87,6 +87,16 @@ function agencyContactHref(row:Row){
   }
   try{const url=new URL(value);return url.protocol==='https:'?url.href:null}catch{return null;}
 }
+function fightProfileFacts(row:Row){
+  const facts:string[]=[];
+  const wins=Number(row.career_wins||0),ko=Number(row.ko_tko_wins||0),sub=Number(row.submission_wins||0);
+  if(wins>0){const finishPct=Math.round(((ko+sub)/wins)*100);facts.push(`${finishPct}% finish rate (${ko} KO/TKO · ${sub} SUB)`);}
+  const titleBouts=Number(row.title_fight_bouts||0);
+  if(titleBouts>0)facts.push(`Title fights: ${Number(row.title_fight_wins||0)}-${titleBouts-Number(row.title_fight_wins||0)}`);
+  const l5w=Number(row.last_five_wins||0),l5l=Number(row.last_five_losses||0);
+  if(l5w+l5l>0)facts.push(`Last 5: ${l5w}-${l5l}`);
+  return facts.map(v=>`<span>${esc(v)}</span>`).join('');
+}
 function agencyContactLabel(kind:unknown){
   if(kind==='booking_email')return 'Agency booking email';
   if(kind==='general_email')return 'Agency email';
@@ -114,6 +124,7 @@ function candidateQuery(opening:Row,limit=100){
   return {sql:`
     SELECT p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,p.current_promotion_slug,
            p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,
+           p.ko_tko_wins,p.submission_wins,p.title_fight_bouts,p.title_fight_wins,p.last_five_wins,p.last_five_losses,
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
            ${managementExpr()} management_status,cm.agency_name,cm.agency_website,cm.agency_contact_kind,cm.agency_contact_value,cm.agency_contact_label,cm.agency_contact_verified_at,cm.manager_name,cm.verified_at management_verified_at,
@@ -157,6 +168,7 @@ async function candidateRows(env:Env,openingId:number){
     SELECT c.id candidate_id,c.status candidate_status,c.priority,c.notes candidate_notes,c.contacted_at,c.last_reviewed_at,c.updated_at candidate_updated_at,
            p.source_key,p.source_fighter_id,p.profile_slug,p.fighter_name,p.dob,p.nationality,p.gym,p.current_weight_class,p.current_promotion_slug,
            p.last_fight_date,p.career_wins,p.career_losses,p.career_draws,
+           p.ko_tko_wins,p.submission_wins,p.title_fight_bouts,p.title_fight_wins,p.last_five_wins,p.last_five_losses,
            r.scout_rating global_rating,r.evidence_strength,
            sp.name promotion_name,
            ${managementExpr()} management_status,cm.agency_name,cm.agency_website,cm.agency_contact_kind,cm.agency_contact_value,cm.agency_contact_label,cm.agency_contact_verified_at,cm.manager_name,cm.verified_at management_verified_at,
@@ -264,7 +276,7 @@ function candidateCard(row:Row){
   const base=[row.base_city,row.base_region,row.base_country].filter(Boolean).join(', ')||'Base unknown';
   return `<article class="recruit-candidate" data-candidate="${row.candidate_id}">
     <div class="recruit-candidate-head"><div><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}${row.promotion_name?' · '+esc(row.promotion_name):''}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${esc(record(row))}${row.age!==null?' · Age '+row.age:''}${row.last_fight_date?' · Last fight '+esc(pretty(row.last_fight_date)):''}</p></div><div class="recruit-score"><small>GLOBAL RATING</small><strong>${score(row.global_rating)}</strong><span>Evidence ${pct(row.evidence_strength)}</span></div></div>
-    <div class="recruit-facts"><span>${esc(rep)}</span><span>Contract: ${esc(String(row.contract_status||'unknown').replaceAll('_',' '))}</span><span>${esc(base)}</span><span>${contact}</span></div>
+    <div class="recruit-facts"><span>${esc(rep)}</span><span>Contract: ${esc(String(row.contract_status||'unknown').replaceAll('_',' '))}</span><span>${esc(base)}</span><span>${contact}</span>${fightProfileFacts(row)}</div>
     <div class="recruit-gaps"><strong>Intel gaps</strong>${gaps.length?gaps.map(g=>`<span>${esc(g)}</span>`).join(''):'<span class="complete">Core recruiting intel covered</span>'}</div>
     <div class="recruit-actions">
       <select data-status aria-label="Candidate status">${['suggested','shortlisted','contacted','passed','declined','booked'].map(v=>`<option value="${v}"${row.candidate_status===v?' selected':''}>${v[0].toUpperCase()+v.slice(1)}</option>`).join('')}</select>
@@ -326,6 +338,7 @@ export async function recruitingIntelQueuePage(request:Request,env:Env){
   if(minRating!==null){clauses.push('r.scout_rating>=?');binds.push(minRating);}
   const rows=(await env.DB.prepare(`
     SELECT c.*,r.scout_rating global_rating,r.evidence_strength,
+           p.career_wins,p.ko_tko_wins,p.submission_wins,p.title_fight_bouts,p.title_fight_wins,p.last_five_wins,p.last_five_losses,
            COALESCE(o.public_contact_url,c.public_contact_url,cm.agency_contact_value) resolved_contact_evidence_url,
            COALESCE(o.public_contact_url,c.public_contact_url,cm.agency_contact_value,cm.agency_website) resolved_contact_url
     FROM scout_fighter_intel_coverage c
@@ -339,7 +352,7 @@ export async function recruitingIntelQueuePage(request:Request,env:Env){
     LIMIT 300`).bind(...binds).all<Row>()).results||[];
   const cards=rows.map(row=>{
     const gaps=[];if(row.management_status==='unknown')gaps.push('management');if(row.contract_status==='unknown')gaps.push('contract');if(row.open_to_fights==='unknown')gaps.push('availability');if(!row.base_city&&!row.base_region&&!row.base_country)gaps.push('base');if(!row.resolved_contact_evidence_url)gaps.push('contact');
-    return `<article class="intel-queue-card"><div class="recruit-candidate-head"><div><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}${row.current_organization?' · '+esc(row.current_organization):''}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${row.last_fight_date?'Last fight '+esc(pretty(row.last_fight_date)):'No recorded fight date'} · Coverage ${Number(row.intel_coverage_pct||0).toFixed(1)}%</p></div><div class="recruit-score"><small>GLOBAL RATING</small><strong>${score(row.global_rating)}</strong><span>Evidence ${pct(row.evidence_strength)}</span></div></div><div class="recruit-gaps"><strong>Research next</strong>${gaps.map(g=>`<span>${esc(g)}</span>`).join('')}</div><div class="intel-queue-actions"><a class="button secondary" href="/scout/fighters/${esc(row.profile_slug)}">Open fighter intel →</a><a class="button secondary" href="/talent?q=${encodeURIComponent(String(row.fighter_name||''))}">Recruiting search →</a></div></article>`;
+    return `<article class="intel-queue-card"><div class="recruit-candidate-head"><div><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}${row.current_organization?' · '+esc(row.current_organization):''}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${row.last_fight_date?'Last fight '+esc(pretty(row.last_fight_date)):'No recorded fight date'} · Coverage ${Number(row.intel_coverage_pct||0).toFixed(1)}%</p></div><div class="recruit-score"><small>GLOBAL RATING</small><strong>${score(row.global_rating)}</strong><span>Evidence ${pct(row.evidence_strength)}</span></div></div><div class="recruit-facts">${fightProfileFacts(row)}</div><div class="recruit-gaps"><strong>Research next</strong>${gaps.map(g=>`<span>${esc(g)}</span>`).join('')}</div><div class="intel-queue-actions"><a class="button secondary" href="/scout/fighters/${esc(row.profile_slug)}">Open fighter intel →</a><a class="button secondary" href="/talent?q=${encodeURIComponent(String(row.fighter_name||''))}">Recruiting search →</a></div></article>`;
   }).join('');
   const bodyHtml=`<section class="recruit-hero"><a class="back-link" href="/recruiting">← Recruiting board</a><span class="eyebrow">INTELLIGENCE OPERATIONS</span><h1>Close the gaps that block recruiting decisions.</h1><p>This queue prioritizes useful, active fighter files with unresolved recruiting intelligence. Ordering uses existing performance/evidence data only; missing management, contract, availability, base or contact information never changes Global Rating.</p></section>
   <section class="intel-filter-panel"><form method="get" action="/recruiting/intel"><label>Gap<select name="gap">${['all','management','contract','availability','base','contact'].map(v=>`<option value="${v}"${gap===v?' selected':''}>${v==='all'?'Any recruiting gap':v[0].toUpperCase()+v.slice(1)}</option>`).join('')}</select></label><label>Division<input name="weight_class" value="${esc(division)}" placeholder="Lightweight"></label><label>Min Global Rating<input name="min_rating" type="number" min="0" max="100" value="${minRating??''}" placeholder="70"></label><button class="button primary" type="submit">Build intel queue</button></form></section>

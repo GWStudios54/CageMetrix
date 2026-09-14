@@ -102,6 +102,18 @@ test('blank numeric talent filters remain unset instead of being clamped from ze
 });
 
 
+test('talent search surfaces finish rate, title experience and recent form instead of hiding them behind the fighter dossier',()=>{
+  const source=read('src/talent-network.ts');
+  assert.match(source,/p\.ko_tko_wins,p\.submission_wins,p\.decision_wins,p\.title_fight_bouts,p\.title_fight_wins,p\.organization_count,p\.last_five_wins,p\.last_five_losses/g);
+  assert.match(source,/function fightProfileTags\(row:Row\)/);
+  assert.match(source,/finish rate \(\$\{ko\} KO\/TKO · \$\{sub\} SUB\)/);
+  assert.match(source,/Title fights: \$\{Number\(row\.title_fight_wins\|\|0\)\}-\$\{titleBouts-Number\(row\.title_fight_wins\|\|0\)\}/);
+  assert.match(source,/fightProfileTags\(row\)/);
+  assert.match(source,/min_finish_rate/);
+  assert.match(source,/title_experience/);
+  assert.match(source,/p\.title_fight_bouts>0/);
+});
+
 test('homepage makes recruiting the primary MMA Scouts product',()=>{
   const home=read('public/index.html'),nav=read('src/navigation.ts');
   assert.match(home,/FIGHTER RECRUITING INTELLIGENCE/);

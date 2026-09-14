@@ -85,6 +85,15 @@ test('private intelligence queue prioritizes unresolved recruiting facts without
 });
 
 
+test('recruiting candidates and the intel queue surface finish rate, title experience and recent form',()=>{
+  const source=read('src/recruiting.ts');
+  assert.match(source,/function fightProfileFacts\(row:Row\)/);
+  assert.match(source,/finish rate \(\$\{ko\} KO\/TKO · \$\{sub\} SUB\)/);
+  assert.match(source,/Title fights: \$\{Number\(row\.title_fight_wins\|\|0\)\}/);
+  assert.match(source,/p\.ko_tko_wins,p\.submission_wins,p\.title_fight_bouts,p\.title_fight_wins,p\.last_five_wins,p\.last_five_losses/);
+  assert.match(source,/\$\{fightProfileFacts\(row\)\}<\/div>/);
+});
+
 test('private recruiting workspace links the contract review desk without exposing it publicly',()=>{
   const recruiting=read('src/recruiting.ts'),review=read('src/contract-review.ts'),smoke=read('.github/workflows/post-deploy-smoke.yml');
   assert.match(recruiting,/href="\/recruiting\/contracts">Review contract leads/);
