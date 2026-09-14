@@ -6095,6 +6095,12 @@
     "checked_at": "2026-09-04T23:10:25.953Z",
     "retry_after": "2026-10-04T23:10:25.953Z"
   },
+  "ilimbek-akylbek": {
+    "status": "not_found",
+    "source": "wikimedia",
+    "checked_at": "2026-09-14T10:34:21.640Z",
+    "retry_after": "2026-10-14T10:34:21.640Z"
+  },
   "ilimbek-akylbek-uulu": {
     "status": "not_found",
     "source": "wikimedia",
@@ -6808,6 +6814,12 @@
     "source": "wikimedia",
     "checked_at": "2026-09-04T23:11:05.442Z",
     "retry_after": "2026-10-04T23:11:05.442Z"
+  },
+  "javad-mahjoub": {
+    "status": "not_found",
+    "source": "wikimedia",
+    "checked_at": "2026-09-14T10:34:21.640Z",
+    "retry_after": "2026-10-14T10:34:21.640Z"
   },
   "javid-basharat": {
     "status": "not_found",
@@ -13894,6 +13906,12 @@
     "source": "wikimedia",
     "checked_at": "2026-09-04T23:09:00.479Z",
     "retry_after": "2026-10-04T23:09:00.479Z"
+  },
+  "sean-king-iii": {
+    "status": "not_found",
+    "source": "wikimedia",
+    "checked_at": "2026-09-14T10:34:21.640Z",
+    "retry_after": "2026-10-14T10:34:21.640Z"
   },
   "sean-mccorkle": {
     "status": "not_found",
