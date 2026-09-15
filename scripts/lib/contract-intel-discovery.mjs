@@ -39,7 +39,8 @@ export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'mma-fighting',publisher:'MMA Fighting',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://www.mmafighting.com/',host:'www.mmafighting.com',path:/\/(?:ufc|pfl|mma-news|latest-news)\//i,contentSelector:'.duet--layout--entry-body'},
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
   {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i},
-  {slug:'inthecage-pl-rss',publisher:'InTheCage.pl',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://inthecage.pl/feed/',host:'inthecage.pl',path:/^\/[a-z0-9-]+\/$/i,lang:'pl'}
+  {slug:'inthecage-pl-rss',publisher:'InTheCage.pl',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://inthecage.pl/feed/',host:'inthecage.pl',path:/^\/[a-z0-9-]+\/$/i,lang:'pl'},
+  {slug:'valetudo-ru-rss',publisher:'Valetudo.Ru',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://valetudo.ru/mma/news?format=feed&type=rss',host:'valetudo.ru',path:/^\/mma\/news\/[a-z0-9-]+$/i,lang:'ru'}
 ];
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
@@ -50,15 +51,26 @@ const PROMOTIONS=[
 
 const LATIN_COMPAT=new Map(Object.entries({'ł':'l','ø':'o','đ':'d','ð':'d','þ':'th','æ':'ae','œ':'oe','ß':'ss','ħ':'h','ı':'i'}));
 function foldLatinCompatibility(value){return String(value??'').replace(/[łøđðþæœßħı]/gi,ch=>LATIN_COMPAT.get(ch.toLowerCase())||ch);}
-export function normalizeContractText(value){return foldLatinCompatibility(String(value??'')).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
+
+const CYRILLIC_LATIN=new Map(Object.entries({
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'i',
+  'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u',
+  'ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+}));
+function transliterateCyrillic(value){return String(value??'').replace(/[\u0400-\u04ff]/g,ch=>{const lower=ch.toLowerCase();return CYRILLIC_LATIN.has(lower)?CYRILLIC_LATIN.get(lower):ch;});}
+
+export function normalizeContractText(value){return transliterateCyrillic(foldLatinCompatibility(String(value??''))).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
 function semanticContractText(value){return normalizeContractText(value).replace(/\bfree agent\s+(?:fight|bout|match|matchup)\b/g,'');}
 const SIGNAL_RE_PL=/\b(?:podpisa(?:l|la|li|no)\s+(?:nowy\s+)?kontrakt|podpisuj[ei]\s+kontrakt|przedluz(?:yl|yla|yli|enie)\s+kontrakt|na\s+dluzej\s+z|wolny?m?\s*agent(?:em|ka|ki)?|rozsta(?:l|la|li)\s+sie\s+z|bez\s+kontraktu|kontrakt\s+wygas(?:l|a)|zwolnion(?:y|a|ych|ego)|koncz(?:y|a)\s+kontrakt)\b/i;
 const NON_FIGHTER_RE_PL=/\b(?:prawa\s+medialne|transmisj[ae]|sponsoring|umowa\s+o\s+wspolprac[ye])\b/i;
 
+const SIGNAL_RE_RU=/\b(?:podpisa(?:l|la|li)\s+(?:novyi\s+)?kontrakt|podpisyva(?:et|yut)\s+kontrakt|zaklyuchi(?:l|la|li)\s+kontrakt|prodli(?:l|la|li)\s+kontrakt|svobodn(?:yi|ym|aya|ogo|omu)\s+agent(?:a|om|u)?|ne\s+prodli(?:l|la|li)\s+kontrakt|zakonchi(?:lsya|las)\s+kontrakt|uvolneni[ey]\s+iz|ukhod\s+iz|rasst(?:alsya|alas)\s+s\s|otkaza(?:lsya|las)\s+ot\s+kontrakta)\b/i;
+const NON_FIGHTER_RE_RU=/\b(?:mediaprava|translyatsi[iy]|sponsorstv[oa])\b/i;
+
 export function hasContractSignal(value,lang='en'){
   const text=semanticContractText(value);
-  const signal=lang==='pl'?SIGNAL_RE_PL:SIGNAL_RE;
-  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:NON_FIGHTER_RE;
+  const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:SIGNAL_RE;
+  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:NON_FIGHTER_RE;
   return signal.test(text)&&!nonFighter.test(text);
 }
 export function detectContractSignal(value,lang='en'){
@@ -69,6 +81,15 @@ export function detectContractSignal(value,lang='en'){
     if(/\brozsta(?:l|la|li)\s+sie\s+z\b|\bzwolnion(?:y|a|ych|ego)\b/.test(text))return {eventType:'release',status:'released'};
     if(/\bprzedluz(?:yl|yla|yli|enie)\s+kontrakt\b|\bna\s+dluzej\s+z\b/.test(text))return {eventType:'extension',status:'under_contract'};
     if(/\bpodpisa(?:l|la|li|no)\s+(?:nowy\s+)?kontrakt\b|\bpodpisuj[ei]\s+kontrakt\b/.test(text))return {eventType:'signing',status:'under_contract'};
+    return {eventType:'status_update',status:'unknown'};
+  }
+  if(lang==='ru'){
+    if(/\bne\s+prodli(?:l|la|li)\s+kontrakt\b|\bzakonchi(?:lsya|las)\s+kontrakt\b/.test(text))return {eventType:'expiration',status:'expired'};
+    if(/\bsvobodn(?:yi|ym|aya|ogo|omu)\s+agent(?:a|om|u)?\b/.test(text))return {eventType:'free_agency',status:'free_agent'};
+    if(/\brasst(?:alsya|alas)\s+s\b|\buvolneni[ey]\s+iz\b|\bukhod\s+iz\b/.test(text))return {eventType:'release',status:'released'};
+    if(/\botkaza(?:lsya|las)\s+ot\s+kontrakta\b/.test(text))return {eventType:'option_declined',status:'unknown'};
+    if(/\bprodli(?:l|la|li)\s+kontrakt\b/.test(text))return {eventType:'extension',status:'under_contract'};
+    if(/\bpodpisa(?:l|la|li)\s+(?:novyi\s+)?kontrakt\b|\bpodpisyva(?:et|yut)\s+kontrakt\b|\bzaklyuchi(?:l|la|li)\s+kontrakt\b/.test(text))return {eventType:'signing',status:'under_contract'};
     return {eventType:'status_update',status:'unknown'};
   }
   if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
@@ -93,6 +114,11 @@ export function detectContractPromotion(value,fallback=null,lang='en'){
       new RegExp(`\\brozsta(?:l|la|li)\\s+sie\\s+z\\s+(?:federacja\\s+)?${promotion}\\b`),
       new RegExp(`\\bna\\s+dluzej\\s+z\\s+(?:federacja\\s+)?${promotion}\\b`),
       new RegExp(`\\b${promotion}\\s+(?:kontrakt|kontraktu)\\b`)
+    ]:lang==='ru'?[
+      new RegExp(`\\bkontrakt(?:a|om|u|e)?\\s+s\\s+${promotion}\\b`),
+      new RegExp(`\\brasst(?:alsya|alas)\\s+s\\s+${promotion}\\b`),
+      new RegExp(`\\bprodli(?:l|la|li)\\s+kontrakt\\s+s\\s+${promotion}\\b`),
+      new RegExp(`\\b${promotion}\\s+kontrakt\\b`)
     ]:[
       new RegExp(`\\b(?:sign(?:s|ed|ing)?|re\\s?sign(?:s|ed|ing)?|contract(?:s|ed)?)\\b.{0,160}\\b(?:with|to|by)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:earn(?:s|ed|ing)?|secur(?:e|es|ed|ing)?|grant(?:s|ed|ing)?|award(?:s|ed|ing)?|hand(?:s|ed|ing)?)\\b.{0,100}\\b(?:a\\s+|an\\s+|the\\s+)?${promotion}\\s+(?:contract|deal)\\b`),
