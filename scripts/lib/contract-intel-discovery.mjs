@@ -43,7 +43,8 @@ export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'valetudo-ru-rss',publisher:'Valetudo.Ru',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://valetudo.ru/mma/news?format=feed&type=rss',host:'valetudo.ru',path:/^\/mma\/news\/[a-z0-9-]+$/i,lang:'ru'},
   {slug:'khan-sports-mma',publisher:'Sports Kyunghyang',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://sports.khan.co.kr/sports-all/mma/',host:'sports.khan.co.kr',path:/^\/article\/\d+$/i,lang:'ko',titleSignalOnly:true},
   {slug:'mmaplanet-jp-rss',publisher:'MMAPLANET',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://mmaplanet.jp/feed',host:'mmaplanet.jp',path:/^\/\d+$/i,lang:'ja'},
-  {slug:'agfight-rss',publisher:'Ag. Fight',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://agfight.com/feed/',host:'agfight.com',path:/^\/[a-z0-9-]+\/[a-z0-9-]+\/?$/i,lang:'pt'}
+  {slug:'agfight-rss',publisher:'Ag. Fight',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://agfight.com/feed/',host:'agfight.com',path:/^\/[a-z0-9-]+\/[a-z0-9-]+\/?$/i,lang:'pt'},
+  {slug:'agdeportes-rss',publisher:'AG Deportes',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://agdeportes.com/feed/',host:'agdeportes.com',path:/^\/[a-z0-9-]+\/?$/i,lang:'es',titleSignalOnly:true}
 ];
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
@@ -122,11 +123,14 @@ const NON_FIGHTER_RE_JA=/(?:放送権|スポンサー契約|中継|キロ契約|
 const SIGNAL_RE_PT=/\b(?:assin(?:ou|a|aram)\s+.{0,20}?contrato|contratad[oa]s?\s+pel[oa]|renov(?:ou|a|aram)\s+(?:o\s+)?contrato|renovacao\s+de\s+contrato|dispensad[oa]s?\s+pel[oa]|dispensa|demitid[oa]s?\s+(?:pel[oa]|do)|liberad[oa]s?\s+pel[oa]|encerr(?:ou|a|aram)\s+(?:o\s+)?contratos?|contratos?\s+encerrados?|fim\s+de\s+contrato|sem\s+contrato|free\s+agent)\b/i;
 const NON_FIGHTER_RE_PT=/\b(?:direitos?\s+de\s+transmissao|patrocinio|parceria)\b/i;
 
+const SIGNAL_RE_ES=/\b(?:contrat\w*|despid[eo]|despedid[oa]s?|agente\s+libre|abandona)\b/i;
+const NON_FIGHTER_RE_ES=/\b(?:derechos\s+de\s+transmision|patrocinio|acuerdo\s+de\s+transmision)\b/i;
+
 export function hasContractSignal(value,lang='en'){
   if(lang==='ja'){const raw=clean(value);return SIGNAL_RE_JA.test(raw)&&!NON_FIGHTER_RE_JA.test(raw);}
   const text=semanticContractText(value);
-  const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:lang==='ko'?SIGNAL_RE_KO:lang==='pt'?SIGNAL_RE_PT:SIGNAL_RE;
-  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:lang==='ko'?NON_FIGHTER_RE_KO:lang==='pt'?NON_FIGHTER_RE_PT:NON_FIGHTER_RE;
+  const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:lang==='ko'?SIGNAL_RE_KO:lang==='pt'?SIGNAL_RE_PT:lang==='es'?SIGNAL_RE_ES:SIGNAL_RE;
+  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:lang==='ko'?NON_FIGHTER_RE_KO:lang==='pt'?NON_FIGHTER_RE_PT:lang==='es'?NON_FIGHTER_RE_ES:NON_FIGHTER_RE;
   return signal.test(text)&&!nonFighter.test(text);
 }
 export function detectContractSignal(value,lang='en'){
@@ -172,6 +176,15 @@ export function detectContractSignal(value,lang='en'){
     if(/\bdispensad[oa]s?\s+pel[oa]\b|\bdispensa\b|\bdemitid[oa]s?\s+(?:pel[oa]|do)\b|\bliberad[oa]s?\s+pel[oa]\b/.test(text))return {eventType:'release',status:'released'};
     if(/\brenov(?:ou|a|aram)\s+(?:o\s+)?contrato\b|\brenovacao\s+de\s+contrato\b/.test(text))return {eventType:'extension',status:'under_contract'};
     if(/\bassin(?:ou|a|aram)\s+.{0,20}?contrato\b|\bcontratad[oa]s?\s+pel[oa]\b/.test(text))return {eventType:'signing',status:'under_contract'};
+    return {eventType:'status_update',status:'unknown'};
+  }
+  if(lang==='es'){
+    if(/\bagente\s+libre\b/.test(text))return {eventType:'free_agency',status:'free_agent'};
+    if(/\bno\s+renovar[aá]\s+.{0,15}?contrat\w*\b|\bno\s+renov[oó]\s+.{0,15}?contrat\w*\b|\bsin\s+ampliacion\s+de\s+contrat\w*\b|\bno\s+renovacion\s+de\s+contrat\w*\b/.test(text))return {eventType:'expiration',status:'expired'};
+    if(/\bdespid[eo]\b|\bdespedid[oa]s?\b|\babandona\b/.test(text))return {eventType:'release',status:'released'};
+    if(/\brenov[oó]\s+.{0,10}?contrat\w*\b|\bextension\s+de\s+contrat\w*\b/.test(text))return {eventType:'extension',status:'under_contract'};
+    if(/\bfirm[oa]\s+.{0,20}?contrat\w*\b|\bconsigui[oó]\s+.{0,15}?contrat\w*\b|\bgan[oó]\s+.{0,10}?contrat\w*\b|\bcontratad[oa]s?\b/.test(text))return {eventType:'signing',status:'under_contract'};
+    if(/\bcontrat\w*\b/.test(text))return {eventType:'signing',status:'under_contract'};
     return {eventType:'status_update',status:'unknown'};
   }
   if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
@@ -225,6 +238,11 @@ export function detectContractPromotion(value,fallback=null,lang='en'){
       new RegExp(`\\bcontratos?\\b.{0,20}?\\s+com\\s+(?:o\\s+|a\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:contratad|dispensad|demitid|liberad)[oa]s?\\s+pel[oa]\\s+${promotion}\\b`),
       new RegExp(`\\b${promotion}\\s+(?:contrato|dispensa)\\b`)
+    ]:lang==='es'?[
+      new RegExp(`\\bcontrat\\w*\\b.{0,20}?\\s+(?:con|por|a)\\s+(?:el\\s+|la\\s+)?${promotion}\\b`),
+      new RegExp(`\\b(?:contratad|despedid|liberad)[oa]s?\\s+(?:por|de)\\s+(?:el\\s+|la\\s+)?${promotion}\\b`),
+      new RegExp(`\\babandona\\s+(?:la\\s+|el\\s+)?${promotion}\\b`),
+      new RegExp(`\\b${promotion}\\b.{0,30}?(?:contrat\\w*|despido)\\b`)
     ]:[
       new RegExp(`\\b(?:sign(?:s|ed|ing)?|re\\s?sign(?:s|ed|ing)?|contract(?:s|ed)?)\\b.{0,160}\\b(?:with|to|by)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:earn(?:s|ed|ing)?|secur(?:e|es|ed|ing)?|grant(?:s|ed|ing)?|award(?:s|ed|ing)?|hand(?:s|ed|ing)?)\\b.{0,100}\\b(?:a\\s+|an\\s+|the\\s+)?${promotion}\\s+(?:contract|deal)\\b`),
@@ -245,7 +263,8 @@ export function parseContractListing(body,source){
     const dom=new JSDOM(String(body||''),{contentType:'text/xml'}),doc=dom.window.document,out=[];
     for(const item of doc.querySelectorAll('item')){
       const title=clean(item.querySelector('title')?.textContent),link=clean(item.querySelector('link')?.textContent),summary=clean(item.querySelector('description')?.textContent),publishedAt=clean(item.querySelector('pubDate')?.textContent);
-      if(link&&approvedUrl(link,source)&&hasContractSignal(`${title} ${summary}`,source.lang||'en'))out.push({title,url:link,summary,publishedAt});
+      const signalText=source.titleSignalOnly?title:`${title} ${summary}`;
+      if(link&&approvedUrl(link,source)&&hasContractSignal(signalText,source.lang||'en'))out.push({title,url:link,summary,publishedAt});
     }
     dom.window.close();return dedupeArticles(out);
   }
