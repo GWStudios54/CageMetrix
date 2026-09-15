@@ -37,7 +37,8 @@ export const CONTRACT_DISCOVERY_SOURCES=[
       {title:'Patrik Kincl signed a contract with OKTAGON MMA in 2021',url:'https://oktagonmma.com/en/blog/patrik-kincl-everything-you-ever-wanted-to-know/',publishedAt:'2023-10-26'}
     ]},
   {slug:'mma-fighting',publisher:'MMA Fighting',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://www.mmafighting.com/',host:'www.mmafighting.com',path:/\/(?:ufc|pfl|mma-news|latest-news)\//i,contentSelector:'.duet--layout--entry-body'},
-  {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
+  {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
+  {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i}
 ];
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
