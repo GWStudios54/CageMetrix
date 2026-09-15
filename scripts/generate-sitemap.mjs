@@ -74,7 +74,14 @@ const agencies = query(`
   ORDER BY slug
 `);
 
+const camps = query(`
+  SELECT slug, verified_at
+  FROM training_camps
+  WHERE active = 1 AND slug IS NOT NULL AND slug <> ''
+  ORDER BY slug
+`);
+
 mkdirSync('public', { recursive: true });
-writeFileSync('public/sitemap.xml', sitemapXml({ fighters, scoutFighters, events, promotions, agencies }));
-const total = 9 + fighters.length + scoutFighters.length + events.length + promotions.length + agencies.length;
-console.log(`Generated sitemap with ${total} URLs (${scoutFighters.length} global scout fighters, ${fighters.length} legacy fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies).`);
+writeFileSync('public/sitemap.xml', sitemapXml({ fighters, scoutFighters, events, promotions, agencies, camps }));
+const total = 10 + fighters.length + scoutFighters.length + events.length + promotions.length + agencies.length + camps.length;
+console.log(`Generated sitemap with ${total} URLs (${scoutFighters.length} global scout fighters, ${fighters.length} legacy fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies, ${camps.length} training camps).`);

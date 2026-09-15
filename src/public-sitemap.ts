@@ -9,12 +9,13 @@ const dateOnly=(v:unknown)=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).s
 type SitemapEntry=[loc:string,lastmod:string|null,changefreq:string,priority:string];
 
 export async function publicSitemap(env:Env){
-  const [fighters,events,promotions,scoutFighters,agencies]=await Promise.all([
+  const [fighters,events,promotions,scoutFighters,agencies,camps]=await Promise.all([
     env.DB.prepare(`SELECT f.slug,COALESCE(f.last_fight_date,f.updated_at) lastmod FROM fighters f WHERE f.slug IS NOT NULL AND (f.active=1 OR f.ufc_bouts>0) AND NOT EXISTS(SELECT 1 FROM mma_identity_links l JOIN fighter_publication_controls c ON c.source_key=l.source_key AND c.source_fighter_id=l.source_fighter_id AND c.public_status='removed' WHERE CAST(l.cagemetrix_fighter_id AS INTEGER)=f.id AND l.confidence>=0.90) ORDER BY f.id`).all<Row>(),
     env.DB.prepare(`SELECT DISTINCT e.slug,e.event_date FROM events e WHERE e.slug IS NOT NULL AND (e.promotion_slug IS NOT NULL OR e.promotion='UFC' OR EXISTS(SELECT 1 FROM bouts b WHERE b.event_id=e.id)) ORDER BY e.event_date DESC`).all<Row>(),
     env.DB.prepare(`SELECT slug,verified_at FROM scout_promotions WHERE active=1 ORDER BY slug`).all<Row>(),
     env.DB.prepare(`SELECT p.profile_slug,p.last_fight_date,p.updated_at FROM scout_public_global_profiles p WHERE p.profile_slug IS NOT NULL AND p.profile_slug<>'' AND p.career_bouts>=1 AND p.data_completeness>=35 ORDER BY COALESCE(p.last_fight_date,'') DESC,p.profile_slug`).all<Row>(),
-    env.DB.prepare(`SELECT slug,COALESCE(verified_at,updated_at) lastmod FROM management_agencies WHERE active=1 ORDER BY slug`).all<Row>()
+    env.DB.prepare(`SELECT slug,COALESCE(verified_at,updated_at) lastmod FROM management_agencies WHERE active=1 ORDER BY slug`).all<Row>(),
+    env.DB.prepare(`SELECT slug,verified_at FROM training_camps WHERE active=1 ORDER BY slug`).all<Row>()
   ]);
   const urls:SitemapEntry[]=[
     [`${SITE}/`,null,'daily','1.0'],
@@ -24,11 +25,13 @@ export async function publicSitemap(env:Env){
     [`${SITE}/events`,null,'hourly','0.95'],
     [`${SITE}/promotions`,null,'daily','0.9'],
     [`${SITE}/management`,null,'daily','0.9'],
+    [`${SITE}/camps`,null,'daily','0.8'],
     [`${SITE}/data-policy`,null,'monthly','0.55'],
     [`${SITE}/privacy`,null,'monthly','0.5']
   ];
   for(const row of agencies.results||[])urls.push([`${SITE}/management/${encodeURIComponent(String(row.slug))}`,dateOnly(row.lastmod),'weekly','0.84']);
   for(const row of promotions.results||[])urls.push([`${SITE}/promotions/${encodeURIComponent(String(row.slug))}`,dateOnly(row.verified_at),'daily','0.85']);
+  for(const row of camps.results||[])urls.push([`${SITE}/camps/${encodeURIComponent(String(row.slug))}`,dateOnly(row.verified_at),'weekly','0.75']);
   for(const row of scoutFighters.results||[])urls.push([`${SITE}/scout/fighters/${encodeURIComponent(String(row.profile_slug))}`,dateOnly(row.last_fight_date||row.updated_at),'weekly','0.82']);
   for(const row of events.results||[])urls.push([`${SITE}/events/${encodeURIComponent(String(row.slug))}`,dateOnly(row.event_date),'daily','0.88']);
   for(const row of fighters.results||[])urls.push([`${SITE}/fighters/${encodeURIComponent(String(row.slug))}`,dateOnly(row.lastmod),'weekly','0.75']);

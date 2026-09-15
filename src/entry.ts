@@ -18,6 +18,7 @@ import {antidopingAdminApi} from './antidoping-admin.ts';
 import {antidopingCandidatesAdminApi} from './antidoping-candidates.ts';
 import {antidopingReviewPage} from './antidoping-review.ts';
 import {enhanceFighterCampContext} from './camp-intel-context.ts';
+import {campApi,campPage,campsApi,campsPage} from './camp-directory.ts';
 import {enhanceFighterAntidopingContext} from './antidoping-intel-context.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
@@ -77,6 +78,9 @@ export default {
     if(path==='/api/promotions')return promotionsApi(request,env);
     const promotionApiMatch=path.match(/^\/api\/promotions\/([a-z0-9-]{1,100})\/?$/);
     if(promotionApiMatch)return promotionApi(request,env,promotionApiMatch[1]);
+    if(path==='/api/camps')return campsApi(request,env);
+    const campApiMatch=path.match(/^\/api\/camps\/([a-z0-9-]{1,100})\/?$/);
+    if(campApiMatch)return campApi(request,env,campApiMatch[1]);
     if(path==='/api/scout/fighters')return globalFightersApi(request,env);
     const fighterIntelMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/intel\/?$/);
     if(fighterIntelMatch)return fighterIntelApi(request,env,fighterIntelMatch[1]);
@@ -145,6 +149,15 @@ export default {
       const promotionResponse=await promotionPage(request,env,promotionPageMatch[1]);
       const withEvents=await enhancePromotionEvents(promotionResponse,env,promotionPageMatch[1]);
       return page(enhancePromotionScoutScores(withEvents,env,promotionPageMatch[1]),request,env);
+    }
+    if(request.method==='GET'&&(path==='/camps'||path==='/camps/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/camps',request.url),308);
+      return page(campsPage(request,env),request,env);
+    }
+    const campPageMatch=path.match(/^\/camps\/([a-z0-9-]{1,100})\/?$/);
+    if(request.method==='GET'&&campPageMatch){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/camps/${campPageMatch[1]}`,request.url),308);
+      return page(campPage(request,env,campPageMatch[1]),request,env);
     }
     if(request.method==='GET'&&(path==='/prospects'||path==='/prospects/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/prospects${url.search}`,request.url),308);
