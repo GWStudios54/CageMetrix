@@ -13,18 +13,35 @@ test('market activity feed is admin-gated and routed like the rest of the privat
   assert.match(entry,/path==='\/recruiting\/activity'/);
 });
 
-test('activity feed merges contract events and representation history from already-verified public evidence, not discovery candidates',()=>{
+test('activity feed merges contract events, representation history and camp history from already-verified public evidence, not discovery candidates',()=>{
   const source=read('src/recruiting-activity.ts');
   assert.match(source,/FROM fighter_contract_events e/);
   assert.match(source,/FROM fighter_management_history h/);
+  assert.match(source,/FROM fighter_camp_history h/);
   assert.doesNotMatch(source,/contract_intel_candidates/);
+  assert.doesNotMatch(source,/camp_intel_candidates/);
   assert.match(source,/JOIN scout_public_global_profiles p/g);
   assert.match(source,/rows\.sort\(\(a,b\)=>String\(b\.event_date\|\|''\)\.localeCompare\(String\(a\.event_date\|\|''\)\)\)/);
 });
 
-test('representation events date by when the relationship actually changed, not when it originally started',()=>{
+test('representation and camp events both date by when the relationship actually changed, not when it originally started',()=>{
   const source=read('src/recruiting-activity.ts');
-  assert.match(source,/CASE WHEN h\.is_current=1 THEN COALESCE\(h\.started_at,h\.verified_at\) ELSE COALESCE\(h\.ended_at,h\.verified_at\) END event_date/);
+  const occurrences=source.match(/CASE WHEN h\.is_current=1 THEN COALESCE\(h\.started_at,h\.verified_at\) ELSE COALESCE\(h\.ended_at,h\.verified_at\) END event_date/g)||[];
+  assert.equal(occurrences.length,2);
+});
+
+test('the camp filter excludes contract and representation queries, and vice versa',()=>{
+  const source=read('src/recruiting-activity.ts');
+  assert.match(source,/kind==='representation'\|\|kind==='camp'\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='camp'\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='representation'\?Promise\.resolve/);
+  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp'\]\)/);
+});
+
+test('camp activity rows show a resolved camp name and join/leave framing',()=>{
+  const source=read('src/recruiting-activity.ts');
+  assert.match(source,/row\.camp_name_resolved\|\|row\.camp_name\|\|'Training camp'/);
+  assert.match(source,/`Joined \$\{campName\}`:`Left \$\{campName\}`/);
 });
 
 test('availability filter only shows events that actually free up a fighter',()=>{
