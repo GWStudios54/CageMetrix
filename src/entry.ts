@@ -17,6 +17,8 @@ import {campReviewPage} from './camp-review.ts';
 import {antidopingAdminApi} from './antidoping-admin.ts';
 import {antidopingCandidatesAdminApi} from './antidoping-candidates.ts';
 import {antidopingReviewPage} from './antidoping-review.ts';
+import {enhanceFighterCampContext} from './camp-intel-context.ts';
+import {enhanceFighterAntidopingContext} from './antidoping-intel-context.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
@@ -201,6 +203,8 @@ export default {
       let dossier=await globalFighterPage(request,env,fighterPageMatch[1]);
       dossier=await enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterContractContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterCampContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterAntidopingContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterScoutScore(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
       return page(dossier,request,env);
