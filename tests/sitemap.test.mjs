@@ -20,6 +20,9 @@ test('sitemap publishes canonical MMA Scouts scouting, legal policy, talent, pro
     agencies: [
       { slug: 'example-management', verified_at: '2026-09-08' }
     ],
+    camps: [
+      { slug: 'american-top-team', verified_at: '2026-09-08' }
+    ],
     events: [
       { slug: 'ufc-example-event', event_date: '2026-09-10' },
       { slug: 'one-friday-fights-170-2026-09-11', event_date: '2026-09-11' }
@@ -31,6 +34,8 @@ test('sitemap publishes canonical MMA Scouts scouting, legal policy, talent, pro
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/prospects<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/events<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/promotions<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/camps<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/mmascouts\.com\/camps\/american-top-team<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/talent<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/management<\/loc>/);
   assert.match(xml, /<loc>https:\/\/mmascouts\.com\/data-policy<\/loc>/);
@@ -69,8 +74,9 @@ test('sitemap generator indexes public global scouting dossiers and public event
   assert.match(source, /c\.public_status='removed'/);
   assert.match(source, /l\.confidence>=0\.90/);
   assert.match(source, /WHERE active = 1/);
-  assert.match(source, /const total = 9 \+ fighters\.length \+ scoutFighters\.length/);
-  assert.match(source, /sitemapXml\(\{ fighters, scoutFighters, events, promotions, agencies \}\)/);
+  assert.match(source, /FROM training_camps/);
+  assert.match(source, /const total = 11 \+ fighters\.length \+ scoutFighters\.length/);
+  assert.match(source, /sitemapXml\(\{ fighters, scoutFighters, events, promotions, agencies, camps \}\)/);
 });
 
 test('runtime sitemap exposes the broad useful public global fighter set rather than only current regional prospects', () => {
@@ -81,6 +87,8 @@ test('runtime sitemap exposes the broad useful public global fighter set rather 
   assert.doesNotMatch(source, /p\.current_promotion_slug IS NOT NULL/);
   assert.doesNotMatch(source, /p\.last_fight_date>=date\('now','-730 day'\)/);
   assert.match(source, /\/scout\/fighters\//);
+  assert.match(source, /FROM training_camps WHERE active=1/);
+  assert.match(source, /\$\{SITE\}\/camps\/\$\{encodeURIComponent\(String\(row\.slug\)\)\}/);
 });
 
 test('robots.txt points crawlers at the MMA Scouts sitemap and keeps API/template routes out of search', () => {

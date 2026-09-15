@@ -7,14 +7,29 @@ import {eventPage} from './event-page.ts';
 import {enhancePromotionEvents} from './promotion-events.ts';
 import {enhanceFighterTalentContext,fighterTalentApi,managementAgenciesApi,managementAgenciesPage,managementAgencyApi,managementAgencyPage,talentAdminApi,talentPage,talentSearchApi} from './talent-network.ts';
 import {endManagementApi,setManagementApi} from './talent-admin.ts';
+import {ownerAdminLogin} from './admin-auth.ts';
 import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
 import {contractCandidatesAdminApi} from './contract-candidates.ts';
 import {contractReviewPage} from './contract-review.ts';
+import {campAdminApi} from './camp-admin.ts';
+import {campCandidatesAdminApi} from './camp-candidates.ts';
+import {campReviewPage} from './camp-review.ts';
+import {antidopingAdminApi} from './antidoping-admin.ts';
+import {antidopingCandidatesAdminApi} from './antidoping-candidates.ts';
+import {antidopingReviewPage} from './antidoping-review.ts';
+import {enhanceFighterCampContext} from './camp-intel-context.ts';
+import {campApi,campPage,campsApi,campsPage} from './camp-directory.ts';
+import {publicActivityPage} from './public-activity.ts';
+import {enhanceFighterAntidopingContext} from './antidoping-intel-context.ts';
+import {setAmateurRecordApi} from './amateur-record-admin.ts';
+import {enhanceFighterAmateurRecordContext} from './amateur-record-context.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
 import {dataPolicyPage,privacyPage,profileRemovalAdminApi,profileRemovalApi,profileRemovalPage} from './legal-safety.ts';
 import {generateRecruitingCandidatesApi,recruitingCandidateApi,recruitingIntelQueuePage,recruitingOpeningApi,recruitingOpeningPage,recruitingOpeningsApi,recruitingPage} from './recruiting.ts';
+import {promoteWatchlistItemApi,watchlistApi,watchlistItemApi,watchlistPage} from './recruiting-watchlist.ts';
+import {recruitingActivityPage} from './recruiting-activity.ts';
 
 type Env={DB:D1Database;ASSETS:Fetcher;MODEL_VERSION:string;AI?:{run(model:string,input:unknown,options?:unknown):Promise<unknown>};SCOUT_BURST_LIMITER?:RateLimit;SCOUT_MINUTE_LIMITER?:RateLimit};
 
@@ -57,6 +72,7 @@ export default {
     if(request.method==='GET'&&(path==='/community'||path==='/community/'||path==='/forum'||path==='/forum/'||path==='/watchlist'||path==='/watchlist/'||/^\/forum\//.test(path)||/^\/u\//.test(path)))return Response.redirect(new URL('/scout',request.url),308);
     if(request.method==='GET'&&/^\/fights\/[1-9]\d*\/?$/.test(path))return (await legacyFightRedirect(path,request,env))!;
 
+    if(path==='/api/community/login'&&request.method==='POST')return ownerAdminLogin(request,env);
     if(path==='/api/forecasts'||path.startsWith('/api/community')||path.startsWith('/api/forum')||path.startsWith('/api/fans')||/^\/api\/fights\/[1-9]\d*\/(fans|fan-prediction|fan-scorecard)$/.test(path))return retiredJson();
 
     if(path==='/api/profile-removal')return profileRemovalApi(request,env);
@@ -65,6 +81,9 @@ export default {
     if(path==='/api/promotions')return promotionsApi(request,env);
     const promotionApiMatch=path.match(/^\/api\/promotions\/([a-z0-9-]{1,100})\/?$/);
     if(promotionApiMatch)return promotionApi(request,env,promotionApiMatch[1]);
+    if(path==='/api/camps')return campsApi(request,env);
+    const campApiMatch=path.match(/^\/api\/camps\/([a-z0-9-]{1,100})\/?$/);
+    if(campApiMatch)return campApi(request,env,campApiMatch[1]);
     if(path==='/api/scout/fighters')return globalFightersApi(request,env);
     const fighterIntelMatch=path.match(/^\/api\/scout\/fighters\/([a-z0-9-]{1,180})\/intel\/?$/);
     if(fighterIntelMatch)return fighterIntelApi(request,env,fighterIntelMatch[1]);
@@ -81,8 +100,13 @@ export default {
     if(fighterTalentMatch)return fighterTalentApi(request,env,fighterTalentMatch[1]);
     if(path==='/api/admin/talent/management'||path==='/api/admin/talent/management/')return setManagementApi(request,env);
     if(path==='/api/admin/talent/management/end'||path==='/api/admin/talent/management/end/')return endManagementApi(request,env);
+    if(path==='/api/admin/talent/amateur-record'||path==='/api/admin/talent/amateur-record/')return setAmateurRecordApi(request,env);
     if(path==='/api/admin/talent/contracts'||path==='/api/admin/talent/contracts/')return contractAdminApi(request,env);
     if(path==='/api/admin/talent/contracts/candidates'||path==='/api/admin/talent/contracts/candidates/')return contractCandidatesAdminApi(request,env);
+    if(path==='/api/admin/talent/camps'||path==='/api/admin/talent/camps/')return campAdminApi(request,env);
+    if(path==='/api/admin/talent/camps/candidates'||path==='/api/admin/talent/camps/candidates/')return campCandidatesAdminApi(request,env);
+    if(path==='/api/admin/talent/antidoping'||path==='/api/admin/talent/antidoping/')return antidopingAdminApi(request,env);
+    if(path==='/api/admin/talent/antidoping/candidates'||path==='/api/admin/talent/antidoping/candidates/')return antidopingCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
     if(path==='/api/admin/recruiting/openings'||path==='/api/admin/recruiting/openings/')return recruitingOpeningsApi(request,env);
@@ -92,6 +116,11 @@ export default {
     if(recruitingOpeningApiMatch)return recruitingOpeningApi(request,env,Number(recruitingOpeningApiMatch[1]));
     const recruitingCandidateMatch=path.match(/^\/api\/admin\/recruiting\/candidates\/([1-9]\d*)\/?$/);
     if(recruitingCandidateMatch)return recruitingCandidateApi(request,env,Number(recruitingCandidateMatch[1]));
+    if(path==='/api/admin/recruiting/watchlist'||path==='/api/admin/recruiting/watchlist/')return watchlistApi(request,env);
+    const watchlistPromoteMatch=path.match(/^\/api\/admin\/recruiting\/watchlist\/([1-9]\d*)\/promote\/?$/);
+    if(watchlistPromoteMatch)return promoteWatchlistItemApi(request,env,Number(watchlistPromoteMatch[1]));
+    const watchlistItemMatch=path.match(/^\/api\/admin\/recruiting\/watchlist\/([1-9]\d*)\/?$/);
+    if(watchlistItemMatch)return watchlistItemApi(request,env,Number(watchlistItemMatch[1]));
 
     if(request.method==='GET'&&(path==='/data-policy'||path==='/data-policy/')){
       if(path.endsWith('/'))return Response.redirect(new URL('/data-policy',request.url),308);
@@ -125,6 +154,19 @@ export default {
       const withEvents=await enhancePromotionEvents(promotionResponse,env,promotionPageMatch[1]);
       return page(enhancePromotionScoutScores(withEvents,env,promotionPageMatch[1]),request,env);
     }
+    if(request.method==='GET'&&(path==='/camps'||path==='/camps/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/camps',request.url),308);
+      return page(campsPage(request,env),request,env);
+    }
+    const campPageMatch=path.match(/^\/camps\/([a-z0-9-]{1,100})\/?$/);
+    if(request.method==='GET'&&campPageMatch){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/camps/${campPageMatch[1]}`,request.url),308);
+      return page(campPage(request,env,campPageMatch[1]),request,env);
+    }
+    if(request.method==='GET'&&(path==='/wire'||path==='/wire/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/wire',request.url),308);
+      return page(publicActivityPage(request,env),request,env);
+    }
     if(request.method==='GET'&&(path==='/prospects'||path==='/prospects/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/prospects${url.search}`,request.url),308);
       return page(prospectsPage(request,env),request,env);
@@ -141,9 +183,25 @@ export default {
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/intel${url.search}`,request.url),308);
       return page(recruitingIntelQueuePage(request,env),request,env);
     }
+    if(request.method==='GET'&&(path==='/recruiting/watchlist'||path==='/recruiting/watchlist/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/recruiting/watchlist',request.url),308);
+      return page(watchlistPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/activity'||path==='/recruiting/activity/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/activity${url.search}`,request.url),308);
+      return page(recruitingActivityPage(request,env),request,env);
+    }
     if(request.method==='GET'&&(path==='/recruiting/contracts'||path==='/recruiting/contracts/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/contracts${url.search}`,request.url),308);
       return page(contractReviewPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/camps'||path==='/recruiting/camps/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/camps${url.search}`,request.url),308);
+      return page(campReviewPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/antidoping'||path==='/recruiting/antidoping/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/antidoping${url.search}`,request.url),308);
+      return page(antidopingReviewPage(request,env),request,env);
     }
     const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&recruitingPageMatch){
@@ -166,6 +224,9 @@ export default {
       let dossier=await globalFighterPage(request,env,fighterPageMatch[1]);
       dossier=await enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterContractContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterCampContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterAmateurRecordContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterAntidopingContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterScoutScore(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
       return page(dossier,request,env);

@@ -85,6 +85,23 @@ test('private intelligence queue prioritizes unresolved recruiting facts without
 });
 
 
+test('recruiting candidates and the intel queue surface finish rate, title experience and recent form',()=>{
+  const source=read('src/recruiting.ts');
+  assert.match(source,/function fightProfileFacts\(row:Row\)/);
+  assert.match(source,/finish rate \(\$\{ko\} KO\/TKO · \$\{sub\} SUB\)/);
+  assert.match(source,/Title fights: \$\{Number\(row\.title_fight_wins\|\|0\)\}/);
+  assert.match(source,/p\.ko_tko_wins,p\.submission_wins,p\.title_fight_bouts,p\.title_fight_wins,p\.last_five_wins,p\.last_five_losses/);
+  assert.match(source,/\$\{fightProfileFacts\(row\)\}<\/div>/);
+});
+
+test('recruiting candidates and the intel queue surface finish speed and durability alongside finish rate',()=>{
+  const source=read('src/recruiting.ts');
+  assert.match(source,/p\.finish_round_sum,p\.first_round_finishes,p\.times_finished,/g);
+  assert.match(source,/Avg finish round \$\{\(Number\(row\.finish_round_sum\|\|0\)\/finishes\)\.toFixed\(1\)\}/);
+  assert.match(source,/if\(timesFinished>0\)facts\.push\(`Finished \$\{timesFinished\}x`\);/);
+  assert.match(source,/else if\(bouts>=3\)facts\.push\('Never finished'\);/);
+});
+
 test('private recruiting workspace links the contract review desk without exposing it publicly',()=>{
   const recruiting=read('src/recruiting.ts'),review=read('src/contract-review.ts'),smoke=read('.github/workflows/post-deploy-smoke.yml');
   assert.match(recruiting,/href="\/recruiting\/contracts">Review contract leads/);

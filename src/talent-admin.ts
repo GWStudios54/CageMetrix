@@ -1,4 +1,4 @@
-import {adminAccount} from './admin-session.ts';
+import {adminAccount,sameOrigin} from './admin-session.ts';
 
 type Env={DB:D1Database};
 type Row=Record<string,any>;
@@ -26,6 +26,7 @@ async function addManagementEvidence(env:Env,historyId:number|null,evidence:{sou
 export async function setManagementApi(request:Request,env:Env){
   if(!await adminAccount(request,env.DB))return json({error:'unauthorized'},401);
   if(request.method!=='POST')return json({error:'method_not_allowed'},405);
+  if(!sameOrigin(request))return json({error:'cross_origin'},403);
   const value=await input(request);if(!value)return json({error:'invalid_json'},400);
   const profile=String(value.profile_slug||'').trim(),fighter=await fighterFromProfile(env.DB,profile);if(!fighter)return json({error:'fighter_not_found'},404);
   const evidence=source(value);if('error'in evidence)return json({error:evidence.error},400);
@@ -47,6 +48,7 @@ export async function setManagementApi(request:Request,env:Env){
 export async function endManagementApi(request:Request,env:Env){
   if(!await adminAccount(request,env.DB))return json({error:'unauthorized'},401);
   if(request.method!=='POST')return json({error:'method_not_allowed'},405);
+  if(!sameOrigin(request))return json({error:'cross_origin'},403);
   const value=await input(request);if(!value)return json({error:'invalid_json'},400);
   const profile=String(value.profile_slug||'').trim(),fighter=await fighterFromProfile(env.DB,profile);if(!fighter)return json({error:'fighter_not_found'},404);
   const evidence=source(value);if('error'in evidence)return json({error:evidence.error},400);

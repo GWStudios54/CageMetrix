@@ -118,6 +118,14 @@ jobs:
           test "$contract_review_code" = "403"
           grep -Fq 'Contract review access required.' diagnostics/contract-review-private.body
           grep -Fq 'noindex,nofollow' diagnostics/contract-review-private.body
+          watchlist_code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/watchlist-private.body --write-out '%{http_code}' https://mmascouts.com/recruiting/watchlist)
+          test "$watchlist_code" = "403"
+          grep -Fq 'Recruiting access required.' diagnostics/watchlist-private.body
+          grep -Fq 'noindex,nofollow' diagnostics/watchlist-private.body
+          activity_code=$(curl --silent --show-error --user-agent "$ua" --output diagnostics/activity-private.body --write-out '%{http_code}' https://mmascouts.com/recruiting/activity)
+          test "$activity_code" = "403"
+          grep -Fq 'Recruiting access required.' diagnostics/activity-private.body
+          grep -Fq 'noindex,nofollow' diagnostics/activity-private.body
 
       - name: Verify legacy and www canonical redirects
         shell: bash

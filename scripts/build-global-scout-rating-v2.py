@@ -468,10 +468,20 @@ def main() -> None:
         profile_slug = f"{base_slug}-{suffix}" if duplicates else base_slug
         profile_slug_by_id[fid] = profile_slug
         counts = {"W":0,"L":0,"D":0,"NC":0}; kos=subs=decs=titles=title_wins=recent=recent_wins=0; orgs=set()
+        finish_round_sum=first_round_finishes=times_finished=0
         latest = rows[-1] if rows else None
         for h in rows:
             counts[h["result"]] += 1; orgs.add(norm(h["organization"])); ft=finish_type(h["method"])
-            if h["result"] == "W": kos += int(ft=="KO"); subs += int(ft=="SUB"); decs += int(ft=="DEC")
+            if h["result"] == "W":
+                kos += int(ft=="KO"); subs += int(ft=="SUB"); decs += int(ft=="DEC")
+                if ft in ("KO","SUB"):
+                    rn = h.get("round_num")
+                    try: rn_int = int(rn) if rn not in (None,"") else None
+                    except (TypeError, ValueError): rn_int = None
+                    if rn_int is not None:
+                        finish_round_sum += rn_int
+                        first_round_finishes += int(rn_int == 1)
+            elif h["result"] == "L" and ft in ("KO","SUB"): times_finished += 1
             if h["title"]: titles += 1; title_wins += int(h["result"]=="W")
             try:
                 if (today-date.fromisoformat(h["date"])).days <= 730: recent += 1; recent_wins += int(h["result"]=="W")
@@ -485,7 +495,7 @@ def main() -> None:
         physical=[f.get("dob"),f.get("height_cm"),f.get("reach_cm"),f.get("stance"),f.get("nationality"),f.get("gym")]
         completeness=30+45*sum(v not in (None,"") for v in physical)/len(physical)+(25 if rows else 0)
         last5=rows[-5:]
-        profile_rows.append([SOURCE_KEY,snapshot,fid,profile_slug,f.get("fighter_name"),norm(f.get("fighter_name")),f.get("dob"),f.get("height_cm"),f.get("reach_cm"),f.get("stance"),f.get("nationality"),f.get("gym"),rows[0]["date"] if rows else None,latest["date"] if latest else None,latest["organization"] if latest else None,promo,latest.get("weight_class") if latest else None,len(rows),counts["W"],counts["L"],counts["D"],counts["NC"],kos,subs,decs,titles,title_wins,len(orgs),recent,recent_wins,sum(x["result"]=="W" for x in last5),sum(x["result"]=="L" for x in last5),clamp(completeness,0,100),now_iso()])
+        profile_rows.append([SOURCE_KEY,snapshot,fid,profile_slug,f.get("fighter_name"),norm(f.get("fighter_name")),f.get("dob"),f.get("height_cm"),f.get("reach_cm"),f.get("stance"),f.get("nationality"),f.get("gym"),rows[0]["date"] if rows else None,latest["date"] if latest else None,latest["organization"] if latest else None,promo,latest.get("weight_class") if latest else None,len(rows),counts["W"],counts["L"],counts["D"],counts["NC"],kos,subs,decs,titles,title_wins,len(orgs),recent,recent_wins,sum(x["result"]=="W" for x in last5),sum(x["result"]=="L" for x in last5),clamp(completeness,0,100),now_iso(),finish_round_sum,first_round_finishes,times_finished])
         if fid in scored:
             s=scored[fid]; c=s["components"]
             evidence={"career_bouts":len(rows),"unique_opponents":len(states[fid].opponent_ids),"best_wins":sorted([{"opponent":x["opponent_name"],"date":x["date"],"opponent_pre_elo":round(x["opponent_pre_elo"],1),"finish":x["finish_win"]} for x in rows if x["result"]=="W"],key=lambda x:x["opponent_pre_elo"],reverse=True)[:5],"recent":[{"date":x["date"],"opponent":x["opponent_name"],"result":x["result"],"organization":x["organization"]} for x in rows[-5:]]}
@@ -493,7 +503,7 @@ def main() -> None:
         for h in rows:
             fight_rows.append([SOURCE_KEY,snapshot,fid,h["fight_id"],h["date"],h["organization"],h["promotion_slug"],h["event_name"],h["event_location"],h["weight_class"],h["result"],h["opponent_id"],h["opponent_name"],h["opponent_pre_elo"],int(h["title"]),h["method"],h["round_num"],h["time_finish_seconds"]])
 
-    profile_cols=["source_key","snapshot_id","source_fighter_id","profile_slug","fighter_name","normalized_name","dob","height_cm","reach_cm","stance","nationality","gym","career_start_date","last_fight_date","current_organization","current_promotion_slug","current_weight_class","career_bouts","career_wins","career_losses","career_draws","career_no_contests","ko_tko_wins","submission_wins","decision_wins","title_fight_bouts","title_fight_wins","organization_count","recent_bouts_730d","recent_wins_730d","last_five_wins","last_five_losses","data_completeness","updated_at"]
+    profile_cols=["source_key","snapshot_id","source_fighter_id","profile_slug","fighter_name","normalized_name","dob","height_cm","reach_cm","stance","nationality","gym","career_start_date","last_fight_date","current_organization","current_promotion_slug","current_weight_class","career_bouts","career_wins","career_losses","career_draws","career_no_contests","ko_tko_wins","submission_wins","decision_wins","title_fight_bouts","title_fight_wins","organization_count","recent_bouts_730d","recent_wins_730d","last_five_wins","last_five_losses","data_completeness","updated_at","finish_round_sum","first_round_finishes","times_finished"]
     rating_cols=["source_key","snapshot_id","source_fighter_id","model_version","as_of_date","scout_rating","global_skill","resume_quality","schedule_strength","recent_form","finishing_quality","evidence_strength","pre_fight_elo","division_rank","global_rank","model_weights_json","evidence_json"]
     fight_cols=["source_key","snapshot_id","source_fighter_id","source_fight_id","event_date","organization","promotion_slug","event_name","event_location","weight_class","result","opponent_source_fighter_id","opponent_name","opponent_pre_elo","is_title_fight","method","round_num","time_finish_seconds"]
     pw=SqlWriter(output,9000,"global-profiles"); write_batches(pw,"scout_global_profiles",profile_cols,profile_rows)

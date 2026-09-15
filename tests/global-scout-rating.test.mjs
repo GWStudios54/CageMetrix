@@ -46,6 +46,20 @@ test('Global Scout Rating uses completed chronological evidence and no prestige 
   assert.doesNotMatch(source,/promotion_bonus/i);
 });
 
+test('fight-pattern signals (finish speed, durability) are computed from existing method/round data, not new sourcing',()=>{
+  const migration=read('migrations/0043_fight_pattern_signals.sql');
+  assert.match(migration,/ALTER TABLE scout_global_profiles ADD COLUMN finish_round_sum INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration,/ALTER TABLE scout_global_profiles ADD COLUMN first_round_finishes INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration,/ALTER TABLE scout_global_profiles ADD COLUMN times_finished INTEGER NOT NULL DEFAULT 0/);
+  const builder=read('scripts/build-global-scout-rating-v2.py');
+  assert.match(builder,/finish_round_sum=first_round_finishes=times_finished=0/);
+  assert.match(builder,/elif h\["result"\] == "L" and ft in \("KO","SUB"\): times_finished \+= 1/);
+  assert.match(builder,/"finish_round_sum","first_round_finishes","times_finished"/);
+  const recovery=read('scripts/recover-global-fight-history.mjs');
+  assert.match(recovery,/finish_round_sum=\(SELECT COALESCE\(SUM\(g\.round_num\),0\)/);
+  assert.match(recovery,/times_finished=\(SELECT COUNT\(\*\) FROM scout_global_fights g WHERE[\s\S]*?g\.result='L'/);
+});
+
 test('master sync builds and verifies dossiers, rating and fighter-centric history before exposure',()=>{
   const workflow=read('.github/workflows/mma-master-sync.yml');
   assert.match(workflow,/build-global-scout-rating-v2\.py/);

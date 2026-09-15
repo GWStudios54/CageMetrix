@@ -21,7 +21,7 @@ function entry(loc, lastmod = null) {
   return lines.join('\n');
 }
 
-export function sitemapXml({ fighters = [], scoutFighters = [], events = [], promotions = [], agencies = [], origin = SITEMAP_ORIGIN } = {}) {
+export function sitemapXml({ fighters = [], scoutFighters = [], events = [], promotions = [], agencies = [], camps = [], origin = SITEMAP_ORIGIN } = {}) {
   const base = origin.replace(/\/$/, '');
   const urls = [
     entry(`${base}/`),
@@ -29,6 +29,8 @@ export function sitemapXml({ fighters = [], scoutFighters = [], events = [], pro
     entry(`${base}/prospects`),
     entry(`${base}/events`),
     entry(`${base}/promotions`),
+    entry(`${base}/camps`),
+    entry(`${base}/wire`),
     entry(`${base}/talent`),
     entry(`${base}/management`),
     entry(`${base}/data-policy`),
@@ -39,6 +41,9 @@ export function sitemapXml({ fighters = [], scoutFighters = [], events = [], pro
     ...promotions
       .filter(row => row?.slug)
       .map(row => entry(`${base}/promotions/${encodeURIComponent(row.slug)}`, row.verified_at || row.updated_at)),
+    ...camps
+      .filter(row => row?.slug)
+      .map(row => entry(`${base}/camps/${encodeURIComponent(row.slug)}`, row.verified_at || row.updated_at)),
     ...scoutFighters
       .filter(row => row?.profile_slug)
       .map(row => entry(`${base}/scout/fighters/${encodeURIComponent(row.profile_slug)}`, row.last_fight_date || row.updated_at)),

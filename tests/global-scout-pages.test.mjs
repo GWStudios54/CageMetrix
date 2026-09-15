@@ -52,6 +52,14 @@ test('regional roster presentation does not invent zeroes or mislabel roster act
   assert.match(source,/const factRows:\[string,unknown\]\[\]/);
 });
 
+test('fighter dossier shows finish speed and durability alongside the existing finish counts',()=>{
+  const source=read('src/global-scout.ts');
+  assert.match(source,/const avgFinishRound=finishes>0\?\(Number\(f\.finish_round_sum\|\|0\)\/finishes\):null;/);
+  assert.match(source,/const durability=timesFinished>0\?`Finished \$\{timesFinished\}x`:Number\(f\.career_bouts\|\|0\)>=3\?'Never finished':null;/);
+  assert.match(source,/\['Avg finish round',avgFinishRound/);
+  assert.match(source,/\['Durability',durability\]/);
+});
+
 test('regional directory has dedicated responsive presentation',()=>{
   const css=read('public/scout-directory.css');
   assert.match(css,/directory-promo-grid/);
