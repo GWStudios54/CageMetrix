@@ -41,7 +41,8 @@ export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i},
   {slug:'inthecage-pl-rss',publisher:'InTheCage.pl',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://inthecage.pl/feed/',host:'inthecage.pl',path:/^\/[a-z0-9-]+\/$/i,lang:'pl'},
   {slug:'valetudo-ru-rss',publisher:'Valetudo.Ru',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://valetudo.ru/mma/news?format=feed&type=rss',host:'valetudo.ru',path:/^\/mma\/news\/[a-z0-9-]+$/i,lang:'ru'},
-  {slug:'khan-sports-mma',publisher:'Sports Kyunghyang',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://sports.khan.co.kr/sports-all/mma/',host:'sports.khan.co.kr',path:/^\/article\/\d+$/i,lang:'ko',titleSignalOnly:true}
+  {slug:'khan-sports-mma',publisher:'Sports Kyunghyang',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://sports.khan.co.kr/sports-all/mma/',host:'sports.khan.co.kr',path:/^\/article\/\d+$/i,lang:'ko',titleSignalOnly:true},
+  {slug:'mmaplanet-jp-rss',publisher:'MMAPLANET',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://mmaplanet.jp/feed',host:'mmaplanet.jp',path:/^\/\d+$/i,lang:'ja'}
 ];
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
@@ -81,7 +82,21 @@ const KOREAN_FIGHTER_ALIASES=new Map(Object.entries({
 }));
 function substituteKoreanFighterAliases(value){let text=String(value??'');for(const [hangul,latin] of KOREAN_FIGHTER_ALIASES)text=text.split(hangul).join(` ${latin} `);return text;}
 
-export function normalizeContractText(value){return transliterateHangul(transliterateCyrillic(foldLatinCompatibility(substituteKoreanFighterAliases(String(value??''))))).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
+// Japanese fighter names have no algorithmic transliteration at all (unlike Hangul, kanji readings are
+// ambiguous without a reading dictionary), so identity for known fighters is resolved the same way as
+// Korean -- a small verified curated alias table (Sherdog-confirmed spellings), applied as a substitution
+// pass. This is a starting set, not exhaustive.
+const JAPANESE_FIGHTER_ALIASES=new Map(Object.entries({
+  '堀口恭司':'Kyoji Horiguchi',
+  '朝倉海':'Kai Asakura',
+  '平良達郎':'Tatsuro Taira',
+  '朝倉未来':'Mikuru Asakura',
+  '那須川天心':'Tenshin Nasukawa',
+  '扇久保博正':'Hiromasa Ougikubo'
+}));
+function substituteJapaneseFighterAliases(value){let text=String(value??'');for(const [kanji,latin] of JAPANESE_FIGHTER_ALIASES)text=text.split(kanji).join(` ${latin} `);return text;}
+
+export function normalizeContractText(value){return transliterateHangul(transliterateCyrillic(foldLatinCompatibility(substituteKoreanFighterAliases(substituteJapaneseFighterAliases(String(value??'')))))).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
 function semanticContractText(value){return normalizeContractText(value).replace(/\bfree agent\s+(?:fight|bout|match|matchup)\b/g,'');}
 const SIGNAL_RE_PL=/\b(?:podpisa(?:l|la|li|no)\s+(?:nowy\s+)?kontrakt|podpisuj[ei]\s+kontrakt|przedluz(?:yl|yla|yli|enie)\s+kontrakt|na\s+dluzej\s+z|wolny?m?\s*agent(?:em|ka|ki)?|rozsta(?:l|la|li)\s+sie\s+z|bez\s+kontraktu|kontrakt\s+wygas(?:l|a)|zwolnion(?:y|a|ych|ego)|koncz(?:y|a)\s+kontrakt)\b/i;
 const NON_FIGHTER_RE_PL=/\b(?:prawa\s+medialne|transmisj[ae]|sponsoring|umowa\s+o\s+wspolprac[ye])\b/i;
@@ -92,13 +107,34 @@ const NON_FIGHTER_RE_RU=/\b(?:mediaprava|translyatsi[iy]|sponsorstv[oa])\b/i;
 const SIGNAL_RE_KO=/\b(?:gyeyak\s*chegyeol|jaegyeyak|jayugyeyak|gyeyak\s+yeonjang\s+geobu|bangchul|gyeyakhaeji)/i;
 const NON_FIGHTER_RE_KO=/\b(?:seuponseosip|junggyegwon|bangsong)\b/i;
 
+// Kanji cannot be transliterated algorithmically at all (no jamo-style decomposition exists; readings are
+// ambiguous without a dictionary), so unlike every other language here, Japanese vocabulary is matched
+// directly against the original kanji/katakana text rather than a transliterated/normalized form -- see
+// the lang==='ja' branches in hasContractSignal/detectContractSignal/detectContractPromotion below, which
+// intentionally skip semanticContractText for this language.
+const SIGNAL_RE_JA=/(?:契約.{0,3}更新|契約.{0,3}満了|契約解除|移籍|契約)/;
+// キロ契約/契約体重 ("N kg contract weight") is how Japanese fight-card results describe an agreed
+// catchweight bout -- a completely different, very common sense of 契約 that has nothing to do with a
+// fighter's promotional contract. Found by testing against the real live MMAPLANET feed, not guessed.
+const NON_FIGHTER_RE_JA=/(?:放送権|スポンサー契約|中継|キロ契約|契約体重)/;
+
 export function hasContractSignal(value,lang='en'){
+  if(lang==='ja'){const raw=clean(value);return SIGNAL_RE_JA.test(raw)&&!NON_FIGHTER_RE_JA.test(raw);}
   const text=semanticContractText(value);
   const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:lang==='ko'?SIGNAL_RE_KO:SIGNAL_RE;
   const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:lang==='ko'?NON_FIGHTER_RE_KO:NON_FIGHTER_RE;
   return signal.test(text)&&!nonFighter.test(text);
 }
 export function detectContractSignal(value,lang='en'){
+  if(lang==='ja'){
+    const raw=clean(value);
+    if(/契約.{0,3}満了|契約を更新せず/.test(raw))return {eventType:'expiration',status:'expired'};
+    if(/契約解除/.test(raw))return {eventType:'release',status:'released'};
+    if(/移籍/.test(raw))return {eventType:'status_update',status:'unknown'};
+    if(/契約.{0,3}更新/.test(raw))return {eventType:'extension',status:'under_contract'};
+    if(/契約/.test(raw))return {eventType:'signing',status:'under_contract'};
+    return {eventType:'status_update',status:'unknown'};
+  }
   const text=semanticContractText(value);
   if(lang==='pl'){
     if(/\bbez\s+kontraktu\b|\bkontrakt\s+wygas(?:l|a)\b|\bkoncz(?:y|a)\s+kontrakt\b/.test(text))return {eventType:'expiration',status:'expired'};
@@ -141,6 +177,20 @@ export function detectContractSignal(value,lang='en'){
 }
 
 export function detectContractPromotion(value,fallback=null,lang='en'){
+  if(lang==='ja'){
+    const raw=clean(value);
+    for(const [slug,promotion] of PROMOTIONS){
+      const patterns=[
+        new RegExp(`${promotion}(?:とは|との|と)\\s*.{0,20}?契約`,'i'),
+        new RegExp(`${promotion}(?:とは|との|と)\\s*.{0,20}?契約解除`,'i'),
+        new RegExp(`${promotion}\\s*へ\\s*.{0,10}?移籍`,'i'),
+        new RegExp(`移籍.{0,10}?${promotion}`,'i'),
+        new RegExp(`${promotion}\\s*契約`,'i')
+      ];
+      if(patterns.some(pattern=>pattern.test(raw)))return slug;
+    }
+    return fallback||null;
+  }
   const text=semanticContractText(value);
   for(const [slug,promotion] of PROMOTIONS){
     const patterns=lang==='pl'?[
