@@ -40,7 +40,8 @@ export const CONTRACT_DISCOVERY_SOURCES=[
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
   {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i},
   {slug:'inthecage-pl-rss',publisher:'InTheCage.pl',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://inthecage.pl/feed/',host:'inthecage.pl',path:/^\/[a-z0-9-]+\/$/i,lang:'pl'},
-  {slug:'valetudo-ru-rss',publisher:'Valetudo.Ru',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://valetudo.ru/mma/news?format=feed&type=rss',host:'valetudo.ru',path:/^\/mma\/news\/[a-z0-9-]+$/i,lang:'ru'}
+  {slug:'valetudo-ru-rss',publisher:'Valetudo.Ru',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://valetudo.ru/mma/news?format=feed&type=rss',host:'valetudo.ru',path:/^\/mma\/news\/[a-z0-9-]+$/i,lang:'ru'},
+  {slug:'khan-sports-mma',publisher:'Sports Kyunghyang',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://sports.khan.co.kr/sports-all/mma/',host:'sports.khan.co.kr',path:/^\/article\/\d+$/i,lang:'ko',titleSignalOnly:true}
 ];
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
@@ -59,7 +60,28 @@ const CYRILLIC_LATIN=new Map(Object.entries({
 }));
 function transliterateCyrillic(value){return String(value??'').replace(/[\u0400-\u04ff]/g,ch=>{const lower=ch.toLowerCase();return CYRILLIC_LATIN.has(lower)?CYRILLIC_LATIN.get(lower):ch;});}
 
-export function normalizeContractText(value){return transliterateCyrillic(foldLatinCompatibility(String(value??''))).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
+const HANGUL_INITIALS=['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'];
+const HANGUL_MEDIALS=['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+const HANGUL_FINALS=['','k','k','k','n','n','n','t','l','k','m','l','l','l','p','l','m','p','p','t','t','ng','t','t','k','t','p','t'];
+function transliterateHangul(value){return String(value??'').replace(/[\uac00-\ud7a3]/g,ch=>{const code=ch.codePointAt(0)-0xac00,final=code%28,medial=((code-final)/28)%21,initial=(((code-final)/28)-medial)/21;return HANGUL_INITIALS[initial]+HANGUL_MEDIALS[medial]+HANGUL_FINALS[final];});}
+
+// Korean fighter names are catalogued in the Sherdog-sourced database in Western given-name-first order
+// with idiosyncratic (non-Revised-Romanization) spelling chosen by the fighter/promotion, e.g. Sherdog lists
+// 정찬성 as "Chan Sung Jung", not the algorithmic RR form "Jeong Chan-seong". Generic transliteration
+// cannot recover that, so identity for these known fighters is resolved via this verified curated alias
+// table (Sherdog/Wikipedia-confirmed spellings) rather than the algorithmic transliteration used for
+// everything else in the text. This is a starting set, not exhaustive.
+const KOREAN_FIGHTER_ALIASES=new Map(Object.entries({
+  '정찬성':'Chan Sung Jung',
+  '김동현':'Dong Hyun Kim',
+  '강경호':'Kyung Ho Kang',
+  '최두호':'Doo Ho Choi',
+  '최승우':'Seung Woo Choi',
+  '박준용':'Jun Yong Park'
+}));
+function substituteKoreanFighterAliases(value){let text=String(value??'');for(const [hangul,latin] of KOREAN_FIGHTER_ALIASES)text=text.split(hangul).join(` ${latin} `);return text;}
+
+export function normalizeContractText(value){return transliterateHangul(transliterateCyrillic(foldLatinCompatibility(substituteKoreanFighterAliases(String(value??''))))).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
 function semanticContractText(value){return normalizeContractText(value).replace(/\bfree agent\s+(?:fight|bout|match|matchup)\b/g,'');}
 const SIGNAL_RE_PL=/\b(?:podpisa(?:l|la|li|no)\s+(?:nowy\s+)?kontrakt|podpisuj[ei]\s+kontrakt|przedluz(?:yl|yla|yli|enie)\s+kontrakt|na\s+dluzej\s+z|wolny?m?\s*agent(?:em|ka|ki)?|rozsta(?:l|la|li)\s+sie\s+z|bez\s+kontraktu|kontrakt\s+wygas(?:l|a)|zwolnion(?:y|a|ych|ego)|koncz(?:y|a)\s+kontrakt)\b/i;
 const NON_FIGHTER_RE_PL=/\b(?:prawa\s+medialne|transmisj[ae]|sponsoring|umowa\s+o\s+wspolprac[ye])\b/i;
@@ -67,10 +89,13 @@ const NON_FIGHTER_RE_PL=/\b(?:prawa\s+medialne|transmisj[ae]|sponsoring|umowa\s+
 const SIGNAL_RE_RU=/\b(?:podpisa(?:l|la|li)\s+(?:novyi\s+)?kontrakt|podpisyva(?:et|yut)\s+kontrakt|zaklyuchi(?:l|la|li)\s+kontrakt|prodli(?:l|la|li)\s+kontrakt|svobodn(?:yi|ym|aya|ogo|omu)\s+agent(?:a|om|u)?|ne\s+prodli(?:l|la|li)\s+kontrakt|zakonchi(?:lsya|las)\s+kontrakt|uvolneni[ey]\s+iz|ukhod\s+iz|rasst(?:alsya|alas)\s+s\s|otkaza(?:lsya|las)\s+ot\s+kontrakta)\b/i;
 const NON_FIGHTER_RE_RU=/\b(?:mediaprava|translyatsi[iy]|sponsorstv[oa])\b/i;
 
+const SIGNAL_RE_KO=/\b(?:gyeyak\s*chegyeol|jaegyeyak|jayugyeyak|gyeyak\s+yeonjang\s+geobu|bangchul|gyeyakhaeji)/i;
+const NON_FIGHTER_RE_KO=/\b(?:seuponseosip|junggyegwon|bangsong)\b/i;
+
 export function hasContractSignal(value,lang='en'){
   const text=semanticContractText(value);
-  const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:SIGNAL_RE;
-  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:NON_FIGHTER_RE;
+  const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:lang==='ko'?SIGNAL_RE_KO:SIGNAL_RE;
+  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:lang==='ko'?NON_FIGHTER_RE_KO:NON_FIGHTER_RE;
   return signal.test(text)&&!nonFighter.test(text);
 }
 export function detectContractSignal(value,lang='en'){
@@ -90,6 +115,15 @@ export function detectContractSignal(value,lang='en'){
     if(/\botkaza(?:lsya|las)\s+ot\s+kontrakta\b/.test(text))return {eventType:'option_declined',status:'unknown'};
     if(/\bprodli(?:l|la|li)\s+kontrakt\b/.test(text))return {eventType:'extension',status:'under_contract'};
     if(/\bpodpisa(?:l|la|li)\s+(?:novyi\s+)?kontrakt\b|\bpodpisyva(?:et|yut)\s+kontrakt\b|\bzaklyuchi(?:l|la|li)\s+kontrakt\b/.test(text))return {eventType:'signing',status:'under_contract'};
+    return {eventType:'status_update',status:'unknown'};
+  }
+  if(lang==='ko'){
+    if(/\bgyeyakhaeji/.test(text))return {eventType:'expiration',status:'expired'};
+    if(/\bjayugyeyak/.test(text))return {eventType:'free_agency',status:'free_agent'};
+    if(/\bbangchul/.test(text))return {eventType:'release',status:'released'};
+    if(/\bgyeyak\s+yeonjang\s+geobu/.test(text))return {eventType:'status_update',status:'unknown'};
+    if(/\bjaegyeyak/.test(text))return {eventType:'extension',status:'under_contract'};
+    if(/\bgyeyak\s*chegyeol/.test(text))return {eventType:'signing',status:'under_contract'};
     return {eventType:'status_update',status:'unknown'};
   }
   if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
@@ -119,6 +153,12 @@ export function detectContractPromotion(value,fallback=null,lang='en'){
       new RegExp(`\\brasst(?:alsya|alas)\\s+s\\s+${promotion}\\b`),
       new RegExp(`\\bprodli(?:l|la|li)\\s+kontrakt\\s+s\\s+${promotion}\\b`),
       new RegExp(`\\b${promotion}\\s+kontrakt\\b`)
+    ]:lang==='ko'?[
+      new RegExp(`\\b${promotion}\\s*(?:wa|gwa)\\s+.{0,40}?(?:gyeyak|chegyeol)`),
+      new RegExp(`\\b${promotion}\\s*(?:wa|gwa)\\s+jaegyeyak`),
+      new RegExp(`\\b${promotion}\\s*(?:seo|eseo)\\s+.{0,20}?bangchul`),
+      new RegExp(`\\b${promotion}\\s*e\\s+.{0,20}?gyeyakhaeji`),
+      new RegExp(`\\b${promotion}\\s+gyeyak`)
     ]:[
       new RegExp(`\\b(?:sign(?:s|ed|ing)?|re\\s?sign(?:s|ed|ing)?|contract(?:s|ed)?)\\b.{0,160}\\b(?:with|to|by)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:earn(?:s|ed|ing)?|secur(?:e|es|ed|ing)?|grant(?:s|ed|ing)?|award(?:s|ed|ing)?|hand(?:s|ed|ing)?)\\b.{0,100}\\b(?:a\\s+|an\\s+|the\\s+)?${promotion}\\s+(?:contract|deal)\\b`),
