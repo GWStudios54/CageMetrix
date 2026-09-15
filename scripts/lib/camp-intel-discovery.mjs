@@ -14,7 +14,8 @@ export {articleText};
 // avoids re-learning the ESPN Mexico lesson (a source that looks perfect
 // under manual curl verification but is bot-walled for Node's real fetch()).
 export const CAMP_DISCOVERY_SOURCES=[
-  {slug:'sherdog-camp-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
+  {slug:'sherdog-camp-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
+  {slug:'ufc-news-camp',publisher:'UFC',sourceType:'promotion_direct',kind:'html',url:'https://www.ufc.com/trending/all',host:'www.ufc.com',path:/\/news\//i}
 ];
 
 // Verified, publicly documented real training camps (Wikipedia: "List of

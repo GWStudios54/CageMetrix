@@ -4,12 +4,40 @@ import {CAMP_DISCOVERY_SOURCES,campCandidateRows,detectCamp,detectCampEventType,
 
 const source=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='sherdog-camp-news');
 
-test('registers Sherdog as the camp-intel discovery source, reachable by the real fetch mechanism',()=>{
+test('registers Sherdog and UFC.com as the camp-intel discovery sources, both reachable by the real fetch mechanism',()=>{
   assert.ok(source);
   assert.equal(source.publisher,'Sherdog');
   assert.equal(source.sourceType,'reputable_trade_reporting');
   assert.equal(source.kind,'rss');
   assert.equal(source.host,'www.sherdog.com');
+
+  const ufcSource=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='ufc-news-camp');
+  assert.ok(ufcSource);
+  assert.equal(ufcSource.publisher,'UFC');
+  assert.equal(ufcSource.sourceType,'promotion_direct');
+  assert.equal(ufcSource.kind,'html');
+  assert.equal(ufcSource.host,'www.ufc.com');
+});
+
+test('a UFC.com camp-joining story queues a candidate with exact identity, same as Sherdog',()=>{
+  const ufcSource=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='ufc-news-camp');
+  const html='<main><article><a href="https://www.ufc.com/news/kyoji-horiguchi-joins-american-top-team">Kyoji Horiguchi Joins American Top Team Ahead Of Title Push</a></article><article><a href="https://www.ufc.com/news/ufc-331-fight-card">UFC 331 Fight Card Announced</a></article></main>';
+  const rows=parseCampListing(html,ufcSource);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].title,'Kyoji Horiguchi Joins American Top Team Ahead Of Title Push');
+
+  const profiles=[{source_key:'mma',source_fighter_id:'7001',fighter_name:'Kyoji Horiguchi'}];
+  const candidates=campCandidateRows(
+    {title:'Kyoji Horiguchi Joins American Top Team Ahead Of Title Push',url:'https://www.ufc.com/news/kyoji-horiguchi-joins-american-top-team',publishedAt:'2026-09-15'},
+    ufcSource,
+    'Flyweight contender Kyoji Horiguchi has officially joined American Top Team as he prepares for his next title opportunity.',
+    profiles
+  );
+  assert.equal(candidates.length,1);
+  assert.equal(candidates[0].fighterName,'Kyoji Horiguchi');
+  assert.equal(candidates[0].campSlug,'american-top-team');
+  assert.equal(candidates[0].detectedEventType,'joined');
+  assert.equal(candidates[0].reviewStatus,'pending');
 });
 
 test('real, verified camp-departure headlines are recognized (Nunes, Covington, Lawler all leaving American Top Team)',()=>{
