@@ -13,13 +13,15 @@ test('market activity feed is admin-gated and routed like the rest of the privat
   assert.match(entry,/path==='\/recruiting\/activity'/);
 });
 
-test('activity feed merges contract events, representation history and camp history from already-verified public evidence, not discovery candidates',()=>{
+test('activity feed merges contract events, representation history, camp history and anti-doping events from already-verified public evidence, not discovery candidates',()=>{
   const source=read('src/recruiting-activity.ts');
   assert.match(source,/FROM fighter_contract_events e/);
   assert.match(source,/FROM fighter_management_history h/);
   assert.match(source,/FROM fighter_camp_history h/);
+  assert.match(source,/FROM fighter_antidoping_events e/);
   assert.doesNotMatch(source,/contract_intel_candidates/);
   assert.doesNotMatch(source,/camp_intel_candidates/);
+  assert.doesNotMatch(source,/antidoping_intel_candidates/);
   assert.match(source,/JOIN scout_public_global_profiles p/g);
   assert.match(source,/rows\.sort\(\(a,b\)=>String\(b\.event_date\|\|''\)\.localeCompare\(String\(a\.event_date\|\|''\)\)\)/);
 });
@@ -30,18 +32,32 @@ test('representation and camp events both date by when the relationship actually
   assert.equal(occurrences.length,2);
 });
 
-test('the camp filter excludes contract and representation queries, and vice versa',()=>{
+test('the camp and antidoping filters are mutually exclusive with contract/representation/each other',()=>{
   const source=read('src/recruiting-activity.ts');
-  assert.match(source,/kind==='representation'\|\|kind==='camp'\?Promise\.resolve/);
-  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='camp'\?Promise\.resolve/);
-  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='representation'\?Promise\.resolve/);
-  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp'\]\)/);
+  assert.match(source,/kind==='representation'\|\|kind==='camp'\|\|kind==='antidoping'\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='camp'\|\|kind==='antidoping'\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='representation'\|\|kind==='antidoping'\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='representation'\|\|kind==='camp'\?Promise\.resolve/);
+  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp','antidoping'\]\)/);
 });
 
 test('camp activity rows show a resolved camp name and join/leave framing',()=>{
   const source=read('src/recruiting-activity.ts');
   assert.match(source,/row\.camp_name_resolved\|\|row\.camp_name\|\|'Training camp'/);
   assert.match(source,/`Joined \$\{campName\}`:`Left \$\{campName\}`/);
+});
+
+test('anti-doping activity rows never use the "positive" (good-news) badge styling for flagged/positive-test/suspended events',()=>{
+  const source=read('src/recruiting-activity.ts');
+  assert.match(source,/const good=row\.event_type==='cleared'\|\|row\.event_type==='reinstated'/);
+  assert.match(source,/talent-badge\$\{good\?' positive':''\}/);
+});
+
+test('anti-doping candidates are never auto-published: the review queue and publish API both require a source URL and human review',()=>{
+  const candidates=read('src/antidoping-candidates.ts'),admin=read('src/antidoping-admin.ts');
+  assert.match(candidates,/adminAccount\(request,env\.DB\)/);
+  assert.match(admin,/sourceUrl\)return json\(\{error:'source_required'\}/);
+  assert.match(admin,/publicSummary\)return json\(\{error:'public_summary_required'\}/);
 });
 
 test('availability filter only shows events that actually free up a fighter',()=>{
