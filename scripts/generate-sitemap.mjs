@@ -83,5 +83,5 @@ const camps = query(`
 
 mkdirSync('public', { recursive: true });
 writeFileSync('public/sitemap.xml', sitemapXml({ fighters, scoutFighters, events, promotions, agencies, camps }));
-const total = 10 + fighters.length + scoutFighters.length + events.length + promotions.length + agencies.length + camps.length;
+const total = 11 + fighters.length + scoutFighters.length + events.length + promotions.length + agencies.length + camps.length;
 console.log(`Generated sitemap with ${total} URLs (${scoutFighters.length} global scout fighters, ${fighters.length} legacy fighters, ${events.length} events, ${promotions.length} promotions, ${agencies.length} management agencies, ${camps.length} training camps).`);

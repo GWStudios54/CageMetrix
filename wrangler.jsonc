@@ -44,6 +44,7 @@
       "/promotions/*",
       "/camps",
       "/camps/*",
+      "/wire",
       "/events",
       "/events/*",
       "/data-policy",

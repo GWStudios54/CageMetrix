@@ -8,7 +8,7 @@ const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;
 const pretty=(value:unknown)=>{const raw=String(value||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return '—';return new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(raw+'T12:00:00Z'));};
 const label=(value:unknown)=>String(value||'unknown').replaceAll('_',' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 
-const KIND=new Set(['all','availability','contract','representation','camp','antidoping']);
+export const KIND=new Set(['all','availability','contract','representation','camp','antidoping']);
 const AVAILABILITY_EVENTS=new Set(['free_agency','release','expiration']);
 
 function contractDescription(row:Row){
@@ -28,7 +28,7 @@ function contractDescription(row:Row){
   }
 }
 
-async function activityRows(env:Env,kind:string,limit=75){
+export async function activityRows(env:Env,kind:string,limit=75){
   const [contracts,representation,camps,antidoping]=await Promise.all([
     kind==='representation'||kind==='camp'||kind==='antidoping'?Promise.resolve({results:[]}):env.DB.prepare(`
       SELECT e.id,e.event_type,e.status_after,e.promotion_name,e.promotion_slug,e.public_summary,
@@ -78,7 +78,7 @@ async function activityRows(env:Env,kind:string,limit=75){
   return rows.slice(0,limit);
 }
 
-function activityRow(row:Row,isAdmin:boolean){
+export function activityRow(row:Row,isAdmin:boolean){
   const watchBtn=isAdmin?`<button class="button secondary" type="button" data-watch="${esc(row.profile_slug)}">☆ Watch</button>`:'';
   if(row.kind==='contract'){
     const availability=AVAILABILITY_EVENTS.has(row.event_type);

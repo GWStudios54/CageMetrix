@@ -102,7 +102,7 @@ test('generated sitemap excludes identity-linked removed canonical fighters',()=
   assert.match(generator,/fighter_publication_controls c/);
   assert.match(generator,/c\.public_status='removed'/);
   assert.match(generator,/l\.confidence>=0\.90/);
-  assert.match(generator,/const total = 10 \+/);
+  assert.match(generator,/const total = 11 \+/);
 });
 
 test('public opportunity contact is an HTTPS link, not a phone or email field',()=>{

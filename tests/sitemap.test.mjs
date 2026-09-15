@@ -75,7 +75,7 @@ test('sitemap generator indexes public global scouting dossiers and public event
   assert.match(source, /l\.confidence>=0\.90/);
   assert.match(source, /WHERE active = 1/);
   assert.match(source, /FROM training_camps/);
-  assert.match(source, /const total = 10 \+ fighters\.length \+ scoutFighters\.length/);
+  assert.match(source, /const total = 11 \+ fighters\.length \+ scoutFighters\.length/);
   assert.match(source, /sitemapXml\(\{ fighters, scoutFighters, events, promotions, agencies, camps \}\)/);
 });
 

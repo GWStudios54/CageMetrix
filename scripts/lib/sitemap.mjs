@@ -30,6 +30,7 @@ export function sitemapXml({ fighters = [], scoutFighters = [], events = [], pro
     entry(`${base}/events`),
     entry(`${base}/promotions`),
     entry(`${base}/camps`),
+    entry(`${base}/wire`),
     entry(`${base}/talent`),
     entry(`${base}/management`),
     entry(`${base}/data-policy`),

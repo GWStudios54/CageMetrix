@@ -19,6 +19,7 @@ import {antidopingCandidatesAdminApi} from './antidoping-candidates.ts';
 import {antidopingReviewPage} from './antidoping-review.ts';
 import {enhanceFighterCampContext} from './camp-intel-context.ts';
 import {campApi,campPage,campsApi,campsPage} from './camp-directory.ts';
+import {publicActivityPage} from './public-activity.ts';
 import {enhanceFighterAntidopingContext} from './antidoping-intel-context.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
@@ -158,6 +159,10 @@ export default {
     if(request.method==='GET'&&campPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/camps/${campPageMatch[1]}`,request.url),308);
       return page(campPage(request,env,campPageMatch[1]),request,env);
+    }
+    if(request.method==='GET'&&(path==='/wire'||path==='/wire/')){
+      if(path.endsWith('/'))return Response.redirect(new URL('/wire',request.url),308);
+      return page(publicActivityPage(request,env),request,env);
     }
     if(request.method==='GET'&&(path==='/prospects'||path==='/prospects/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/prospects${url.search}`,request.url),308);

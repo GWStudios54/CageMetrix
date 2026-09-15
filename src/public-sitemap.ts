@@ -26,6 +26,7 @@ export async function publicSitemap(env:Env){
     [`${SITE}/promotions`,null,'daily','0.9'],
     [`${SITE}/management`,null,'daily','0.9'],
     [`${SITE}/camps`,null,'daily','0.8'],
+    [`${SITE}/wire`,null,'hourly','0.85'],
     [`${SITE}/data-policy`,null,'monthly','0.55'],
     [`${SITE}/privacy`,null,'monthly','0.5']
   ];
