@@ -38,7 +38,8 @@ export const CONTRACT_DISCOVERY_SOURCES=[
     ]},
   {slug:'mma-fighting',publisher:'MMA Fighting',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://www.mmafighting.com/',host:'www.mmafighting.com',path:/\/(?:ufc|pfl|mma-news|latest-news)\//i,contentSelector:'.duet--layout--entry-body'},
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
-  {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i}
+  {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i},
+  {slug:'inthecage-pl-rss',publisher:'InTheCage.pl',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://inthecage.pl/feed/',host:'inthecage.pl',path:/^\/[a-z0-9-]+\/$/i,lang:'pl'}
 ];
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
@@ -47,11 +48,29 @@ const PROMOTIONS=[
   ['ufc','(?:ultimate fighting championship|ufc)'],['pfl','(?:professional fighters league|pfl)'],['one','one championship'],['brave-cf','(?:brave combat federation|brave cf)'],['cffc','(?:cage fury fighting championships?|cage fury fc|cffc)'],['cage-warriors','cage warriors'],['oktagon','oktagon(?: mma)?'],['ksw','(?:konfrontacja sztuk walki|ksw)'],['rizin','rizin(?: fighting federation)?'],['lfa','(?:legacy fighting alliance|lfa)'],['fury-fc','(?:fury fighting championship|fury fc)'],['pancrase','pancrase'],['shooto','shooto'],['aca','(?:absolute championship akhmat|aca)'],['tuff-n-uff','tuff n uff'],['fnc','(?:fight nation championship|fnc)']
 ];
 
-export function normalizeContractText(value){return String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
+const LATIN_COMPAT=new Map(Object.entries({'ł':'l','ø':'o','đ':'d','ð':'d','þ':'th','æ':'ae','œ':'oe','ß':'ss','ħ':'h','ı':'i'}));
+function foldLatinCompatibility(value){return String(value??'').replace(/[łøđðþæœßħı]/gi,ch=>LATIN_COMPAT.get(ch.toLowerCase())||ch);}
+export function normalizeContractText(value){return foldLatinCompatibility(String(value??'')).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,"'").toLowerCase().replace(/[^a-z0-9' -]+/g,' ').replace(/[-]+/g,' ').replace(/\s+/g,' ').trim();}
 function semanticContractText(value){return normalizeContractText(value).replace(/\bfree agent\s+(?:fight|bout|match|matchup)\b/g,'');}
-export function hasContractSignal(value){const text=semanticContractText(value);return SIGNAL_RE.test(text)&&!NON_FIGHTER_RE.test(text);}
-export function detectContractSignal(value){
+const SIGNAL_RE_PL=/\b(?:podpisa(?:l|la|li|no)\s+(?:nowy\s+)?kontrakt|podpisuj[ei]\s+kontrakt|przedluz(?:yl|yla|yli|enie)\s+kontrakt|na\s+dluzej\s+z|wolny?m?\s*agent(?:em|ka|ki)?|rozsta(?:l|la|li)\s+sie\s+z|bez\s+kontraktu|kontrakt\s+wygas(?:l|a)|zwolnion(?:y|a|ych|ego)|koncz(?:y|a)\s+kontrakt)\b/i;
+const NON_FIGHTER_RE_PL=/\b(?:prawa\s+medialne|transmisj[ae]|sponsoring|umowa\s+o\s+wspolprac[ye])\b/i;
+
+export function hasContractSignal(value,lang='en'){
   const text=semanticContractText(value);
+  const signal=lang==='pl'?SIGNAL_RE_PL:SIGNAL_RE;
+  const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:NON_FIGHTER_RE;
+  return signal.test(text)&&!nonFighter.test(text);
+}
+export function detectContractSignal(value,lang='en'){
+  const text=semanticContractText(value);
+  if(lang==='pl'){
+    if(/\bbez\s+kontraktu\b|\bkontrakt\s+wygas(?:l|a)\b|\bkoncz(?:y|a)\s+kontrakt\b/.test(text))return {eventType:'expiration',status:'expired'};
+    if(/\bwolny?m?\s*agent(?:em|ka|ki)?\b/.test(text))return {eventType:'free_agency',status:'free_agent'};
+    if(/\brozsta(?:l|la|li)\s+sie\s+z\b|\bzwolnion(?:y|a|ych|ego)\b/.test(text))return {eventType:'release',status:'released'};
+    if(/\bprzedluz(?:yl|yla|yli|enie)\s+kontrakt\b|\bna\s+dluzej\s+z\b/.test(text))return {eventType:'extension',status:'under_contract'};
+    if(/\bpodpisa(?:l|la|li|no)\s+(?:nowy\s+)?kontrakt\b|\bpodpisuj[ei]\s+kontrakt\b/.test(text))return {eventType:'signing',status:'under_contract'};
+    return {eventType:'status_update',status:'unknown'};
+  }
   if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
   if(/\bdeclin(?:e|es|ed|ing)\s+to\s+re\s?sign\b|\bnot\s+re\s?sign(?:s|ed|ing)?\b/.test(text))return {eventType:'status_update',status:'unknown'};
   if(/\bfree\s+agent(?:cy)?\b/.test(text))return {eventType:'free_agency',status:'free_agent'};
@@ -66,10 +85,15 @@ export function detectContractSignal(value){
   return {eventType:'status_update',status:'unknown'};
 }
 
-export function detectContractPromotion(value,fallback=null){
+export function detectContractPromotion(value,fallback=null,lang='en'){
   const text=semanticContractText(value);
   for(const [slug,promotion] of PROMOTIONS){
-    const patterns=[
+    const patterns=lang==='pl'?[
+      new RegExp(`\\bkontrakt(?:u|em)?\\s+z\\s+(?:federacja\\s+|organizacja\\s+)?${promotion}\\b`),
+      new RegExp(`\\brozsta(?:l|la|li)\\s+sie\\s+z\\s+(?:federacja\\s+)?${promotion}\\b`),
+      new RegExp(`\\bna\\s+dluzej\\s+z\\s+(?:federacja\\s+)?${promotion}\\b`),
+      new RegExp(`\\b${promotion}\\s+(?:kontrakt|kontraktu)\\b`)
+    ]:[
       new RegExp(`\\b(?:sign(?:s|ed|ing)?|re\\s?sign(?:s|ed|ing)?|contract(?:s|ed)?)\\b.{0,160}\\b(?:with|to|by)\\s+(?:the\\s+)?${promotion}\\b`),
       new RegExp(`\\b(?:earn(?:s|ed|ing)?|secur(?:e|es|ed|ing)?|grant(?:s|ed|ing)?|award(?:s|ed|ing)?|hand(?:s|ed|ing)?)\\b.{0,100}\\b(?:a\\s+|an\\s+|the\\s+)?${promotion}\\s+(?:contract|deal)\\b`),
       new RegExp(`\\b${promotion}\\s+(?:contract|deal|extension|renewal|signing)\\b`)
@@ -89,7 +113,7 @@ export function parseContractListing(body,source){
     const dom=new JSDOM(String(body||''),{contentType:'text/xml'}),doc=dom.window.document,out=[];
     for(const item of doc.querySelectorAll('item')){
       const title=clean(item.querySelector('title')?.textContent),link=clean(item.querySelector('link')?.textContent),summary=clean(item.querySelector('description')?.textContent),publishedAt=clean(item.querySelector('pubDate')?.textContent);
-      if(link&&approvedUrl(link,source)&&hasContractSignal(`${title} ${summary}`))out.push({title,url:link,summary,publishedAt});
+      if(link&&approvedUrl(link,source)&&hasContractSignal(`${title} ${summary}`,source.lang||'en'))out.push({title,url:link,summary,publishedAt});
     }
     dom.window.close();return dedupeArticles(out);
   }
@@ -98,7 +122,7 @@ export function parseContractListing(body,source){
     const url=absoluteUrl(anchor.getAttribute('href'),source.url);if(!url||!approvedUrl(url,source))continue;
     const title=clean(anchor.textContent),container=anchor.closest('article,li,div'),context=clean(container?.textContent||title).slice(0,1200);
     const signalText=source.titleSignalOnly?title:`${title} ${context}`;
-    if(!title||!hasContractSignal(signalText))continue;
+    if(!title||!hasContractSignal(signalText,source.lang||'en'))continue;
     const time=container?.querySelector('time');out.push({title,url,summary:context,publishedAt:time?.getAttribute('datetime')||clean(time?.textContent)});
   }
   dom.window.close();return dedupeArticles(out);
@@ -136,10 +160,10 @@ function incidentalMention(block,normalizedName){
 export function contractCandidateKey(sourceUrl,normalizedName,eventType){return createHash('sha256').update(`${sourceUrl}\n${normalizedName}\n${eventType}`).digest('hex');}
 
 export function candidateRows(article,source,body,profiles){
-  const blocks=String(body||'').split(/\n+/).map(clean).filter(Boolean).filter(hasContractSignal);if(!blocks.length)return [];
+  const blocks=String(body||'').split(/\n+/).map(clean).filter(Boolean).filter(block=>hasContractSignal(block,source.lang||'en'));if(!blocks.length)return [];
   const out=[],seen=new Set();
   for(const block of blocks){
-    const signal=detectContractSignal(block),promotionSlug=detectContractPromotion(block,source.promotionSlug),matches=exactFighterMatches(block,profiles);
+    const lang=source.lang||'en',signal=detectContractSignal(block,lang),promotionSlug=detectContractPromotion(block,source.promotionSlug,lang),matches=exactFighterMatches(block,profiles);
     for(const match of matches){
       if(incidentalMention(block,match.name))continue;
       const key=contractCandidateKey(article.url,match.name,signal.eventType);if(seen.has(key))continue;seen.add(key);
