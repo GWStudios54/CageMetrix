@@ -16,6 +16,7 @@ export const CONTRACT_DISCOVERY_SOURCES=[
     ]},
   {slug:'one-mma-rss',publisher:'ONE Championship',sourceType:'promotion_direct',promotionSlug:'one',kind:'rss',url:'https://www.onefc.com/category/mixed-martial-arts/feed/',host:'www.onefc.com',path:/\/(?:news|features)\//i},
   {slug:'cage-warriors-news',publisher:'Cage Warriors',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://cagewarriors.com/news/',host:'cagewarriors.com',path:/^\/(?!news\/?$|events\/?$|videos\/?$|champions\/?$|contact\/?$|about\/?$|athletes\/?$|careers\/?$)[a-z0-9-]+\/$/i,titleSignalOnly:true},
+  {slug:'lfa-news',publisher:'Legacy Fighting Alliance',sourceType:'promotion_direct',promotionSlug:'lfa',kind:'html',url:'https://www.lfa.com/news',host:'www.lfa.com',path:/^\/(?!news\/?$|events\/?$|champions\/?$|watch-lfa\/?$|lfafightnetwork\/?$|media\/?$|contact\/?$)[a-z0-9-]+\/$/i,titleSignalOnly:true},
   {slug:'brave-cf-news',publisher:'BRAVE Combat Federation',sourceType:'promotion_direct',promotionSlug:null,kind:'html',url:'https://www.bravecf.com/news',host:'www.bravecf.com',path:/^\/news\/[a-z0-9-]+\/?$/i,
     seedArticles:[
       {title:'Amil Tutic Signs Exclusive Multi-Fight Deal with BRAVE CF',url:'https://www.bravecf.com/news/amil-tutic-signs-exclusive-multi-fight-deal-with-brave-cf',publishedAt:'2026-06-15'},
