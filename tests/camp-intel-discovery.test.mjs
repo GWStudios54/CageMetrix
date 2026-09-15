@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {CAMP_DISCOVERY_SOURCES,campCandidateRows,detectCamp,detectCampEventType,hasCampSignal,parseCampListing} from '../scripts/lib/camp-intel-discovery.mjs';
 
 const source=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='sherdog-camp-news');
@@ -133,4 +134,16 @@ test('a block that mentions a fighter but no identifiable camp produces no candi
     [{source_key:'mma',source_fighter_id:'7001',fighter_name:'Kyoji Horiguchi'}]
   );
   assert.equal(rows.length,0);
+});
+
+test('camp discovery runs on a schedule against production, same shape as contract discovery, and only ever queues candidates',()=>{
+  const workflow=fs.readFileSync('.github/workflows/camp-intel-discovery.yml','utf8');
+  assert.match(workflow,/schedule:\s*\n\s*- cron: '\d/);
+  assert.match(workflow,/workflow_dispatch:/);
+  assert.match(workflow,/npx wrangler d1 migrations apply cagemetrix --remote/);
+  assert.match(workflow,/node scripts\/discover-camp-intel\.mjs --remote/);
+  assert.match(workflow,/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+  const discovery=fs.readFileSync('scripts/discover-camp-intel.mjs','utf8');
+  assert.match(discovery,/INSERT OR IGNORE INTO camp_intel_candidates/);
+  assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_camp_history/i);
 });

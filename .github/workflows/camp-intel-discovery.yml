@@ -1,0 +1,51 @@
+name: Discover public MMA camp/team intelligence
+
+on:
+  schedule:
+    - cron: '50 11 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/0044_team_camp_intelligence.sql'
+      - 'scripts/discover-camp-intel.mjs'
+      - 'scripts/lib/camp-intel-discovery.mjs'
+      - '.github/workflows/camp-intel-discovery.yml'
+
+# Camp discovery is idempotent and independent from Worker releases. Keep it out of the
+# production deploy lane so a UI deploy cannot discard a valid source-discovery run from the
+# same commit (same reasoning as contract-intel-discovery.yml).
+concurrency:
+  group: mmascouts-camp-intel
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Apply camp intelligence schema
+        run: npx wrangler d1 migrations apply cagemetrix --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Discover source-backed camp/team leads
+        run: node scripts/discover-camp-intel.mjs --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: camp-intel-discovery
+          path: .cache/camp-intel/
+          if-no-files-found: ignore
+          retention-days: 14
