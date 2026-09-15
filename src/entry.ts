@@ -11,6 +11,9 @@ import {ownerAdminLogin} from './admin-auth.ts';
 import {contractAdminApi,enhanceFighterContractContext,fighterContractApi} from './contract-intel.ts';
 import {contractCandidatesAdminApi} from './contract-candidates.ts';
 import {contractReviewPage} from './contract-review.ts';
+import {campAdminApi} from './camp-admin.ts';
+import {campCandidatesAdminApi} from './camp-candidates.ts';
+import {campReviewPage} from './camp-review.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
@@ -87,6 +90,8 @@ export default {
     if(path==='/api/admin/talent/management/end'||path==='/api/admin/talent/management/end/')return endManagementApi(request,env);
     if(path==='/api/admin/talent/contracts'||path==='/api/admin/talent/contracts/')return contractAdminApi(request,env);
     if(path==='/api/admin/talent/contracts/candidates'||path==='/api/admin/talent/contracts/candidates/')return contractCandidatesAdminApi(request,env);
+    if(path==='/api/admin/talent/camps'||path==='/api/admin/talent/camps/')return campAdminApi(request,env);
+    if(path==='/api/admin/talent/camps/candidates'||path==='/api/admin/talent/camps/candidates/')return campCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
     if(path==='/api/admin/recruiting/openings'||path==='/api/admin/recruiting/openings/')return recruitingOpeningsApi(request,env);
@@ -161,6 +166,10 @@ export default {
     if(request.method==='GET'&&(path==='/recruiting/contracts'||path==='/recruiting/contracts/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/contracts${url.search}`,request.url),308);
       return page(contractReviewPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/camps'||path==='/recruiting/camps/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/camps${url.search}`,request.url),308);
+      return page(campReviewPage(request,env),request,env);
     }
     const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&recruitingPageMatch){
