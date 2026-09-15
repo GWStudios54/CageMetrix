@@ -21,6 +21,8 @@ import {enhanceFighterCampContext} from './camp-intel-context.ts';
 import {campApi,campPage,campsApi,campsPage} from './camp-directory.ts';
 import {publicActivityPage} from './public-activity.ts';
 import {enhanceFighterAntidopingContext} from './antidoping-intel-context.ts';
+import {setAmateurRecordApi} from './amateur-record-admin.ts';
+import {enhanceFighterAmateurRecordContext} from './amateur-record-context.ts';
 import {enhanceManagementAgencyAbout} from './management-about.ts';
 import {enhanceFighterScoutScore,enhancePromotionScoutScores,prospectsPage,scoutScoresApi} from './scout-score.ts';
 import {enhanceFighterIntel,fighterIntelApi} from './fighter-intel.ts';
@@ -98,6 +100,7 @@ export default {
     if(fighterTalentMatch)return fighterTalentApi(request,env,fighterTalentMatch[1]);
     if(path==='/api/admin/talent/management'||path==='/api/admin/talent/management/')return setManagementApi(request,env);
     if(path==='/api/admin/talent/management/end'||path==='/api/admin/talent/management/end/')return endManagementApi(request,env);
+    if(path==='/api/admin/talent/amateur-record'||path==='/api/admin/talent/amateur-record/')return setAmateurRecordApi(request,env);
     if(path==='/api/admin/talent/contracts'||path==='/api/admin/talent/contracts/')return contractAdminApi(request,env);
     if(path==='/api/admin/talent/contracts/candidates'||path==='/api/admin/talent/contracts/candidates/')return contractCandidatesAdminApi(request,env);
     if(path==='/api/admin/talent/camps'||path==='/api/admin/talent/camps/')return campAdminApi(request,env);
@@ -222,6 +225,7 @@ export default {
       dossier=await enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterContractContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterCampContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterAmateurRecordContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterAntidopingContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterScoutScore(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
