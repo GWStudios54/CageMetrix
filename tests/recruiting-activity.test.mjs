@@ -26,21 +26,22 @@ test('activity feed merges contract events, representation history, camp history
   assert.match(source,/rows\.sort\(\(a,b\)=>String\(b\.event_date\|\|''\)\.localeCompare\(String\(a\.event_date\|\|''\)\)\)/);
 });
 
-test('representation and camp events both date by when the relationship actually changed, not when it originally started',()=>{
+test('representation, camp and coach events all date by when the relationship actually changed, not when it originally started',()=>{
   const source=read('src/recruiting-activity.ts');
   const occurrences=source.match(/CASE WHEN h\.is_current=1 THEN COALESCE\(h\.started_at,h\.verified_at\) ELSE COALESCE\(h\.ended_at,h\.verified_at\) END event_date/g)||[];
-  assert.equal(occurrences.length,2);
+  assert.equal(occurrences.length,3);
 });
 
-test('the camp, antidoping and injury filters are mutually exclusive with contract/representation/each other',()=>{
+test('the camp, coach, antidoping and injury filters are mutually exclusive with contract/representation/each other',()=>{
   const source=read('src/recruiting-activity.ts');
   assert.match(source,/const ONLY_KIND=\(kind:string,mine:string\)=>kind!=='all'&&kind!==mine;/);
   assert.match(source,/ONLY_KIND\(kind,'contract'\)&&kind!=='availability'\?Promise\.resolve/);
   assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'representation'\)\?Promise\.resolve/);
   assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'camp'\)\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'coach'\)\?Promise\.resolve/);
   assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'antidoping'\)\?Promise\.resolve/);
   assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'injury'\)\?Promise\.resolve/);
-  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp','antidoping','injury'\]\)/);
+  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp','coach','antidoping','injury'\]\)/);
 });
 
 test('camp activity rows show a resolved camp name and join/leave framing',()=>{

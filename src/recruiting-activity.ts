@@ -8,7 +8,7 @@ const esc=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;
 const pretty=(value:unknown)=>{const raw=String(value||'').slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return '—';return new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(raw+'T12:00:00Z'));};
 const label=(value:unknown)=>String(value||'unknown').replaceAll('_',' ').replace(/\b\w/g,ch=>ch.toUpperCase());
 
-export const KIND=new Set(['all','availability','contract','representation','camp','antidoping','injury']);
+export const KIND=new Set(['all','availability','contract','representation','camp','coach','antidoping','injury']);
 const AVAILABILITY_EVENTS=new Set(['free_agency','release','expiration']);
 
 function contractDescription(row:Row){
@@ -30,7 +30,7 @@ function contractDescription(row:Row){
 
 const ONLY_KIND=(kind:string,mine:string)=>kind!=='all'&&kind!==mine;
 export async function activityRows(env:Env,kind:string,limit=75){
-  const [contracts,representation,camps,antidoping,injuries]=await Promise.all([
+  const [contracts,representation,camps,coaches,antidoping,injuries]=await Promise.all([
     ONLY_KIND(kind,'contract')&&kind!=='availability'?Promise.resolve({results:[]}):env.DB.prepare(`
       SELECT e.id,e.event_type,e.status_after,e.promotion_name,e.promotion_slug,e.public_summary,
              COALESCE(e.effective_at,e.reported_at,e.signed_at,e.created_at) event_date,
@@ -60,6 +60,14 @@ export async function activityRows(env:Env,kind:string,limit=75){
       JOIN scout_public_global_profiles p ON p.source_key=h.source_key AND p.source_fighter_id=h.source_fighter_id
       ORDER BY event_date DESC,h.id DESC LIMIT ?
     `).bind(limit).all<Row>(),
+    kind==='availability'||ONLY_KIND(kind,'coach')?Promise.resolve({results:[]}):env.DB.prepare(`
+      SELECT h.id,h.coach_name,h.started_at,h.ended_at,h.is_current,h.verified_at,
+             CASE WHEN h.is_current=1 THEN COALESCE(h.started_at,h.verified_at) ELSE COALESCE(h.ended_at,h.verified_at) END event_date,
+             p.profile_slug,p.fighter_name,p.current_weight_class
+      FROM fighter_coach_history h
+      JOIN scout_public_global_profiles p ON p.source_key=h.source_key AND p.source_fighter_id=h.source_fighter_id
+      ORDER BY event_date DESC,h.id DESC LIMIT ?
+    `).bind(limit).all<Row>(),
     kind==='availability'||ONLY_KIND(kind,'antidoping')?Promise.resolve({results:[]}):env.DB.prepare(`
       SELECT e.id,e.event_type,e.substance,e.sanctioning_body,e.suspension_months,e.public_summary,e.is_current,
              COALESCE(e.effective_at,e.reported_at,e.created_at) event_date,
@@ -81,6 +89,7 @@ export async function activityRows(env:Env,kind:string,limit=75){
     ...(contracts.results||[]).map(row=>({...row,kind:'contract'})),
     ...(representation.results||[]).map(row=>({...row,kind:'representation'})),
     ...(camps.results||[]).map(row=>({...row,kind:'camp'})),
+    ...(coaches.results||[]).map(row=>({...row,kind:'coach'})),
     ...(antidoping.results||[]).map(row=>({...row,kind:'antidoping'})),
     ...(injuries.results||[]).map(row=>({...row,kind:'injury'}))
   ];
@@ -98,6 +107,10 @@ export function activityRow(row:Row,isAdmin:boolean){
     const campName=row.camp_name_resolved||row.camp_name||'Training camp';
     const desc=row.is_current?`Joined ${campName}`:`Left ${campName}`;
     return `<article class="activity-row"><div class="activity-date">${esc(pretty(row.event_date))}</div><div class="activity-body"><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${esc(desc)}${row.coach_name?` · Coach ${esc(row.coach_name)}`:''}</p></div><div class="activity-meta"><span class="talent-badge${row.is_current?' positive':''}">${row.is_current?'Current':'Ended'}</span>${watchBtn}<a class="button secondary" href="/scout/fighters/${esc(row.profile_slug)}">Fighter file →</a></div></article>`;
+  }
+  if(row.kind==='coach'){
+    const desc=row.is_current?`Hired ${row.coach_name} as head coach`:`Parted ways with coach ${row.coach_name}`;
+    return `<article class="activity-row"><div class="activity-date">${esc(pretty(row.event_date))}</div><div class="activity-body"><span class="eyebrow">${esc(row.current_weight_class||'Unknown division')}</span><h3><a href="/scout/fighters/${esc(row.profile_slug)}">${esc(row.fighter_name)}</a></h3><p>${esc(desc)}</p></div><div class="activity-meta"><span class="talent-badge${row.is_current?' positive':''}">${row.is_current?'Current':'Ended'}</span>${watchBtn}<a class="button secondary" href="/scout/fighters/${esc(row.profile_slug)}">Fighter file →</a></div></article>`;
   }
   if(row.kind==='antidoping'){
     const unavailable=row.event_type==='flagged'||row.event_type==='positive_test'||row.event_type==='suspended';
@@ -139,7 +152,7 @@ export async function recruitingActivityPage(request:Request,env:Env){
   const rows=await activityRows(env,kind);
   const rowsHtml=rows.map(row=>activityRow(row,true)).join('');
   const bodyHtml=`<section class="recruit-hero opening-hero"><a class="back-link" href="/recruiting">← Recruiting board</a><span class="eyebrow">MARKET ACTIVITY</span><h1>Who just became available.</h1><p>A chronological feed of publicly reported contract, representation, training-camp and anti-doping changes across every fighter MMA Scouts tracks -- new free agents, releases, expirations, signings, agency changes, camp moves and anti-doping status -- so you don't have to already know a name to spot an opportunity.</p></section>
-  <section class="intel-filter-panel"><form method="get" action="/recruiting/activity"><label>Show<select name="kind">${['all','availability','contract','representation','camp','antidoping','injury'].map(v=>`<option value="${v}"${kind===v?' selected':''}>${v==='all'?'Everything':v==='availability'?'Free agency, release & expiration':v==='contract'?'All contract events':v==='representation'?'Representation changes':v==='camp'?'Camp/team changes':v==='antidoping'?'Anti-doping status':'Injury & availability'}</option>`).join('')}</select></label><button class="button primary" type="submit">Filter feed</button></form></section>
+  <section class="intel-filter-panel"><form method="get" action="/recruiting/activity"><label>Show<select name="kind">${['all','availability','contract','representation','camp','coach','antidoping','injury'].map(v=>`<option value="${v}"${kind===v?' selected':''}>${v==='all'?'Everything':v==='availability'?'Free agency, release & expiration':v==='contract'?'All contract events':v==='representation'?'Representation changes':v==='camp'?'Camp/team changes':v==='coach'?'Coach changes':v==='antidoping'?'Anti-doping status':'Injury & availability'}</option>`).join('')}</select></label><button class="button primary" type="submit">Filter feed</button></form></section>
   <section class="candidate-section"><div class="section-heading"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>${rows.length} event${rows.length===1?'':'s'}</h2></div><p class="queue-note">Most recent first · publicly reported evidence only · does not include unverified discovery candidates.</p></div><div class="activity-feed">${rowsHtml||'<div class="recruit-empty">No publicly reported contract or representation events match this filter yet.</div>'}</div></section>`;
   const script=`<script>(()=>{document.querySelectorAll('[data-watch]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{const r=await fetch('/api/admin/recruiting/watchlist',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({profile_slug:btn.dataset.watch})}),j=await r.json();if(!r.ok)throw new Error(j.error||'Request failed');btn.textContent='✓ Watching';}catch(err){btn.textContent='Retry';btn.disabled=false;}}));})();</script>`;
   return new Response(shell(bodyHtml,script),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-robots-tag':'noindex,nofollow'}});
