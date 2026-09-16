@@ -27,6 +27,24 @@ test('registers Sherdog, UFC.com, BJPenn.com and MMA Mania as coach-intel source
   assert.equal(COACH_DISCOVERY_SOURCES.find(row=>row.slug==='mmafighting-coach-news'),undefined);
 });
 
+test('registers LowKickMMA, MiddleEasy and Cageside Press as additional coach-intel sources, confirmed reachable by the real fetch mechanism (FightBookMMA was tried and dropped, see lib comment)',()=>{
+  const lowkick=COACH_DISCOVERY_SOURCES.find(row=>row.slug==='lowkickmma-coach-news');
+  assert.ok(lowkick);
+  assert.equal(lowkick.host,'www.lowkickmma.com');
+  assert.equal(lowkick.kind,'rss');
+
+  const middleeasy=COACH_DISCOVERY_SOURCES.find(row=>row.slug==='middleeasy-coach-news');
+  assert.ok(middleeasy);
+  assert.equal(middleeasy.host,'middleeasy.com');
+  assert.equal(middleeasy.contentSelector,'.elementor-widget-theme-post-content');
+
+  const cageside=COACH_DISCOVERY_SOURCES.find(row=>row.slug==='cagesidepress-coach-news');
+  assert.ok(cageside);
+  assert.equal(cageside.host,'cagesidepress.com');
+
+  assert.equal(COACH_DISCOVERY_SOURCES.find(row=>row.slug==='fightbookmma-coach-news'),undefined);
+});
+
 test('real, verified coach-change headlines are recognized (Henry Cejudo/Eric Albarracin, Ilia Topuria)',()=>{
   // Verified against real reporting: "UFC news, rumors: Henry Cejudo parts with longtime coach" (CBS
   // Sports), body text "The former two-division champion handed longtime coach Eric Albarracin his

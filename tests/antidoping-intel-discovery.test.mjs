@@ -22,6 +22,24 @@ test('registers the UFC Anti-Doping Program listing and Sherdog as discovery sou
   assert.equal(sherdogSource.host,'www.sherdog.com');
 });
 
+test('registers LowKickMMA, MiddleEasy and Cageside Press as additional antidoping-intel sources, confirmed reachable by the real fetch mechanism (FightBookMMA was tried and dropped, see lib comment)',()=>{
+  const lowkick=ANTIDOPING_DISCOVERY_SOURCES.find(row=>row.slug==='lowkickmma-antidoping-news');
+  assert.ok(lowkick);
+  assert.equal(lowkick.host,'www.lowkickmma.com');
+  assert.equal(lowkick.kind,'rss');
+
+  const middleeasy=ANTIDOPING_DISCOVERY_SOURCES.find(row=>row.slug==='middleeasy-antidoping-news');
+  assert.ok(middleeasy);
+  assert.equal(middleeasy.host,'middleeasy.com');
+  assert.equal(middleeasy.contentSelector,'.elementor-widget-theme-post-content');
+
+  const cageside=ANTIDOPING_DISCOVERY_SOURCES.find(row=>row.slug==='cagesidepress-antidoping-news');
+  assert.ok(cageside);
+  assert.equal(cageside.host,'cagesidepress.com');
+
+  assert.equal(ANTIDOPING_DISCOVERY_SOURCES.find(row=>row.slug==='fightbookmma-antidoping-news'),undefined);
+});
+
 test('real, verified anti-doping headlines are recognized across all five event types',()=>{
   // Every phrase confirmed against real reporting: Ben Rothwell/Tom Lawlor/Carlos Diego Ferreira/Nick
   // Diaz were all really "flagged for potential" violations and provisionally suspended; Mohammed

@@ -12,9 +12,21 @@ export {articleText};
 // these stories independently (confirmed: "UFC Heavyweight Suspended Until
 // 2028 After Failed Drug Test") and is already proven reachable by this
 // pipeline's real fetch() from the contract/camp-intel work.
+// Widened to match the same reputable-trade-reporting bar already used for camp/coach/injury
+// discovery: LowKickMMA.com, MiddleEasy.com and CagesidePress.com all confirmed reachable by this
+// pipeline's real Node fetch() (not just curl) and carrying real, current MMA news. MiddleEasy runs
+// on Elementor, whose real post body lives under `.elementor-widget-theme-post-content` -- the
+// generic article/entry-content fallback in articleText() lands on an unrelated related-posts teaser
+// there instead, so it needs its own contentSelector the way Sherdog does. FightBookMMA.com was also
+// tried: its /feed/ redirects to its own homepage under this pipeline's real fetch(redirect:'follow'),
+// landing on homepage HTML instead of feed content -- the same "resolve differently under Node fetch
+// than curl" trap MMAFighting.com hit, so it's left out rather than shipped broken.
 export const ANTIDOPING_DISCOVERY_SOURCES=[
   {slug:'ufcantidoping-news',publisher:'UFC Anti-Doping Program',sourceType:'promotion_direct',kind:'html',url:'https://ufcantidoping.com/news',host:'www.ufc.com',path:/^\/news\/[a-z0-9-]+$/i,titleSignalOnly:true},
-  {slug:'sherdog-antidoping-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'}
+  {slug:'sherdog-antidoping-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
+  {slug:'lowkickmma-antidoping-news',publisher:'LowKickMMA',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.lowkickmma.com/feed/',host:'www.lowkickmma.com',path:/^\/[a-z0-9-]+\/$/i},
+  {slug:'middleeasy-antidoping-news',publisher:'MiddleEasy',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://middleeasy.com/feed/',host:'middleeasy.com',path:/^\/[a-z0-9-]+\/[a-z0-9-]+\/$/i,contentSelector:'.elementor-widget-theme-post-content'},
+  {slug:'cagesidepress-antidoping-news',publisher:'Cageside Press',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://cagesidepress.com/feed/',host:'cagesidepress.com',path:/^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i}
 ];
 
 // Vocabulary verified against real reporting: Ben Rothwell/Tom Lawlor/Carlos

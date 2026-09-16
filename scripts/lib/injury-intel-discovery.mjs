@@ -15,11 +15,22 @@ export {articleText};
 // returns 200 to curl but a consistent 403 to this pipeline's actual Node fetch() (a TLS-fingerprint-
 // level bot check, not a UA-string one), the same "looks fine under curl, blocked for real" trap
 // documented in camp-intel-discovery.mjs.
+// Widened again: LowKickMMA.com, MiddleEasy.com and CagesidePress.com all confirmed reachable by this
+// pipeline's real Node fetch() (not just curl) and carrying real, current MMA news. MiddleEasy runs
+// on Elementor, whose real post body lives under `.elementor-widget-theme-post-content` -- the
+// generic article/entry-content fallback in articleText() lands on an unrelated related-posts teaser
+// there instead, so it needs its own contentSelector the way Sherdog does. FightBookMMA.com was also
+// tried: its /feed/ redirects to its own homepage under this pipeline's real fetch(redirect:'follow'),
+// landing on homepage HTML instead of feed content -- the same "resolve differently under Node fetch
+// than curl" trap MMAFighting.com hit, so it's left out rather than shipped broken.
 export const INJURY_DISCOVERY_SOURCES=[
   {slug:'sherdog-injury-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
   {slug:'ufc-news-injury',publisher:'UFC',sourceType:'promotion_direct',kind:'html',url:'https://www.ufc.com/trending/all',host:'www.ufc.com',path:/\/news\//i},
   {slug:'bjpenn-injury-news',publisher:'BJPenn.com',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.bjpenn.com/feed/',host:'www.bjpenn.com',path:/\/mma-news\//i},
-  {slug:'mmamania-injury-news',publisher:'MMA Mania',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.mmamania.com/rss/index.xml',host:'www.mmamania.com',path:/^\/[a-z0-9-]+\/\d+\//i}
+  {slug:'mmamania-injury-news',publisher:'MMA Mania',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.mmamania.com/rss/index.xml',host:'www.mmamania.com',path:/^\/[a-z0-9-]+\/\d+\//i},
+  {slug:'lowkickmma-injury-news',publisher:'LowKickMMA',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.lowkickmma.com/feed/',host:'www.lowkickmma.com',path:/^\/[a-z0-9-]+\/$/i},
+  {slug:'middleeasy-injury-news',publisher:'MiddleEasy',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://middleeasy.com/feed/',host:'middleeasy.com',path:/^\/[a-z0-9-]+\/[a-z0-9-]+\/$/i,contentSelector:'.elementor-widget-theme-post-content'},
+  {slug:'cagesidepress-injury-news',publisher:'Cageside Press',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://cagesidepress.com/feed/',host:'cagesidepress.com',path:/^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i}
 ];
 
 // Vocabulary verified against real, live reporting (Sherdog/MMA Fighting/BJPenn.com, September 2026):
