@@ -36,8 +36,15 @@ export const CONTRACT_DISCOVERY_SOURCES=[
       {title:'Liam Pitts earns an OKTAGON contract through AFN',url:'https://oktagonmma.com/en/fighters/liam-pitts/',publishedAt:null},
       {title:'Patrik Kincl signed a contract with OKTAGON MMA in 2021',url:'https://oktagonmma.com/en/blog/patrik-kincl-everything-you-ever-wanted-to-know/',publishedAt:'2023-10-26'}
     ]},
-  {slug:'mma-fighting',publisher:'MMA Fighting',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'html',url:'https://www.mmafighting.com/',host:'www.mmafighting.com',path:/\/(?:ufc|pfl|mma-news|latest-news)\//i,contentSelector:'.duet--layout--entry-body'},
+  // MMA Fighting was here (kind:'html', https://www.mmafighting.com/) but is no longer: a dry run
+  // during the camp/coach/injury/anti-doping source-widening work confirmed its homepage now returns
+  // a consistent 403 to this pipeline's real Node fetch() (both /rss/current and / itself) -- the same
+  // TLS-fingerprint-level bot check documented in the other discovery libs, not a UA-string one.
+  // Removed rather than left in the list silently failing every run.
   {slug:'sherdog-news-rss',publisher:'Sherdog',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
+  {slug:'lowkickmma-contract-news',publisher:'LowKickMMA',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://www.lowkickmma.com/feed/',host:'www.lowkickmma.com',path:/^\/[a-z0-9-]+\/$/i},
+  {slug:'middleeasy-contract-news',publisher:'MiddleEasy',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://middleeasy.com/feed/',host:'middleeasy.com',path:/^\/[a-z0-9-]+\/[a-z0-9-]+\/$/i,contentSelector:'.elementor-widget-theme-post-content'},
+  {slug:'cagesidepress-contract-news',publisher:'Cageside Press',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://cagesidepress.com/feed/',host:'cagesidepress.com',path:/^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i},
   {slug:'tuff-n-uff-rss',publisher:'Tuff-N-Uff',sourceType:'promotion_direct',promotionSlug:'tuff-n-uff',kind:'rss',url:'https://tuffnuff.com/feed/',host:'tuffnuff.com',path:/^\/\d{4}\/\d{1,2}\/\d{1,2}\/[a-z0-9-]+\/?$/i},
   {slug:'inthecage-pl-rss',publisher:'InTheCage.pl',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://inthecage.pl/feed/',host:'inthecage.pl',path:/^\/[a-z0-9-]+\/$/i,lang:'pl'},
   {slug:'valetudo-ru-rss',publisher:'Valetudo.Ru',sourceType:'reputable_trade_reporting',promotionSlug:null,kind:'rss',url:'https://valetudo.ru/mma/news?format=feed&type=rss',host:'valetudo.ru',path:/^\/mma\/news\/[a-z0-9-]+$/i,lang:'ru'},

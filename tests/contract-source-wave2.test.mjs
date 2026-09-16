@@ -101,10 +101,28 @@ test('promotion attribution supports multi-fighter award sentences',()=>{
 });
 
 
-test('MMA Fighting extraction is scoped to entry body, not article recirculation',()=>{
-  const source=bySlug('mma-fighting');
+test("a source-declared contentSelector scopes extraction to the real entry body, not article recirculation (MMA Fighting's own shape before it was dropped for a 403)",()=>{
+  const source={contentSelector:'.duet--layout--entry-body'};
   const html='<article><div class="duet--layout--entry-body"><p>Christian Natividad earned a UFC contract.</p></div><div class="duet--layout--article-recirc"><p>Jake Paul shows interest in signing Michael Page.</p></div></article>';
   const body=articleText(html,source);
   assert.match(body,/Christian Natividad earned a UFC contract/);
   assert.doesNotMatch(body,/Michael Page/);
+});
+
+test('registers LowKickMMA, MiddleEasy and Cageside Press as additional contract-intel sources, and no longer registers the dropped MMA Fighting source',()=>{
+  const lowkick=bySlug('lowkickmma-contract-news');
+  assert.ok(lowkick);
+  assert.equal(lowkick.host,'www.lowkickmma.com');
+  assert.equal(lowkick.kind,'rss');
+
+  const middleeasy=bySlug('middleeasy-contract-news');
+  assert.ok(middleeasy);
+  assert.equal(middleeasy.host,'middleeasy.com');
+  assert.equal(middleeasy.contentSelector,'.elementor-widget-theme-post-content');
+
+  const cageside=bySlug('cagesidepress-contract-news');
+  assert.ok(cageside);
+  assert.equal(cageside.host,'cagesidepress.com');
+
+  assert.equal(bySlug('mma-fighting'),undefined);
 });
