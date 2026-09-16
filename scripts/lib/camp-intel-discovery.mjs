@@ -13,9 +13,19 @@ export {articleText};
 // Robbie Lawler Leaves American Top Team". Reusing a proven-reachable source
 // avoids re-learning the ESPN Mexico lesson (a source that looks perfect
 // under manual curl verification but is bot-walled for Node's real fetch()).
+// BJPenn.com (RSS 2.0) and MMAMania.com (Atom, SB Nation/Vox Media) confirmed reachable by this
+// pipeline's real fetch() and carrying real camp-change/coach reporting (e.g. BJPenn.com's live feed
+// included "Ilia Topuria's coach shuts down imminent UFC comeback"). Widens the net beyond the
+// original two sources, which mostly surface only Sherdog/UFC's own camp coverage. MMAFighting.com
+// was also tried: it returns 200 to curl but a consistent 403 to this pipeline's actual Node fetch()
+// (a TLS-fingerprint-level bot check, not a UA-string one -- confirmed by testing with the exact same
+// UA in both), the same "looks fine under curl, blocked for real" trap the ESPN Mexico source hit
+// during contract-intel discovery. Left out rather than shipped broken.
 export const CAMP_DISCOVERY_SOURCES=[
   {slug:'sherdog-camp-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
-  {slug:'ufc-news-camp',publisher:'UFC',sourceType:'promotion_direct',kind:'html',url:'https://www.ufc.com/trending/all',host:'www.ufc.com',path:/\/news\//i}
+  {slug:'ufc-news-camp',publisher:'UFC',sourceType:'promotion_direct',kind:'html',url:'https://www.ufc.com/trending/all',host:'www.ufc.com',path:/\/news\//i},
+  {slug:'bjpenn-camp-news',publisher:'BJPenn.com',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.bjpenn.com/feed/',host:'www.bjpenn.com',path:/\/mma-news\//i},
+  {slug:'mmamania-camp-news',publisher:'MMA Mania',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.mmamania.com/rss/index.xml',host:'www.mmamania.com',path:/^\/[a-z0-9-]+\/\d+\//i}
 ];
 
 // Verified, publicly documented real training camps (Wikipedia: "List of
@@ -106,8 +116,15 @@ function dedupeArticles(rows){const seen=new Set();return rows.filter(row=>{if(s
 export function parseCampListing(body,source){
   if(source.kind==='rss'){
     const dom=new JSDOM(String(body||''),{contentType:'text/xml'}),doc=dom.window.document,out=[];
-    for(const item of doc.querySelectorAll('item')){
-      const title=clean(item.querySelector('title')?.textContent),link=clean(item.querySelector('link')?.textContent),summary=clean(item.querySelector('description')?.textContent),publishedAt=clean(item.querySelector('pubDate')?.textContent);
+    // RSS 2.0 (<item>/<link> text/<description>/<pubDate>) and Atom (<entry>/<link href>/<summary>/<published>)
+    // both appear across real MMA feeds -- MMAFighting.com and MMAMania.com (SB Nation/Vox Media) publish
+    // Atom, confirmed directly against their live feeds, while Sherdog and BJPenn.com publish RSS 2.0.
+    for(const item of doc.querySelectorAll('item,entry')){
+      const isAtom=item.tagName.toLowerCase()==='entry';
+      const title=clean(item.querySelector('title')?.textContent);
+      const link=isAtom?clean(item.querySelector('link[rel="alternate"]')?.getAttribute('href')||item.querySelector('link')?.getAttribute('href')):clean(item.querySelector('link')?.textContent);
+      const summary=clean(item.querySelector('summary')?.textContent||item.querySelector('description')?.textContent);
+      const publishedAt=clean(item.querySelector('pubDate')?.textContent||item.querySelector('published')?.textContent);
       const signalText=source.titleSignalOnly?title:`${title} ${summary}`;
       if(link&&approvedUrl(link,source)&&hasCampSignal(signalText))out.push({title,url:link,summary,publishedAt});
     }

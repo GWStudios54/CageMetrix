@@ -20,6 +20,59 @@ test('registers Sherdog and UFC.com as the camp-intel discovery sources, both re
   assert.equal(ufcSource.host,'www.ufc.com');
 });
 
+test('registers BJPenn.com and MMA Mania as additional camp-intel sources, confirmed reachable by the real fetch mechanism (MMA Fighting was tried and dropped, see lib comment)',()=>{
+  const bjpenn=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='bjpenn-camp-news');
+  assert.ok(bjpenn);
+  assert.equal(bjpenn.publisher,'BJPenn.com');
+  assert.equal(bjpenn.sourceType,'reputable_trade_reporting');
+  assert.equal(bjpenn.kind,'rss');
+  assert.equal(bjpenn.host,'www.bjpenn.com');
+
+  const mmaMania=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='mmamania-camp-news');
+  assert.ok(mmaMania);
+  assert.equal(mmaMania.publisher,'MMA Mania');
+  assert.equal(mmaMania.kind,'rss');
+  assert.equal(mmaMania.host,'www.mmamania.com');
+
+  assert.equal(CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='mmafighting-camp-news'),undefined);
+});
+
+test('Atom feeds (MMA Mania\'s real format: <entry>/<link rel="alternate" href>/<summary>/<published>) parse the same as RSS 2.0',()=>{
+  const mmaMania=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='mmamania-camp-news');
+  const atom=`<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">
+    <entry>
+      <title type="html"><![CDATA[Kyoji Horiguchi Joins American Top Team Ahead Of Title Push]]></title>
+      <link rel="alternate" type="text/html" href="https://www.mmamania.com/ufc-news/510999/kyoji-horiguchi-joins-american-top-team" />
+      <id>https://www.mmamania.com/?p=510999</id>
+      <published>2026-09-15T21:13:56-04:00</published>
+      <summary type="html"><![CDATA[Flyweight contender Kyoji Horiguchi has relocated to South Florida and joined American Top Team.]]></summary>
+    </entry>
+    <entry>
+      <title type="html"><![CDATA[UFC 331 Fight Card Announced]]></title>
+      <link rel="alternate" type="text/html" href="https://www.mmamania.com/ufc-news/511000/ufc-331-fight-card" />
+      <id>https://www.mmamania.com/?p=511000</id>
+      <published>2026-09-15T20:00:00-04:00</published>
+      <summary type="html"><![CDATA[The full card for UFC 331 has been announced.]]></summary>
+    </entry>
+  </feed>`;
+  const rows=parseCampListing(atom,mmaMania);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].title,'Kyoji Horiguchi Joins American Top Team Ahead Of Title Push');
+  assert.equal(rows[0].url,'https://www.mmamania.com/ufc-news/510999/kyoji-horiguchi-joins-american-top-team');
+  assert.match(rows[0].publishedAt,/2026-09-15/);
+
+  const candidates=campCandidateRows(
+    {title:rows[0].title,url:rows[0].url,publishedAt:rows[0].publishedAt},
+    mmaMania,
+    rows[0].summary,
+    [{source_key:'mma',source_fighter_id:'7001',fighter_name:'Kyoji Horiguchi'}]
+  );
+  assert.equal(candidates.length,1);
+  assert.equal(candidates[0].fighterName,'Kyoji Horiguchi');
+  assert.equal(candidates[0].campSlug,'american-top-team');
+  assert.equal(candidates[0].detectedEventType,'joined');
+});
+
 test('a UFC.com camp-joining story queues a candidate with exact identity, same as Sherdog',()=>{
   const ufcSource=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='ufc-news-camp');
   const html='<main><article><a href="https://www.ufc.com/news/kyoji-horiguchi-joins-american-top-team">Kyoji Horiguchi Joins American Top Team Ahead Of Title Push</a></article><article><a href="https://www.ufc.com/news/ufc-331-fight-card">UFC 331 Fight Card Announced</a></article></main>';

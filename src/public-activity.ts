@@ -7,7 +7,7 @@ const escape=(value:unknown)=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&a
 
 const KIND_LABEL:Record<string,string>={
   all:'Everything',availability:'Free agency, release & expiration',contract:'Contract events',
-  representation:'Representation changes',camp:'Camp/team changes',antidoping:'Anti-doping status'
+  representation:'Representation changes',camp:'Camp/team changes',antidoping:'Anti-doping status',injury:'Injury & availability'
 };
 
 function shell(title:string,description:string,path:string,body:string){
