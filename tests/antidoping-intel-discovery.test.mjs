@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {ANTIDOPING_DISCOVERY_SOURCES,antidopingCandidateRows,detectAntidopingEventType,hasAntidopingSignal,parseAntidopingListing} from '../scripts/lib/antidoping-intel-discovery.mjs';
 
 const ufcSource=ANTIDOPING_DISCOVERY_SOURCES.find(row=>row.slug==='ufcantidoping-news');
@@ -100,4 +101,16 @@ test('an anti-doping statement queues a candidate with exact identity, never fuz
     [{source_key:'mma',source_fighter_id:'9',fighter_name:'Someone Else'}]
   );
   assert.equal(noMatch.length,0);
+});
+
+test('anti-doping discovery runs on a schedule against production, same shape as camp/contract/injury discovery, and only ever queues candidates',()=>{
+  const workflow=fs.readFileSync('.github/workflows/antidoping-intel-discovery.yml','utf8');
+  assert.match(workflow,/schedule:\s*\n\s*- cron: '\d/);
+  assert.match(workflow,/workflow_dispatch:/);
+  assert.match(workflow,/npx wrangler d1 migrations apply cagemetrix --remote/);
+  assert.match(workflow,/node scripts\/discover-antidoping-intel\.mjs --remote/);
+  assert.match(workflow,/CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+  const discovery=fs.readFileSync('scripts/discover-antidoping-intel.mjs','utf8');
+  assert.match(discovery,/INSERT OR IGNORE INTO antidoping_intel_candidates/);
+  assert.doesNotMatch(discovery,/INSERT\s+(?:OR\s+\w+\s+)?INTO fighter_antidoping_events/i);
 });
