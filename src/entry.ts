@@ -25,6 +25,8 @@ import {coachAdminApi} from './coach-admin.ts';
 import {coachCandidatesAdminApi} from './coach-candidates.ts';
 import {coachReviewPage} from './coach-review.ts';
 import {enhanceFighterCoachContext} from './coach-intel-context.ts';
+import {amateurRecordCandidatesAdminApi} from './amateur-record-candidates.ts';
+import {amateurRecordReviewPage} from './amateur-record-review.ts';
 import {enhanceFighterCampContext} from './camp-intel-context.ts';
 import {campApi,campPage,campsApi,campsPage} from './camp-directory.ts';
 import {publicActivityPage} from './public-activity.ts';
@@ -119,6 +121,7 @@ export default {
     if(path==='/api/admin/talent/injuries/candidates'||path==='/api/admin/talent/injuries/candidates/')return injuryCandidatesAdminApi(request,env);
     if(path==='/api/admin/talent/coaches'||path==='/api/admin/talent/coaches/')return coachAdminApi(request,env);
     if(path==='/api/admin/talent/coaches/candidates'||path==='/api/admin/talent/coaches/candidates/')return coachCandidatesAdminApi(request,env);
+    if(path==='/api/admin/talent/amateur-record/candidates'||path==='/api/admin/talent/amateur-record/candidates/')return amateurRecordCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
     if(path==='/api/admin/recruiting/openings'||path==='/api/admin/recruiting/openings/')return recruitingOpeningsApi(request,env);
@@ -222,6 +225,10 @@ export default {
     if(request.method==='GET'&&(path==='/recruiting/coaches'||path==='/recruiting/coaches/')){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/coaches${url.search}`,request.url),308);
       return page(coachReviewPage(request,env),request,env);
+    }
+    if(request.method==='GET'&&(path==='/recruiting/amateur-records'||path==='/recruiting/amateur-records/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/amateur-records${url.search}`,request.url),308);
+      return page(amateurRecordReviewPage(request,env),request,env);
     }
     const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&recruitingPageMatch){
