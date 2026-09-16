@@ -306,7 +306,13 @@ function dedupeArticles(rows){const seen=new Set();return rows.filter(row=>{if(s
 
 export function articleText(html,source={}){
   const dom=new JSDOM(String(html||'')),doc=dom.window.document;
-  for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form,aside,[role="complementary"],.related_articles,.latest_articles,.latest_features,.tools_list,.pagination,.right-tabs-content,[class*="recommend"],[class*="outbrain"]'))node.remove();
+  // [class*="related"] catches BJPenn.com's own related-posts river (<section class="related
+  // os-related">), confirmed live: its "Read more" excerpt blocks for OTHER, unrelated stories were
+  // being swept into the block scan alongside the real article, producing candidates that misattribute
+  // one story's fighters/events to a completely different article. Kept broad (a class-name substring
+  // match, not BJPenn's exact class) so it also covers other sites' equivalent widgets without needing
+  // a fix per site.
+  for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form,aside,[role="complementary"],.related_articles,.latest_articles,.latest_features,.tools_list,.pagination,.right-tabs-content,[class*="recommend"],[class*="outbrain"],[class*="related"]'))node.remove();
   const root=(source.contentSelector?doc.querySelector(source.contentSelector):null)||doc.querySelector('article .body_content,article .article-content,article .entry-content,article,main')||doc.body;
   const blocks=[];const seen=new Set();
   for(const node of root?.querySelectorAll('h2,h3,p,li')||[]){const value=clean(node.textContent);if(value.length<12||seen.has(value))continue;seen.add(value);blocks.push(value);}

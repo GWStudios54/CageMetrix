@@ -98,6 +98,19 @@ test('article extraction preserves semantic blocks instead of flattening the ent
   assert.doesNotMatch(body,/Contract story comparing/);
 });
 
+test('article extraction excludes a related-posts river so one article\'s events are never misattributed to fighters named only in another story\'s teaser',()=>{
+  // Mirrors a real bug found live on BJPenn.com: its article pages append a
+  // `<section class="related os-related">` river of "Read more" excerpt blocks for OTHER, unrelated
+  // stories, right after the real content -- with no distinguishing tag our old exclusion list caught.
+  // Those excerpts were getting swept into the block scan, producing candidates that misattributed one
+  // story's fighters/events to a completely different article (e.g. a Renato Moicano quote-excerpt
+  // teaser landing inside the Brian Ortega withdrawal article's extracted text).
+  const html=`<article class="entry-content"><p>Real Fighter has withdrawn from his upcoming bout due to injury.</p></article><section class="related os-related"><div class="os-feed-item"><p class="os-feed-excerpt">Other Fighter scorches rival after unrelated pullout drama.</p></div></section>`;
+  const body=articleText(html);
+  assert.match(body,/Real Fighter has withdrawn/);
+  assert.doesNotMatch(body,/Other Fighter scorches rival/);
+});
+
 test('signal-local discovery excludes comparison and opponent names from contract candidates',()=>{
   const source={publisher:'UFC',sourceType:'promotion_direct',promotionSlug:'ufc'};
   const profiles=[
