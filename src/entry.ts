@@ -17,6 +17,10 @@ import {campReviewPage} from './camp-review.ts';
 import {antidopingAdminApi} from './antidoping-admin.ts';
 import {antidopingCandidatesAdminApi} from './antidoping-candidates.ts';
 import {antidopingReviewPage} from './antidoping-review.ts';
+import {injuryAdminApi} from './injury-admin.ts';
+import {injuryCandidatesAdminApi} from './injury-candidates.ts';
+import {injuryReviewPage} from './injury-review.ts';
+import {enhanceFighterInjuryContext} from './injury-intel-context.ts';
 import {enhanceFighterCampContext} from './camp-intel-context.ts';
 import {campApi,campPage,campsApi,campsPage} from './camp-directory.ts';
 import {publicActivityPage} from './public-activity.ts';
@@ -107,6 +111,8 @@ export default {
     if(path==='/api/admin/talent/camps/candidates'||path==='/api/admin/talent/camps/candidates/')return campCandidatesAdminApi(request,env);
     if(path==='/api/admin/talent/antidoping'||path==='/api/admin/talent/antidoping/')return antidopingAdminApi(request,env);
     if(path==='/api/admin/talent/antidoping/candidates'||path==='/api/admin/talent/antidoping/candidates/')return antidopingCandidatesAdminApi(request,env);
+    if(path==='/api/admin/talent/injuries'||path==='/api/admin/talent/injuries/')return injuryAdminApi(request,env);
+    if(path==='/api/admin/talent/injuries/candidates'||path==='/api/admin/talent/injuries/candidates/')return injuryCandidatesAdminApi(request,env);
     const talentAdminMatch=path.match(/^\/api\/admin\/talent\/(agency|opportunity)\/?$/);
     if(talentAdminMatch)return talentAdminApi(request,env,talentAdminMatch[1]);
     if(path==='/api/admin/recruiting/openings'||path==='/api/admin/recruiting/openings/')return recruitingOpeningsApi(request,env);
@@ -203,6 +209,10 @@ export default {
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/antidoping${url.search}`,request.url),308);
       return page(antidopingReviewPage(request,env),request,env);
     }
+    if(request.method==='GET'&&(path==='/recruiting/injuries'||path==='/recruiting/injuries/')){
+      if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/injuries${url.search}`,request.url),308);
+      return page(injuryReviewPage(request,env),request,env);
+    }
     const recruitingPageMatch=path.match(/^\/recruiting\/openings\/([1-9]\d*)\/?$/);
     if(request.method==='GET'&&recruitingPageMatch){
       if(path.endsWith('/'))return Response.redirect(new URL(`/recruiting/openings/${recruitingPageMatch[1]}`,request.url),308);
@@ -225,8 +235,9 @@ export default {
       dossier=await enhanceFighterTalentContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterContractContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterCampContext(dossier,env,fighterPageMatch[1]);
-      dossier=await enhanceFighterAmateurRecordContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterAntidopingContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterAmateurRecordContext(dossier,env,fighterPageMatch[1]);
+      dossier=await enhanceFighterInjuryContext(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterScoutScore(dossier,env,fighterPageMatch[1]);
       dossier=await enhanceFighterIntel(dossier,env,fighterPageMatch[1]);
       return page(dossier,request,env);

@@ -32,13 +32,15 @@ test('representation and camp events both date by when the relationship actually
   assert.equal(occurrences.length,2);
 });
 
-test('the camp and antidoping filters are mutually exclusive with contract/representation/each other',()=>{
+test('the camp, antidoping and injury filters are mutually exclusive with contract/representation/each other',()=>{
   const source=read('src/recruiting-activity.ts');
-  assert.match(source,/kind==='representation'\|\|kind==='camp'\|\|kind==='antidoping'\?Promise\.resolve/);
-  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='camp'\|\|kind==='antidoping'\?Promise\.resolve/);
-  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='representation'\|\|kind==='antidoping'\?Promise\.resolve/);
-  assert.match(source,/kind==='availability'\|\|kind==='contract'\|\|kind==='representation'\|\|kind==='camp'\?Promise\.resolve/);
-  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp','antidoping'\]\)/);
+  assert.match(source,/const ONLY_KIND=\(kind:string,mine:string\)=>kind!=='all'&&kind!==mine;/);
+  assert.match(source,/ONLY_KIND\(kind,'contract'\)&&kind!=='availability'\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'representation'\)\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'camp'\)\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'antidoping'\)\?Promise\.resolve/);
+  assert.match(source,/kind==='availability'\|\|ONLY_KIND\(kind,'injury'\)\?Promise\.resolve/);
+  assert.match(source,/KIND=new Set\(\['all','availability','contract','representation','camp','antidoping','injury'\]\)/);
 });
 
 test('camp activity rows show a resolved camp name and join/leave framing',()=>{
