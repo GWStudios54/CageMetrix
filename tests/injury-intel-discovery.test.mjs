@@ -27,6 +27,24 @@ test('registers Sherdog, UFC.com, BJPenn.com and MMA Mania as injury-intel sourc
   assert.equal(INJURY_DISCOVERY_SOURCES.find(row=>row.slug==='mmafighting-injury-news'),undefined);
 });
 
+test('registers LowKickMMA, MiddleEasy and Cageside Press as additional injury-intel sources, confirmed reachable by the real fetch mechanism (FightBookMMA was tried and dropped, see lib comment)',()=>{
+  const lowkick=INJURY_DISCOVERY_SOURCES.find(row=>row.slug==='lowkickmma-injury-news');
+  assert.ok(lowkick);
+  assert.equal(lowkick.host,'www.lowkickmma.com');
+  assert.equal(lowkick.kind,'rss');
+
+  const middleeasy=INJURY_DISCOVERY_SOURCES.find(row=>row.slug==='middleeasy-injury-news');
+  assert.ok(middleeasy);
+  assert.equal(middleeasy.host,'middleeasy.com');
+  assert.equal(middleeasy.contentSelector,'.elementor-widget-theme-post-content');
+
+  const cageside=INJURY_DISCOVERY_SOURCES.find(row=>row.slug==='cagesidepress-injury-news');
+  assert.ok(cageside);
+  assert.equal(cageside.host,'cagesidepress.com');
+
+  assert.equal(INJURY_DISCOVERY_SOURCES.find(row=>row.slug==='fightbookmma-injury-news'),undefined);
+});
+
 test('real, verified withdrawal headlines are recognized (Brian Ortega/UFC 331, Deen The Great/Misfits)',()=>{
   assert.equal(hasInjurySignal('Brian Ortega releases statement after withdrawing from UFC 331 fight'),true);
   assert.equal(detectInjuryEventType('Brian Ortega releases statement after withdrawing from UFC 331 fight'),'withdrawal');

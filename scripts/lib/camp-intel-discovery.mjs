@@ -21,11 +21,24 @@ export {articleText};
 // (a TLS-fingerprint-level bot check, not a UA-string one -- confirmed by testing with the exact same
 // UA in both), the same "looks fine under curl, blocked for real" trap the ESPN Mexico source hit
 // during contract-intel discovery. Left out rather than shipped broken.
+// Widened again: LowKickMMA.com, MiddleEasy.com and CagesidePress.com all confirmed reachable by this
+// pipeline's real Node fetch() (not just curl) and carrying real, current MMA news (verified live:
+// LowKickMMA's "Nate Diaz Drops Confidence Bomb on Conor McGregor Trilogy", CagesidePress's UFC 331
+// fighter-camp coverage). MiddleEasy runs on Elementor, whose real post body lives under
+// `.elementor-widget-theme-post-content` -- the generic article/entry-content fallback in
+// articleText() lands on an unrelated related-posts teaser there instead, so it needs its own
+// contentSelector the way Sherdog does. FightBookMMA.com was also tried: its /feed/ redirects to its
+// own homepage under this pipeline's real fetch(redirect:'follow'), landing on homepage HTML instead
+// of feed content -- the same "resolve differently under Node fetch than curl" trap MMAFighting.com
+// and ESPN Mexico hit, so it's left out rather than shipped broken.
 export const CAMP_DISCOVERY_SOURCES=[
   {slug:'sherdog-camp-news',publisher:'Sherdog',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.sherdog.com/rss/news2.xml',host:'www.sherdog.com',path:/\/news\/news\//i,contentSelector:'.article .body_content'},
   {slug:'ufc-news-camp',publisher:'UFC',sourceType:'promotion_direct',kind:'html',url:'https://www.ufc.com/trending/all',host:'www.ufc.com',path:/\/news\//i},
   {slug:'bjpenn-camp-news',publisher:'BJPenn.com',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.bjpenn.com/feed/',host:'www.bjpenn.com',path:/\/mma-news\//i},
-  {slug:'mmamania-camp-news',publisher:'MMA Mania',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.mmamania.com/rss/index.xml',host:'www.mmamania.com',path:/^\/[a-z0-9-]+\/\d+\//i}
+  {slug:'mmamania-camp-news',publisher:'MMA Mania',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.mmamania.com/rss/index.xml',host:'www.mmamania.com',path:/^\/[a-z0-9-]+\/\d+\//i},
+  {slug:'lowkickmma-camp-news',publisher:'LowKickMMA',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://www.lowkickmma.com/feed/',host:'www.lowkickmma.com',path:/^\/[a-z0-9-]+\/$/i},
+  {slug:'middleeasy-camp-news',publisher:'MiddleEasy',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://middleeasy.com/feed/',host:'middleeasy.com',path:/^\/[a-z0-9-]+\/[a-z0-9-]+\/$/i,contentSelector:'.elementor-widget-theme-post-content'},
+  {slug:'cagesidepress-camp-news',publisher:'Cageside Press',sourceType:'reputable_trade_reporting',kind:'rss',url:'https://cagesidepress.com/feed/',host:'cagesidepress.com',path:/^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i}
 ];
 
 // Verified, publicly documented real training camps (Wikipedia: "List of

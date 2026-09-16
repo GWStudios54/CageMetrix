@@ -20,6 +20,24 @@ test('registers Sherdog and UFC.com as the camp-intel discovery sources, both re
   assert.equal(ufcSource.host,'www.ufc.com');
 });
 
+test('registers LowKickMMA, MiddleEasy and Cageside Press as additional camp-intel sources, confirmed reachable by the real fetch mechanism (FightBookMMA was tried and dropped, see lib comment)',()=>{
+  const lowkick=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='lowkickmma-camp-news');
+  assert.ok(lowkick);
+  assert.equal(lowkick.host,'www.lowkickmma.com');
+  assert.equal(lowkick.kind,'rss');
+
+  const middleeasy=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='middleeasy-camp-news');
+  assert.ok(middleeasy);
+  assert.equal(middleeasy.host,'middleeasy.com');
+  assert.equal(middleeasy.contentSelector,'.elementor-widget-theme-post-content');
+
+  const cageside=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='cagesidepress-camp-news');
+  assert.ok(cageside);
+  assert.equal(cageside.host,'cagesidepress.com');
+
+  assert.equal(CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='fightbookmma-camp-news'),undefined);
+});
+
 test('registers BJPenn.com and MMA Mania as additional camp-intel sources, confirmed reachable by the real fetch mechanism (MMA Fighting was tried and dropped, see lib comment)',()=>{
   const bjpenn=CAMP_DISCOVERY_SOURCES.find(row=>row.slug==='bjpenn-camp-news');
   assert.ok(bjpenn);
