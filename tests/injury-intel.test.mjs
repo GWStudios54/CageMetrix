@@ -65,7 +65,7 @@ test('injury context is wired into the fighter dossier chain after camp',()=>{
 
 test('injury events are folded into the unified market-activity feed (admin and public /wire) with their own filter kind',()=>{
   const activity=read('src/recruiting-activity.ts');
-  assert.match(activity,/KIND=new Set\(\['all','availability','contract','representation','camp','antidoping','injury'\]\)/);
+  assert.match(activity,/KIND=new Set\(\['all','availability','contract','representation','camp','coach','antidoping','injury'\]\)/);
   assert.match(activity,/FROM fighter_injury_events e/);
   assert.match(activity,/row\.kind==='injury'/);
   const wire=read('src/public-activity.ts');
