@@ -66,7 +66,7 @@ function sessionCookie(token:string){return `${SESSION_COOKIE}=${token}; Max-Age
 function fanCookie(id:string){return `${FAN_COOKIE}=${id}; Max-Age=31536000; Path=/; HttpOnly; Secure; SameSite=Lax`;}
 function clearSessionCookie(){return `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;}
 
-async function currentAccount(request:Request,db:D1Database){
+export async function currentAccount(request:Request,db:D1Database){
   const raw=cookieValue(request,SESSION_COOKIE);if(!raw||raw.length<30)return null;
   const tokenHash=await hash(raw);
   return db.prepare(`SELECT a.id,a.handle,a.display_name,a.bio,a.fan_voter_id,a.created_at

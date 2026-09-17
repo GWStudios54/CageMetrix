@@ -1,4 +1,5 @@
 import base from './index.ts';
+import {fantasyApi} from './fantasy.ts';
 import {fanRecord,getFanSummary,saveFanPrediction,saveFanScorecard} from './fans.ts';
 import {contributor,forgetContributor,rememberContributor,updateContributorProfile} from './contributors.ts';
 import {getContributorNotes,saveContributorNote} from './contributor-notes.ts';
@@ -51,6 +52,8 @@ export default {
     const canonical=canonicalRedirect(request);if(canonical)return canonical;
     const url=new URL(request.url);
 
+    if(url.pathname.startsWith('/api/fantasy/'))return fantasyApi(request,env);
+    if(request.method==='GET'&&/^\/fantasy(?:\/[0-9a-f-]{36})?\/?$/.test(url.pathname))return staticAsset(request,env,'/fantasy.html');
     if(url.pathname==='/api/scout')return scoutAsk(request,env);
     if(request.method==='GET'&&(url.pathname==='/scout'||url.pathname==='/scout/')){
       if(url.pathname.endsWith('/'))return Response.redirect(new URL('/scout',request.url),308);
