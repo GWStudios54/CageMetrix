@@ -111,6 +111,20 @@ test('article extraction excludes a related-posts river so one article\'s events
   assert.doesNotMatch(body,/Other Fighter scorches rival/);
 });
 
+test('article extraction excludes a "see also" link list embedded in a single paragraph, with no wrapper class to catch it, by anchor density rather than a per-language phrase',()=>{
+  // Mirrors a real bug found live on ufc-fr.com: unlike BJPenn's separately-wrapped related-posts
+  // section, its "Voir aussi les articles suivants :" recommendation list is a single <p> with no
+  // distinguishing class, sitting inside the very same <article> as the real content -- so a class
+  // exclusion can never catch it. One of its five links named a fighter (Max Holloway) with zero
+  // connection to the actual article, producing a misattributed candidate. Real prose blocks across
+  // every source already relied on (BJPenn, Sherdog, PFL) never carry more than 3 anchors, so >=4 is
+  // used as a safe, language-independent signal instead.
+  const html=`<article><p>Real Fighter earned a new contract after his win at the event.</p><p><strong>See also the following stories:</strong><br><a href="/a">Other Story About Rival Fighter</a><br><a href="/b">Second Story About Another Name</a><br><a href="/c">Third Story About A Third Name</a><br><a href="/d">Fourth Story Mentioning Unrelated Fighter</a></p></article>`;
+  const body=articleText(html);
+  assert.match(body,/Real Fighter earned a new contract/);
+  assert.doesNotMatch(body,/Unrelated Fighter/);
+});
+
 test('signal-local discovery excludes comparison and opponent names from contract candidates',()=>{
   const source={publisher:'UFC',sourceType:'promotion_direct',promotionSlug:'ufc'};
   const profiles=[
