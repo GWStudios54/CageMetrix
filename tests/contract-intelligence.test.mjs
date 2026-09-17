@@ -125,6 +125,18 @@ test('article extraction excludes a "see also" link list embedded in a single pa
   assert.doesNotMatch(body,/Unrelated Fighter/);
 });
 
+test('article extraction excludes a "recirc" widget even though it has no "related" class, since sites name this pattern differently',()=>{
+  // Mirrors a real bug found live on MMA Mania (a Vox Media/SB Nation "Duet" platform site, same
+  // platform as MMA Fighting): its real "More in <event>" river is wrapped in
+  // `.duet--layout--article-recirc`, which the earlier [class*="related"] fix does not match --
+  // Vox names this content-recycling pattern "recirc", not "related". It let an unrelated fighter's
+  // withdrawal story leak into a completely different fight-preview article's extracted text.
+  const html=`<article><p>Real Fighter is undefeated heading into this weekend's card.</p><div class="duet--layout--article-recirc"><p>Unrelated Fighter was forced to withdraw from his upcoming bout.</p></div></article>`;
+  const body=articleText(html);
+  assert.match(body,/Real Fighter is undefeated/);
+  assert.doesNotMatch(body,/Unrelated Fighter/);
+});
+
 test('signal-local discovery excludes comparison and opponent names from contract candidates',()=>{
   const source={publisher:'UFC',sourceType:'promotion_direct',promotionSlug:'ufc'};
   const profiles=[

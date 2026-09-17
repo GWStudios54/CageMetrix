@@ -318,8 +318,12 @@ export function articleText(html,source={}){
   // being swept into the block scan alongside the real article, producing candidates that misattribute
   // one story's fighters/events to a completely different article. Kept broad (a class-name substring
   // match, not BJPenn's exact class) so it also covers other sites' equivalent widgets without needing
-  // a fix per site.
-  for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form,aside,[role="complementary"],.related_articles,.latest_articles,.latest_features,.tools_list,.pagination,.right-tabs-content,[class*="recommend"],[class*="outbrain"],[class*="related"]'))node.remove();
+  // a fix per site. [class*="recirc"] catches the same failure mode under a different name: MMA
+  // Mania's real "More in <event>" river (a Vox Media/SB Nation "Duet" platform site, same as MMA
+  // Fighting) wraps it in `.duet--layout--article-recirc` -- confirmed live, it let "Brian Ortega was
+  // forced to withdraw..." leak into an unrelated fight-preview article's extracted text. Vox names
+  // this content-recycling pattern "recirc" rather than "related", so it slipped past the first fix.
+  for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form,aside,[role="complementary"],.related_articles,.latest_articles,.latest_features,.tools_list,.pagination,.right-tabs-content,[class*="recommend"],[class*="outbrain"],[class*="related"],[class*="recirc"]'))node.remove();
   const root=(source.contentSelector?doc.querySelector(source.contentSelector):null)||doc.querySelector('article .body_content,article .article-content,article .entry-content,article,main')||doc.body;
   const blocks=[];const seen=new Set();
   // A "see also"/"related articles" link list isn't always its own wrapper: found live on ufc-fr.com,
