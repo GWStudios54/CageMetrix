@@ -37,7 +37,7 @@ test('migration preserves existing internal model and database identifiers witho
   assert.doesNotMatch(eventPage,/CageMetrix Win Probability|fighter_a_probability|picked_fighter_id/);
 });
 
-test('legacy hosts remain attached so every old URL can redirect one-to-one',()=>{
+test('MMA Scouts canonical redirects are limited to its own hosts',()=>{
   const config=read('wrangler.jsonc');
   const canonical=read('src/canonical.ts');
   for(const host of ['mmascouts.com','www.mmascouts.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);
