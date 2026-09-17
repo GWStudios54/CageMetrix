@@ -4,15 +4,15 @@ import fs from 'node:fs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
-test('legacy CageMetrix and alternate MMA Scouts hosts permanently collapse to https non-www before routing',()=>{
+test('alternate MMA Scouts hosts collapse to https non-www without claiming Cage Metrix',()=>{
   const brand=read('src/brand.ts');
   const canonical=read('src/canonical.ts');
   const entry=read('src/entry.ts');
   const worker=read('src/worker.ts');
   const config=read('wrangler.jsonc');
   assert.match(brand,/CANONICAL_HOST='mmascouts\.com'/);
-  assert.match(brand,/cagemetrix\.com/);
-  assert.match(canonical,/LEGACY_HOSTS\.has\(host\)/);
+  assert.doesNotMatch(brand,/cagemetrix\.com/);
+  assert.doesNotMatch(canonical,/LEGACY_HOSTS|cagemetrix\.com/);
   assert.match(canonical,/host===WWW_CANONICAL_HOST/);
   assert.match(canonical,/url\.protocol==='http:'/);
   assert.match(canonical,/url\.pathname==='\/index\.html'/);
