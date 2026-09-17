@@ -62,6 +62,17 @@ test('real, verified coach-change headlines are recognized (Henry Cejudo/Eric Al
   assert.equal(detectCoachEventType('Ilia Topuria splits from coaches in shock move ahead of UFC 317 title fight'),'parted_ways');
 });
 
+test('a real, verified coach-hire headline is recognized: MMA Mania\'s "Ronda Rousey\'s new coach is Ricky Lundell" (its own dek text, from "Plot twist! \'Fake\' UFC coach Ronda Rousey \'hated\' is now training \'Rowdy\' for Gina Carano comeback")',()=>{
+  const text="Ronda Rousey's new coach is Ricky Lundell, who trained UFC rival Miesha Tate against \"Rowdy\" during The Ultimate Fighter (TUF) 18.";
+  assert.equal(hasCoachSignal(text),true);
+  assert.equal(detectCoachEventType(text),'hired');
+  assert.equal(detectCoachName(text),'Ricky Lundell');
+});
+
+test('a debunked "fires" headline is deliberately not treated as a coach-parting signal (MMA Mania\'s "Cejudo fires longtime coach" carried its own update: "Albarracin was never fired, Cejudo just made another terrible joke")',()=>{
+  assert.equal(hasCoachSignal('What?! Cejudo fires longtime coach live on Countdown to UFC 298'),false);
+});
+
 test('unrelated fight-card and matchup news does not falsely trigger a coach signal',()=>{
   assert.equal(hasCoachSignal('UFC 331 fight card announced for September'),false);
   assert.equal(hasCoachSignal('Fighter X faces Fighter Y at UFC 400'),false);

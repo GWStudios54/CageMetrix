@@ -137,6 +137,15 @@ test('real, verified camp-joining headlines are recognized (Horiguchi, Barboza, 
   assert.equal(detectCamp('Tai Tuivasa joins American Top Team amid seven-fight skid'),'american-top-team');
 });
 
+test('real, verified camp-change vocabulary is recognized: ESPN\'s "Kamaru Usman changes camp ahead of title defense vs. Gilbert Burns", body "has moved his camp to Denver"',()=>{
+  assert.equal(hasCampSignal('Kamaru Usman changes camp ahead of title defense vs. Gilbert Burns'),true);
+  assert.equal(detectCampEventType('Kamaru Usman changes camp ahead of title defense vs. Gilbert Burns'),'status_update');
+
+  assert.equal(hasCampSignal('Usman has moved his camp to Denver, under head coach Trevor Wittman'),true);
+  assert.equal(detectCampEventType('Usman has moved his camp to American Top Team'),'joined');
+  assert.equal(detectCamp('Usman has moved his camp to American Top Team'),'american-top-team');
+});
+
 test('the ATT abbreviation resolves to the same camp as the full name, matching real usage',()=>{
   assert.equal(detectCamp('Tuivasa says he is now training at ATT full time'),'american-top-team');
 });
