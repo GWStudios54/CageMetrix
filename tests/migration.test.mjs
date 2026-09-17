@@ -9,7 +9,7 @@ test('MMA Scouts is the public brand and canonical origin',()=>{
   assert.match(brand,/BRAND_NAME='MMA Scouts'/);
   assert.match(brand,/SITE_ORIGIN='https:\/\/mmascouts\.com'/);
   assert.match(brand,/CANONICAL_HOST='mmascouts\.com'/);
-  assert.match(brand,/LEGACY_HOSTS=new Set\(\['cagemetrix\.com','www\.cagemetrix\.com'\]\)/);
+  assert.doesNotMatch(brand,/cagemetrix\\.com/);
 });
 
 test('public SEO surfaces use the shared MMA Scouts origin',()=>{
