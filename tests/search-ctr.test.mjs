@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 const read=path=>fs.readFileSync(path,'utf8');
 
-test('legacy CageMetrix and alternate MMA Scouts hosts permanently collapse to https non-www before routing',()=>{
+test('alternate MMA Scouts hosts collapse to https non-www without claiming Cage Metrix',()=>{
   const brand=read('src/brand.ts');
   const canonical=read('src/canonical.ts');
   const entry=read('src/entry.ts');
