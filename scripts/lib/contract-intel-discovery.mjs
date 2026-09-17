@@ -322,7 +322,14 @@ export function articleText(html,source={}){
   for(const node of doc.querySelectorAll('script,style,noscript,nav,footer,form,aside,[role="complementary"],.related_articles,.latest_articles,.latest_features,.tools_list,.pagination,.right-tabs-content,[class*="recommend"],[class*="outbrain"],[class*="related"]'))node.remove();
   const root=(source.contentSelector?doc.querySelector(source.contentSelector):null)||doc.querySelector('article .body_content,article .article-content,article .entry-content,article,main')||doc.body;
   const blocks=[];const seen=new Set();
-  for(const node of root?.querySelectorAll('h2,h3,p,li')||[]){const value=clean(node.textContent);if(value.length<12||seen.has(value))continue;seen.add(value);blocks.push(value);}
+  // A "see also"/"related articles" link list isn't always its own wrapper: found live on ufc-fr.com,
+  // where it's a single <p> (no distinguishing class) containing a "Voir aussi les articles suivants"
+  // lead-in plus five links to other stories -- one of which named a fighter with no connection to
+  // this article at all, producing a misattributed candidate. Checked across every real block already
+  // relied on in this pipeline (BJPenn, Sherdog, PFL): genuine prose never carries more than 3 anchors
+  // in one block, so >=4 anchors is a safe, language-independent signal that a block is a link list,
+  // not real content -- no per-language lead-in phrase needed.
+  for(const node of root?.querySelectorAll('h2,h3,p,li')||[]){if(node.querySelectorAll('a').length>=4)continue;const value=clean(node.textContent);if(value.length<12||seen.has(value))continue;seen.add(value);blocks.push(value);}
   if(!blocks.length){const fallback=clean(root?.textContent);if(fallback)blocks.push(fallback);}
   dom.window.close();return blocks.join('\n');
 }
