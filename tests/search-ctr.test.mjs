@@ -11,8 +11,8 @@ test('alternate MMA Scouts hosts collapse to https non-www without claiming Cage
   const worker=read('src/worker.ts');
   const config=read('wrangler.jsonc');
   assert.match(brand,/CANONICAL_HOST='mmascouts\.com'/);
-  assert.match(brand,/cagemetrix\.com/);
-  assert.match(canonical,/LEGACY_HOSTS\.has\(host\)/);
+  assert.doesNotMatch(brand,/cagemetrix\\.com/);
+  assert.doesNotMatch(canonical,/LEGACY_HOSTS|cagemetrix\\.com/);
   assert.match(canonical,/host===WWW_CANONICAL_HOST/);
   assert.match(canonical,/url\.protocol==='http:'/);
   assert.match(canonical,/url\.pathname==='\/index\.html'/);
