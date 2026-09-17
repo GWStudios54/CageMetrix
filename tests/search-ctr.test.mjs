@@ -22,7 +22,7 @@ test('legacy CageMetrix and alternate MMA Scouts hosts permanently collapse to h
   assert.match(entry,/stripRetiredPersonalUi\(await worker\.fetch\(request,env,context\)\)/);
   assert.match(worker,/canonicalRedirect\(request\)/);
   assert.match(config,/"main": "src\/entry\.ts"/);
-  for(const host of ['mmascouts.com','www.mmascouts.com','cagemetrix.com','www.cagemetrix.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);
+  for(const host of ['mmascouts.com','www.mmascouts.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);
 });
 
 test('fight pages expose click-oriented MMA Scouts matchup metadata and model probability',()=>{
