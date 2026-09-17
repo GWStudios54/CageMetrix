@@ -69,6 +69,30 @@ test('contract signal detector distinguishes common deal events',()=>{
   assert.equal(hasContractSignal('Promotion announces a new media rights agreement'),false);
 });
 
+test('an expiring contract is detected even in present tense and with words between "contract" and the verb (real gap: Michael Page\'s exit was mislabeled a signing)',()=>{
+  assert.deepEqual(detectContractSignal('Michael Page contract with the UFC expires next month'),{eventType:'expiration',status:'expired'});
+  assert.deepEqual(detectContractSignal('His contract is expiring at the end of the year'),{eventType:'expiration',status:'expired'});
+  assert.deepEqual(detectContractSignal('Michael Page completes his UFC contract as Derek Brunson proposes a free-agent fight.'),{eventType:'expiration',status:'expired'});
+});
+
+test('a negated signing sentence produces no contract signal at all, in English or French (real gap: Apollo Gomes did not land a contract despite his win)',()=>{
+  assert.equal(hasContractSignal('Apollo Gomes did not land a contract despite his win'),false);
+  assert.equal(hasContractSignal("Apollo Gomes didn't land a contract despite his win"),false);
+  assert.equal(hasContractSignal("Apollo Gomes n'a pas décroché de contrat malgré sa victoire",'fr'),false);
+
+  const rows=candidateRows(
+    {title:'x',url:'https://www.sherdog.com/news/news/x',publishedAt:null},
+    {publisher:'Sherdog',sourceType:'reputable_trade_reporting',lang:'fr'},
+    "Apollo Gomes n'a pas décroché de contrat malgré sa victoire dans l'octogone.",
+    [{source_key:'mma',source_fighter_id:'1',fighter_name:'Apollo Gomes'}]
+  );
+  assert.equal(rows.length,0);
+});
+
+test('a negation word far from the actual signal does not wrongly suppress a real, unrelated signing',()=>{
+  assert.equal(hasContractSignal('He never lost focus, and today he signed a new contract with the UFC.'),true);
+});
+
 test('discovery requires exact full-name matches and flags duplicate identities',()=>{
   const profiles=[
     {source_key:'a',source_fighter_id:'1',fighter_name:'Jane Doe'},
