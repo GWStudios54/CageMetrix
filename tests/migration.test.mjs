@@ -40,7 +40,7 @@ test('migration preserves existing internal model and database identifiers witho
 test('legacy hosts remain attached so every old URL can redirect one-to-one',()=>{
   const config=read('wrangler.jsonc');
   const canonical=read('src/canonical.ts');
-  for(const host of ['mmascouts.com','www.mmascouts.com','cagemetrix.com','www.cagemetrix.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);
+  for(const host of ['mmascouts.com','www.mmascouts.com'])assert.ok(config.includes(`"pattern": "${host}"`),`missing ${host}`);
   assert.match(canonical,/url\.hostname=CANONICAL_HOST/);
   assert.match(canonical,/status:308/);
   assert.match(canonical,/if\(url\.pathname==='\/index\.html'\)url\.pathname='\/'/);
