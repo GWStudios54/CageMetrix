@@ -57,6 +57,22 @@ export const CONTRACT_DISCOVERY_SOURCES=[
 
 const SIGNAL_RE=/\b(?:sign(?:s|ed|ing)?|re[- ]?sign(?:s|ed|ing)?|new\s+(?:multi[- ]fight\s+)?deal|(?:secur(?:e|es|ed|ing)|earn(?:s|ed|ing)?|award(?:s|ed|ing)?)\s+(?:a\s+|an\s+)?(?:[a-z0-9-]+\s+){0,2}(?:contract|deal)|contract(?:s|ed)?|extension|renew(?:s|ed|al)?|renegotiat(?:e|ed|ion)|free\s+agent|free\s+agency|release(?:d|s)?|part(?:s|ed)?\s+ways|option\s+(?:exercised|declined)|remaining\s+fights?|last\s+fight\s+(?:on|under)\s+(?:his|her|the)?\s*contract|complet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract)\b/i;
 const NON_FIGHTER_RE=/\b(?:media rights|broadcast|streaming|sponsorship deal|partnership|venue deal|rights agreement)\b/i;
+// Verified real false positive: "Apollo Gomes n'a pas décroché de contrat malgré sa victoire" ("did not
+// land a contract despite his win") and its English equivalent "did not land a contract" both matched
+// SIGNAL_RE (the bare word "contract"/"contrat") with no notion that the sentence had just negated it,
+// producing a fabricated signing candidate for a fighter who explicitly did NOT get a deal. Scoped to a
+// tight word-proximity window around the signal itself (not a blanket "negation anywhere in this block"
+// check) so an unrelated negation elsewhere in a longer block doesn't wrongly suppress a real, separate
+// signal -- a wider {0,5}-word window was tried first and rejected because it made "never" falsely
+// suppress "He never lost focus, and today he signed a new contract with the UFC" (5 unrelated words
+// between "never" and "signed"), so "never" is left out entirely and the window is tightened to {0,3}.
+// Kept to just the verb's own negation ("did not"/"does not"/"has not" and their contractions -- ordinary
+// grammatical variants of the one confirmed real phrase, not a new domain-specific claim) and to English
+// and French only -- the two languages with a confirmed real negated-signal example; not guessing at
+// pl/ru/ko/pt/es negation vocabulary without one (same discipline as the rest of this file's per-language
+// signal lists).
+const NEGATION_RE_EN=/\b(?:did\s+not|didn't|does\s+not|doesn't|has\s+not|hasn't|have\s+not|haven't)\b(?:\s+[a-z0-9']+){0,3}\s+(?:sign\w*|contract\w*|deal)\b/i;
+const NEGATION_RE_FR=/\bn'(?:a|ont|ai|as)\s+pas\b(?:\s+[a-z0-9']+){0,3}\s+(?:contrat\w*|signe\w*)\b|\bne\s+[a-z0-9']+\s+pas\b(?:\s+[a-z0-9']+){0,3}\s+contrat\w*\b/i;
 const PROMOTIONS=[
   ['ufc','(?:ultimate fighting championship|ufc)'],['pfl','(?:professional fighters league|pfl)'],['one','one championship'],['brave-cf','(?:brave combat federation|brave cf)'],['cffc','(?:cage fury fighting championships?|cage fury fc|cffc)'],['cage-warriors','cage warriors'],['oktagon','oktagon(?: mma)?'],['ksw','(?:konfrontacja sztuk walki|ksw)'],['rizin','rizin(?: fighting federation)?'],['lfa','(?:legacy fighting alliance|lfa)'],['fury-fc','(?:fury fighting championship|fury fc)'],['pancrase','pancrase'],['shooto','shooto'],['aca','(?:absolute championship akhmat|aca)'],['tuff-n-uff','tuff n uff'],['fnc','(?:fight nation championship|fnc)']
 ];
@@ -142,8 +158,14 @@ export function hasContractSignal(value,lang='en'){
   const text=semanticContractText(value);
   const signal=lang==='pl'?SIGNAL_RE_PL:lang==='ru'?SIGNAL_RE_RU:lang==='ko'?SIGNAL_RE_KO:lang==='pt'?SIGNAL_RE_PT:lang==='es'?SIGNAL_RE_ES:lang==='fr'?SIGNAL_RE_FR:SIGNAL_RE;
   const nonFighter=lang==='pl'?NON_FIGHTER_RE_PL:lang==='ru'?NON_FIGHTER_RE_RU:lang==='ko'?NON_FIGHTER_RE_KO:lang==='pt'?NON_FIGHTER_RE_PT:lang==='es'?NON_FIGHTER_RE_ES:lang==='fr'?NON_FIGHTER_RE_FR:NON_FIGHTER_RE;
-  return signal.test(text)&&!nonFighter.test(text);
+  const negation=lang==='fr'?NEGATION_RE_FR:lang==='en'?NEGATION_RE_EN:null;
+  return signal.test(text)&&!nonFighter.test(text)&&!(negation&&negation.test(text));
 }
+// Like NON_FIGHTER_RE above, NEGATION_RE_EN/NEGATION_RE_FR are only checked in hasContractSignal, not
+// here: candidateRows() always filters a block through hasContractSignal before this function ever runs
+// on it, so a negated block never reaches this classifier at all. Calling this directly on unfiltered
+// text (as a test might) will still classify a negated sentence as a positive event -- that's expected,
+// not a second bug, since the real candidate-generation path never does that.
 export function detectContractSignal(value,lang='en'){
   if(lang==='ja'){
     const raw=clean(value);
@@ -206,7 +228,11 @@ export function detectContractSignal(value,lang='en'){
     if(/\bcontrat\w*\b/.test(text))return {eventType:'signing',status:'under_contract'};
     return {eventType:'status_update',status:'unknown'};
   }
-  if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract\b|\bcontract\s+(?:has\s+)?(?:expired|ended)\b/.test(text))return {eventType:'expiration',status:'expired'};
+  // Verified real gap: "Michael Page contract with the UFC expires next month" fell through to the
+  // generic signing catch-all below, because the old pattern only matched present-tense-free "expired"/
+  // "ended" immediately adjacent to the word "contract" -- it missed both present tense ("expires"/
+  // "expiring") and the words a real sentence puts between "contract" and its verb ("with the UFC").
+  if(/\bcomplet(?:e|es|ed|ing)\s+(?:his|her|the)?\s*(?:[a-z0-9]+\s+){0,2}contract\b|\bcontracts?\b(?:\s+[a-z0-9']+){0,4}\s+(?:has\s+)?(?:expir(?:ed|es|ing)|end(?:ed|s|ing))\b/.test(text))return {eventType:'expiration',status:'expired'};
   if(/\bdeclin(?:e|es|ed|ing)\s+to\s+re\s?sign\b|\bnot\s+re\s?sign(?:s|ed|ing)?\b/.test(text))return {eventType:'status_update',status:'unknown'};
   if(/\bfree\s+agent(?:cy)?\b/.test(text))return {eventType:'free_agency',status:'free_agent'};
   if(/\brelease(?:d|s)?\b|\bpart(?:s|ed)?\s+ways\b/.test(text))return {eventType:'release',status:'released'};
