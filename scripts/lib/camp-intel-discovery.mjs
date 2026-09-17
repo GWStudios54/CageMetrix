@@ -92,7 +92,15 @@ const CAMPS=[
   ['xtreme-couture','xtreme couture']
 ];
 
-const JOIN_RE=/\b(?:join(?:s|ed|ing)?|moves?\s+to|moving\s+to|announces?\s+move\s+to|signs?\s+with|trains?\s+(?:at|with)|training\s+(?:at|with))\b/i;
+// Widened against a real, verified example: ESPN's "Kamaru Usman changes camp ahead of title defense
+// vs. Gilbert Burns" (Brett Okamoto, live, not retracted) -- body text "Usman ... has moved his camp
+// to Denver, under head coach Trevor Wittman" has "camp" between "moved" and "to", which the old
+// `moves?\s+to` alternative (adjacent words only, and only "move"/"moves", not "moved") did not match,
+// and the headline's own "changes camp" phrasing carried no "to <camp>" clause at all, so a title-only
+// listing check would have rejected this exact real story outright.
+// `mov(?:es?|ed|ing)\s+(?:(?:his|her|their)\s+)?(?:camp\s+)?to` and `changes?\s+camp|camp\s+change`
+// close both gaps.
+const JOIN_RE=/\b(?:join(?:s|ed|ing)?|mov(?:es?|ed|ing)\s+(?:(?:his|her|their)\s+)?(?:camp\s+)?to|announces?\s+move\s+to|signs?\s+with|trains?\s+(?:at|with)|training\s+(?:at|with)|changes?\s+camp|camp\s+change)\b/i;
 const LEAVE_RE=/\b(?:leaves?|left|departs?|departed|departure(?:s)?(?:\s+from)?|parts?\s+ways(?:\s+with)?)\b/i;
 export const CAMP_SIGNAL_RE=new RegExp(`${JOIN_RE.source}|${LEAVE_RE.source}`,'i');
 
@@ -102,7 +110,10 @@ export function detectCampEventType(value){
   const text=normalizeContractText(value);
   if(LEAVE_RE.test(text))return 'left';
   if(JOIN_RE.test(text)){
-    if(/\btrains?\s+(?:at|with)\b|\btraining\s+(?:at|with)\b/.test(text))return 'status_update';
+    // "changes camp" alone doesn't say which direction (unlike "moved to <camp>"), so it's treated the
+    // same conservative way as "trains at/with": a status update for a human to resolve, not an
+    // assumed join.
+    if(/\btrains?\s+(?:at|with)\b|\btraining\s+(?:at|with)\b|\bchanges?\s+camp\b|\bcamp\s+change\b/.test(text))return 'status_update';
     return 'joined';
   }
   return 'status_update';

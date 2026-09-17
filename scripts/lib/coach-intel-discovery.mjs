@@ -31,12 +31,16 @@ export const COACH_DISCOVERY_SOURCES=[
 // title fight" (Yahoo Sports/AOL). Coach changes are reported far less often than contract/injury news
 // and coach names aren't a fixed vocabulary the way camps are (arbitrary people, not ~40 known gyms),
 // so detected_coach_name below is a best-effort proximity extraction for a human to confirm or correct,
-// not a validated match -- same shape as injury discovery's opponent_name field. Kept deliberately
-// narrower than camp/injury's signal list rather than guessing at unconfirmed phrasings (e.g. no
-// "hires"/"brings in" pattern -- no real example of that exact phrasing was found for MMA coaching;
-// when one is confirmed real, it belongs here, not before).
+// not a validated match -- same shape as injury discovery's opponent_name field.
+// The "hires"/"brings in" gap flagged here previously has one confirmed real example now: MMA Mania,
+// "Plot twist! 'Fake' UFC coach Ronda Rousey 'hated' is now training 'Rowdy' for Gina Carano comeback"
+// (2026-04-06, live, not retracted), whose own dek states it plainly: "Ronda Rousey's new coach is
+// Ricky Lundell". A close call was rejected rather than shipped: MMA Mania's "Cejudo fires longtime
+// coach" (2024-02-11) looked like a second, cleaner "fires" pattern, but the article's own headline and
+// meta description carry an update -- "Albarracin was never fired, Cejudo just made another terrible
+// joke" -- so "fires" stays out; it would have coded a real publisher's retracted joke as a real event.
 const PARTED_RE=/\bparts?\s+(?:ways\s+)?with\s+(?:(?:his|her|their)\s+)?(?:longtime\s+)?coach(?:es)?\b|\bsplits?\s+from\s+(?:(?:his|her|their)\s+)?(?:longtime\s+)?coach(?:es)?\b|\bhand(?:s|ed)\s+(?:his|her|their)?\s*(?:longtime\s+)?coach\b.{0,30}\bwalking\s+papers\b/i;
-const HIRED_RE=/\bnew\s+head\s+coach\b/i;
+const HIRED_RE=/\bnew\s+head\s+coach\b|\bnew\s+coach\s+is\b/i;
 
 export const COACH_SIGNAL_RE=new RegExp(`${PARTED_RE.source}|${HIRED_RE.source}`,'i');
 
@@ -50,10 +54,11 @@ export function detectCoachEventType(value){
 }
 
 // Best-effort: capture a capitalized name immediately following the word "coach" (e.g. "longtime coach
-// Eric Albarracin"). Returns null rather than guessing when no such name is present -- the review page
+// Eric Albarracin"), or following "coach is" for the hire phrasing verified above (e.g. "new coach is
+// Ricky Lundell"). Returns null rather than guessing when no such name is present -- the review page
 // lets a human fill in or correct the coach name before publishing either way.
 export function detectCoachName(value){
-  const match=String(value||'').match(/\bcoach(?:es)?\s+((?:[A-Z][a-zA-Z'.-]+\s*){1,3})/);
+  const match=String(value||'').match(/\bcoach(?:es)?\s+(?:is\s+)?((?:[A-Z][a-zA-Z'.-]+\s*){1,3})/);
   if(!match)return null;
   const name=match[1].trim().replace(/\s+(?:his|her|their|and|is|was|to|for)$/i,'');
   return name||null;
