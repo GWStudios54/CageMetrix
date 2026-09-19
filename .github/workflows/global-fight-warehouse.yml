@@ -1,0 +1,128 @@
+name: Global fight warehouse
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/0012_global_fight_warehouse.sql'
+      - 'scripts/global-warehouse/**'
+      - '.github/workflows/global-fight-warehouse.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/0012_global_fight_warehouse.sql'
+      - 'scripts/global-warehouse/**'
+      - '.github/workflows/global-fight-warehouse.yml'
+  schedule:
+    - cron: '23 10 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-fight-warehouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install project and warehouse tooling
+        run: |
+          npm ci
+          python -m pip install --disable-pip-version-check 'duckdb==1.4.1'
+
+      - name: Download public MMA Global Database snapshot
+        run: |
+          mkdir -p .cache/global-source
+          curl --fail --location --retry 4 --retry-all-errors \
+            --user-agent 'CageMetrix research warehouse/1.0' \
+            'https://www.kaggle.com/api/v1/datasets/download/leandroiber/mmastats' \
+            -o .cache/global-source/mmastats.zip
+          unzip -q .cache/global-source/mmastats.zip -d .cache/global-source/unpacked
+          DB_PATH="$(find .cache/global-source/unpacked -type f -name '*.duckdb' | head -n 1)"
+          test -n "$DB_PATH"
+          echo "DB_PATH=$DB_PATH" >> "$GITHUB_ENV"
+          ls -lh "$DB_PATH"
+
+      - name: Convert source snapshot into D1 warehouse import
+        run: |
+          python scripts/global-warehouse/export_duckdb_to_d1.py \
+            --db "$DB_PATH" \
+            --output .cache/global-warehouse.sql \
+            --report .cache/global-warehouse-report.json
+          ls -lh .cache/global-warehouse.sql .cache/global-warehouse-report.json
+
+      - name: Enforce warehouse quality floor
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('.cache/global-warehouse-report.json'))
+          assert r['bouts'] >= 100000, r
+          assert r['fighters'] >= 10000, r
+          assert r['organizations'] >= 100, r
+          assert r['duplicate_bout_ids'] == 0, r
+          # The source's global bout table does not carry fighter IDs. We only
+          # resolve a source ID when the normalized name is unique; unresolved
+          # names stay intentionally NULL rather than forcing a risky merge.
+          assert r['participant_identity_link_rate'] >= 0.60, r
+          # Preserve every row in the source-native detailed table even when
+          # its native fight_id cannot be safely cross-linked to the global
+          # table. Cross-table matching is metadata, never a prerequisite for
+          # retaining the detailed record.
+          assert r['detailed_bouts_imported'] == r['detailed_bouts_source'], r
+          assert r['detailed_rows_with_stats_source'] >= 8000, r
+          assert r['first_event_date'] and r['last_event_date'], r
+          print('Warehouse quality gate passed:')
+          print(json.dumps({k:r[k] for k in ['fighters','bouts','detailed_bouts_imported','detailed_rows_with_stats_source','organizations','first_event_date','last_event_date','participant_identity_link_rate','duplicate_canonical_signature_groups','sql_bytes']}, indent=2))
+          print('Detailed cross-table links:', json.dumps(r['detailed_match_counts'], indent=2))
+          PY
+
+      - name: Validate migration and full import locally
+        run: |
+          rm -rf .cache/warehouse-local
+          npx wrangler d1 migrations apply cagemetrix --local --persist-to .cache/warehouse-local
+          npx wrangler d1 execute cagemetrix --local --persist-to .cache/warehouse-local --file .cache/global-warehouse.sql
+          npx wrangler d1 execute cagemetrix --local --persist-to .cache/warehouse-local --command \
+            "SELECT (SELECT COUNT(*) FROM warehouse_fighters) fighters,(SELECT COUNT(*) FROM warehouse_bouts) bouts,(SELECT COUNT(*) FROM warehouse_bout_stats) detailed;"
+
+      - name: Apply warehouse schema remotely
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 migrations apply cagemetrix --remote
+
+      - name: Import global warehouse remotely
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 execute cagemetrix --remote --file .cache/global-warehouse.sql
+
+      - name: Verify remote warehouse
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 execute cagemetrix --remote --command \
+            "SELECT source_key,latest_source_version,fighter_rows,bout_rows,detailed_bout_rows,latest_ingested_at FROM warehouse_sources WHERE source_key='leandroiber_mma_global_v3';"
+          npx wrangler d1 execute cagemetrix --remote --command \
+            "SELECT organization,COUNT(*) bouts FROM warehouse_bouts WHERE is_major_org=1 GROUP BY organization ORDER BY bouts DESC LIMIT 20;"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: global-fight-warehouse-report
+          path: .cache/global-warehouse-report.json
+          retention-days: 30
